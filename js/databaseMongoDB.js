@@ -1703,6 +1703,90 @@ async getTarifario() {
             return { success: false, message: 'Error de conexión' };
         }
     }
+
+    // === GESTIÓN DE NOTIFICACIONES ===
+    async getNotifications(userId) {
+        try {
+            const response = await fetch(`${this.API_URL}/notifications/user/${userId}`, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result.success ? result.data : [];
+        } catch (error) {
+            console.error('❌ Error obteniendo notificaciones:', error);
+            return [];
+        }
+    }
+
+    async getUnreadNotificationCount(userId) {
+        try {
+            const response = await fetch(`${this.API_URL}/notifications/user/${userId}/unread-count`, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result.success ? result.count : 0;
+        } catch (error) {
+            console.error('❌ Error contando notificaciones:', error);
+            return 0;
+        }
+    }
+
+    async createNotification(notifData) {
+        try {
+            const response = await fetch(`${this.API_URL}/notifications`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(notifData)
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('❌ Error creando notificación:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async markNotificationAsRead(notificationId) {
+        try {
+            const response = await fetch(`${this.API_URL}/notifications/${notificationId}/read`, {
+                method: 'PUT',
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('❌ Error marcando notificación:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async markAllNotificationsAsRead(userId) {
+        try {
+            const response = await fetch(`${this.API_URL}/notifications/user/${userId}/read-all`, {
+                method: 'PUT',
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('❌ Error marcando notificaciones:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async deleteNotification(notificationId) {
+        try {
+            const response = await fetch(`${this.API_URL}/notifications/${notificationId}`, {
+                method: 'DELETE',
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('❌ Error eliminando notificación:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
 }
 
 // Crear instancia global de la base de datos

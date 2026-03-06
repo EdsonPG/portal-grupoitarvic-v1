@@ -210,4 +210,92 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PUT actualizar foto de perfil
+router.put('/:id/profile-photo', async (req, res) => {
+  try {
+    const { profilePhoto } = req.body;
+    
+    if (!profilePhoto) {
+      return res.status(400).json({ success: false, message: 'Se requiere la foto de perfil' });
+    }
+
+    // Validar tamaño (~2MB max en Base64)
+    if (profilePhoto.length > 2 * 1024 * 1024) {
+      return res.status(400).json({ success: false, message: 'La imagen es demasiado grande (máximo 2MB)' });
+    }
+
+    const user = await User.findOneAndUpdate(
+      { userId: req.params.id },
+      { profilePhoto, updatedAt: new Date() },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    console.log('✅ Foto de perfil actualizada para:', req.params.id);
+    res.json({ success: true, message: 'Foto actualizada', data: user });
+  } catch (error) {
+    console.error('❌ Error actualizando foto:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE eliminar foto de perfil
+router.delete('/:id/profile-photo', async (req, res) => {
+  try {
+    const user = await User.findOneAndUpdate(
+      { userId: req.params.id },
+      { profilePhoto: null, updatedAt: new Date() },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    console.log('✅ Foto de perfil eliminada para:', req.params.id);
+    res.json({ success: true, message: 'Foto eliminada', data: user });
+  } catch (error) {
+    console.error('❌ Error eliminando foto:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT cambiar contraseña
+router.put('/:id/change-password', async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Se requieren ambas contraseñas' });
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({ success: false, message: 'La nueva contraseña debe tener al menos 4 caracteres' });
+    }
+
+    const user = await User.findOne({ userId: req.params.id });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    // Verificar contraseña actual (sin bcrypt)
+    if (user.password !== currentPassword) {
+      return res.status(401).json({ success: false, message: 'La contraseña actual es incorrecta' });
+    }
+
+    user.password = newPassword;
+    user.updatedAt = new Date();
+    await user.save();
+
+    console.log('✅ Contraseña cambiada para:', req.params.id);
+    res.json({ success: true, message: 'Contraseña actualizada exitosamente' });
+  } catch (error) {
+    console.error('❌ Error cambiando contraseña:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

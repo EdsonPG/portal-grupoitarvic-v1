@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean, 
     default: true 
   },
+  profilePhoto: {
+    type: String,
+    default: null
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 
@@ -37,6 +41,14 @@ const userSchema = new mongoose.Schema({
   updatedAt: { 
     type: Date, 
     default: Date.now 
+  },
+  resetPasswordToken: {
+    type: String,
+    default: null
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null
   }
 });
 

@@ -16,16 +16,270 @@
                     <img src="../images/Logo Grupo IT Arvic 22.svg" alt="GRUPO IT ARVIC" class="consultor-logo-svg">
                 </div>
             </div>
-            <div class="nav-center">
-                <h2 style="color: #2c3e50; margin: 0;">Portal de Consultor</h2>
+
+            <!-- Centro: botones de navegación -->
+            <div class="nav-actions">
+                <button class="nav-action-btn" title="Soporte">
+                    <i class="fa-solid fa-headset"></i>
+                    <span>SOPORTE</span>
+                </button>
+                <button class="nav-action-btn" title="Chat">
+                    <i class="fa-solid fa-comments"></i>
+                    <span>CHAT</span>
+                </button>
+                <button class="nav-action-btn nav-action-btn--notify" title="Notificaciones" onclick="toggleNotificationsPanel()">
+                    <span class="notify-wrapper">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="notify-badge" id="notifyBadge" style="display:none;">0</span>
+                    </span>
+                    <span>NOTIFICACIONES</span>
+                </button>
+                <button class="nav-action-btn" title="Ayuda" onclick="toggleHelpPanel()">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>AYUDA</span>
+                </button>
             </div>
+
             <div class="nav-right">
                 <div class="user-menu">
-                    <span class="user-name" id="consultorUserName">Cargando...</span>
-                    <button class="btn btn-danger" onclick="logout()">Cerrar Sesión</button>
+                    <div class="user-avatar-wrapper" onclick="toggleSettingsDropdown(event)" style="cursor:pointer;">
+                        <div class="user-avatar">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <div class="avatar-settings-badge" id="userStatusBadge" title="En línea"></div>
+                    </div>
+                    <div class="user-details" onclick="toggleSettingsDropdown(event)" style="cursor:pointer;">
+                        <span class="user-name" id="consultorUserName">Cargando...</span>
+                        <span class="user-role">CONSULTOR</span>
+                    </div>
+
+                    <!-- Settings Dropdown -->
+                    <div id="settingsDropdown" class="settings-dropdown">
+                        <!-- Vista Principal -->
+                        <div id="settingsMainView" class="settings-view">
+                            <div class="settings-header">
+                                <div class="settings-photo-area">
+                                    <div class="settings-photo-preview" id="settingsPhotoPreview">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <button class="settings-photo-btn" onclick="triggerPhotoUpload()" title="Cambiar foto">
+                                        <i class="fa-solid fa-camera"></i>
+                                    </button>
+                                    <input type="file" id="settingsPhotoInput" accept="image/*" style="display:none;" onchange="handleProfilePhotoUpload(event)">
+                                </div>
+                                <div class="settings-user-info">
+                                    <span class="settings-user-name" id="settingsUserName">Usuario</span>
+                                    <span class="settings-user-email" id="settingsUserEmail"></span>
+                                    <span class="settings-user-role" id="settingsUserRole">Consultor</span>
+                                </div>
+                            </div>
+
+                            <!-- Status selector -->
+                            <div class="settings-status-bar">
+                                <span class="settings-status-label">Estado:</span>
+                                <button class="settings-status-opt active" data-status="online" onclick="setUserStatus('online')" title="En línea">
+                                    <span class="status-dot online"></span> En línea
+                                </button>
+                                <button class="settings-status-opt" data-status="away" onclick="setUserStatus('away')" title="Ausente">
+                                    <span class="status-dot away"></span> Ausente
+                                </button>
+                                <button class="settings-status-opt" data-status="dnd" onclick="setUserStatus('dnd')" title="No molestar">
+                                    <span class="status-dot dnd"></span> No molestar
+                                </button>
+                            </div>
+
+                            <div class="settings-menu-items">
+                                <div class="settings-section-label">
+                                    <i class="fa-solid fa-gear"></i> Ajustes de Cuenta
+                                </div>
+                                <button class="settings-menu-item" onclick="triggerPhotoUpload()">
+                                    <i class="fa-solid fa-image"></i>
+                                    <span>Cambiar Foto de Perfil</span>
+                                </button>
+                                <button class="settings-menu-item" id="settingsRemovePhoto" style="display:none;" onclick="removeProfilePhoto()">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                    <span>Eliminar Foto</span>
+                                </button>
+                                <button class="settings-menu-item" onclick="showEditProfile()">
+                                    <i class="fa-solid fa-user-pen"></i>
+                                    <span>Editar Nombre</span>
+                                </button>
+                                <button class="settings-menu-item" onclick="showChangePassword()">
+                                    <i class="fa-solid fa-key"></i>
+                                    <span>Seguridad / Contraseña</span>
+                                </button>
+
+                                <div class="settings-section-label">
+                                    <i class="fa-solid fa-sliders"></i> Preferencias
+                                </div>
+                                <div class="settings-menu-item settings-toggle-item" id="darkModeToggle" onclick="toggleDarkMode()">
+                                    <i class="fa-solid fa-moon"></i>
+                                    <span>Modo Oscuro</span>
+                                    <div class="settings-toggle-track">
+                                        <div class="settings-toggle-thumb"></div>
+                                    </div>
+                                </div>
+
+                                <div class="settings-divider"></div>
+
+                                <button class="settings-menu-item settings-logout" onclick="logout()">
+                                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                    <span>Cerrar Sesión</span>
+                                </button>
+                            </div>
+
+                            <div class="settings-footer">
+                                Portal ARVIC v1.0.0
+                            </div>
+                        </div>
+
+                        <!-- Vista: Editar Perfil -->
+                        <div id="settingsEditProfileView" class="settings-view" style="display:none;">
+                            <div class="settings-subheader">
+                                <button class="settings-back-btn" onclick="showSettingsMain()">
+                                    <i class="fa-solid fa-arrow-left"></i>
+                                </button>
+                                <span>Editar Nombre</span>
+                            </div>
+                            <div class="settings-form">
+                                <label for="settingsEditName">Nombre completo</label>
+                                <input type="text" id="settingsEditName" placeholder="Tu nombre completo">
+                                <button class="settings-save-btn" onclick="saveProfileName()">
+                                    <i class="fa-solid fa-check"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Vista: Cambiar Contraseña -->
+                        <div id="settingsChangePasswordView" class="settings-view" style="display:none;">
+                            <div class="settings-subheader">
+                                <button class="settings-back-btn" onclick="showSettingsMain()">
+                                    <i class="fa-solid fa-arrow-left"></i>
+                                </button>
+                                <span>Cambiar Contraseña</span>
+                            </div>
+                            <div class="settings-form">
+                                <label for="settingsCurrentPwd">Contraseña actual</label>
+                                <input type="password" id="settingsCurrentPwd" placeholder="••••••">
+                                <label for="settingsNewPwd">Nueva contraseña</label>
+                                <input type="password" id="settingsNewPwd" placeholder="••••••">
+                                <label for="settingsConfirmPwd">Confirmar contraseña</label>
+                                <input type="password" id="settingsConfirmPwd" placeholder="••••••">
+                                <div id="settingsPwdMsg" class="settings-msg"></div>
+                                <button class="settings-save-btn" onclick="saveNewPassword()">
+                                    <i class="fa-solid fa-lock"></i> Cambiar Contraseña
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </nav>
+
+        <!-- Panel de Notificaciones Dropdown -->
+        <div id="notificationsPanel" class="notif-panel">
+            <div class="notif-panel-content">
+                <div class="notif-panel-header">
+                    <h3><i class="fa-solid fa-bell"></i> Notificaciones</h3>
+                    <div class="notif-header-actions">
+                        <button class="notif-mark-all" onclick="markAllNotificationsRead()" title="Marcar todas como leídas">
+                            <i class="fa-solid fa-check-double"></i>
+                        </button>
+                        <button class="help-panel-close" onclick="toggleNotificationsPanel()">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="notif-panel-body" id="notificationsList">
+                    <div class="notif-empty">
+                        <i class="fa-solid fa-bell-slash"></i>
+                        <p>No hay notificaciones</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Ayuda Dropdown -->
+        <div id="helpPanel" class="help-panel">
+            <div class="help-panel-content">
+                <div class="help-panel-header">
+                    <h3><i class="fa-solid fa-circle-question"></i> Centro de Ayuda</h3>
+                    <button class="help-panel-close" onclick="toggleHelpPanel()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="help-panel-body">
+                    <!-- Búsqueda rápida -->
+                    <div class="help-search">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="helpSearchInput" placeholder="Buscar en la ayuda..." oninput="filterHelpItems(this.value)">
+                    </div>
+
+                    <!-- FAQ -->
+                    <div class="help-section">
+                        <h4><i class="fa-solid fa-star"></i> Preguntas Frecuentes</h4>
+                        <div class="help-faq-list" id="helpFaqList">
+                            <div class="help-faq-item" data-search="reporte ticket horas crear enviar">
+                                <div class="help-faq-question" onclick="toggleFaq(this)">
+                                    <span>¿Cómo crear un ticket de horas?</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                                <div class="help-faq-answer">
+                                    En tu lista de asignaciones activas, haz clic en el botón <strong>"Crear Ticket"</strong> de la asignación correspondiente. Completa el título, descripción, horas trabajadas y fecha, luego envía el ticket para revisión del administrador.
+                                </div>
+                            </div>
+                            <div class="help-faq-item" data-search="asignación activa soporte proyecto ver">
+                                <div class="help-faq-question" onclick="toggleFaq(this)">
+                                    <span>¿Dónde veo mis asignaciones?</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                                <div class="help-faq-answer">
+                                    Tus asignaciones activas aparecen en la sección principal <strong>"Mis Asignaciones y Reportes"</strong>. Cada tarjeta muestra el soporte/proyecto, empresa, módulo y las acciones disponibles.
+                                </div>
+                            </div>
+                            <div class="help-faq-item" data-search="reporte rechazado pendiente estado revisar">
+                                <div class="help-faq-question" onclick="toggleFaq(this)">
+                                    <span>¿Qué pasa si mi reporte es rechazado?</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                                <div class="help-faq-answer">
+                                    Los reportes rechazados aparecen en la sección <strong>"Reportes Rechazados"</strong> debajo de tus asignaciones. Puedes revisar el motivo del rechazo y crear un nuevo ticket con las correcciones necesarias.
+                                </div>
+                            </div>
+                            <div class="help-faq-item" data-search="horas formato tiempo decimal">
+                                <div class="help-faq-question" onclick="toggleFaq(this)">
+                                    <span>¿En qué formato registro mis horas?</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                                <div class="help-faq-answer">
+                                    Las horas se registran en <strong>formato decimal</strong>. Por ejemplo: 8 horas = 8.0, 8 horas y media = 8.5, 2 horas y 15 minutos = 2.25. El mínimo es 0.5 horas y el máximo es 24.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Info del Sistema -->
+                    <div class="help-section help-system-info">
+                        <h4><i class="fa-solid fa-info-circle"></i> Información del Sistema</h4>
+                        <div class="help-info-grid">
+                            <div class="help-info-item">
+                                <span class="help-info-label">Versión</span>
+                                <span class="help-info-value">1.0.0</span>
+                            </div>
+                            <div class="help-info-item">
+                                <span class="help-info-label">Plataforma</span>
+                                <span class="help-info-value">Portal ARVIC</span>
+                            </div>
+                            <div class="help-info-item">
+                                <span class="help-info-label">Contacto</span>
+                                <span class="help-info-value">soporte@grupoitarvic.com</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </header>
 
     <!-- Loading Spinner -->
@@ -225,6 +479,7 @@
     <script src="../js/databaseMongoDB.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../js/settings-menu.js"></script>
     <script src="consultor.js"></script>
 </body>
 </html>

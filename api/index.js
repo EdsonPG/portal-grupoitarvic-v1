@@ -101,6 +101,7 @@ const projectAssignmentsRoutes = require('./routes/projectAssignments');
 const taskAssignmentsRoutes = require('./routes/taskAssignments');  // ✅ NUEVO
 const reportsRoutes = require('./routes/reports');
 const tarifarioRoutes = require('./routes/tarifario');
+const notificationsRoutes = require('./routes/notifications');
 
 // Usar rutas
 app.use('/api/auth', authRoutes);
@@ -114,6 +115,7 @@ app.use('/api/projectAssignments', projectAssignmentsRoutes);  // ✅ NUEVO
 app.use('/api/taskAssignments', taskAssignmentsRoutes);  // ✅ NUEVO
 app.use('/api/reports', reportsRoutes);
 app.use('/api/tarifario', tarifarioRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {
@@ -142,6 +144,10 @@ app.get('/admin/dashboard', (req, res) => {
 
 app.get('/consultor/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'consultor', 'dashboard.html'));
+});
+
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'reset-password.html'));
 });
 
 // Manejo de errores

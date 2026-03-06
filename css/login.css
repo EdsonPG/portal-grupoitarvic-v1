@@ -7,8 +7,9 @@ body {
     align-items: center;
     justify-content: center;
     margin: 0;
+    padding: 20px;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
 }
 
 /* Patrón de fondo corporativo */
@@ -34,9 +35,9 @@ body::before {
     box-shadow: 
         0 25px 50px -12px rgba(0, 0, 0, 0.25),
         0 0 0 1px rgba(255, 255, 255, 0.1);
-    padding: var(--spacing-2xl);
+    padding: var(--spacing-xl) var(--spacing-2xl);
     width: 100%;
-    max-width: 480px;
+    max-width: 440px;
     text-align: center;
     animation: loginFadeIn 0.8s ease;
     position: relative;
@@ -57,7 +58,7 @@ body::before {
 
 /* Sección del logo mejorada */
 .logo-svg-complete {
-    width: 160px; /* Ajusta según tu logo */
+    width: 120px; /* Más compacto */
     height: auto;
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
     transition: transform 0.3s ease;
@@ -73,8 +74,8 @@ body::before {
 }
 
 .logo-section {
-    margin-bottom: var(--spacing-2xl);
-    padding-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
     border-bottom: 1px solid var(--gray-200);
 }
 
@@ -86,16 +87,16 @@ body::before {
 /* Título de bienvenida */
 .welcome-text {
     color: var(--gray-600);
-    margin-bottom: var(--spacing-2xl);
-    font-size: 1.125rem;
+    margin-bottom: var(--spacing-md);
+    font-size: 1rem;
     font-weight: 500;
-    line-height: 1.5;
+    line-height: 1.4;
 }
 
 /* Estilos de formulario refinados */
 .form-group {
     text-align: left;
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
 }
 
 .form-group label {
@@ -143,13 +144,13 @@ body::before {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: white;
     border: none;
-    padding: var(--spacing-lg) var(--spacing-xl);
+    padding: var(--spacing-md) var(--spacing-lg);
     border-radius: var(--border-radius-md);
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition-normal);
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-sm);
     position: relative;
     overflow: hidden;
     text-transform: uppercase;
@@ -239,7 +240,6 @@ body::before {
         var(--shadow-md);
     animation: shakeError 0.5s ease;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
     align-items: center;
     gap: var(--spacing-sm);
 }
@@ -268,7 +268,6 @@ body::before {
         var(--shadow-md);
     animation: successPulse 0.6s ease;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
     align-items: center;
     gap: var(--spacing-sm);
 }
@@ -449,4 +448,228 @@ body::before {
 /* Transiciones suaves para cambios de tema */
 * {
     transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* ========================================== */
+/* RECUPERACIÓN DE CONTRASEÑA                */
+/* ========================================== */
+
+/* Enlace "¿Olvidaste tu contraseña?" */
+.forgot-password-section {
+    text-align: center;
+    margin-top: var(--spacing-sm);
+}
+
+.forgot-password-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: var(--transition-normal);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+}
+
+.forgot-password-link:hover {
+    color: var(--primary-dark);
+    background: rgba(30, 58, 138, 0.06);
+    transform: translateY(-1px);
+}
+
+.forgot-password-link i {
+    font-size: 0.8rem;
+}
+
+/* Formulario de recuperación inline */
+.forgot-password-form {
+    animation: loginFadeIn 0.4s ease;
+}
+
+.forgot-form-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.forgot-form-header h3 {
+    color: var(--gray-800);
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0 0 var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.forgot-form-header h3 i {
+    color: var(--primary-color);
+}
+
+.forgot-form-header p {
+    color: var(--gray-500);
+    font-size: 0.85rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Botón de recuperación */
+.recovery-btn {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%) !important;
+    margin-bottom: var(--spacing-md) !important;
+}
+
+/* Enlace volver al login */
+.back-to-login-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--gray-500);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: var(--transition-normal);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+}
+
+.back-to-login-link:hover {
+    color: var(--primary-color);
+    background: rgba(30, 58, 138, 0.04);
+}
+
+/* ========================================== */
+/* PÁGINA DE RESET DE CONTRASEÑA             */
+/* ========================================== */
+
+/* Wrapper de input con botón de toggle */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    padding-right: 48px !important;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--gray-400);
+    padding: 4px 8px;
+    font-size: 1rem;
+    transition: var(--transition-normal);
+    border-radius: var(--border-radius-sm);
+}
+
+.toggle-password-btn:hover {
+    color: var(--primary-color);
+    background: rgba(30, 58, 138, 0.06);
+}
+
+/* Password strength indicator */
+.password-strength {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin: var(--spacing-sm) 0 var(--spacing-lg);
+    animation: loginFadeIn 0.3s ease;
+}
+
+.strength-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    transition: width 0.4s ease, background-color 0.4s ease;
+}
+
+.strength-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 70px;
+    text-align: right;
+    transition: color 0.3s ease;
+}
+
+/* Token error view */
+.token-error-icon {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.token-error-icon i {
+    font-size: 3rem;
+    color: #f97316;
+    animation: shakeError 0.6s ease;
+}
+
+.token-error-text {
+    color: var(--gray-600);
+    font-size: 1rem;
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+    line-height: 1.5;
+}
+
+/* Success view */
+.success-icon-large {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.success-icon-large i {
+    font-size: 3.5rem;
+    color: #059669;
+    animation: successPulse 0.6s ease;
+}
+
+.success-text-large {
+    color: var(--gray-800);
+    font-size: 1.125rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.success-subtext {
+    color: var(--gray-500);
+    font-size: 0.9rem;
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+/* Responsive para password reset */
+@media (max-width: 480px) {
+    .forgot-form-header h3 {
+        font-size: 1rem;
+    }
+
+    .forgot-form-header p {
+        font-size: 0.8rem;
+    }
+
+    .password-strength {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .strength-text {
+        text-align: center;
+    }
 }

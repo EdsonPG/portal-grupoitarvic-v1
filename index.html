@@ -34,6 +34,34 @@
 
             <button type="submit" class="login-btn">Iniciar Sesión</button>
         </form>
+
+        <!-- Enlace de recuperación de contraseña -->
+        <div class="forgot-password-section" id="forgotPasswordSection">
+            <a href="#" class="forgot-password-link" id="forgotPasswordLink">
+                <i class="fas fa-lock"></i> ¿Olvidaste tu contraseña?
+            </a>
+        </div>
+
+        <!-- Formulario de recuperación (oculto por defecto) -->
+        <div class="forgot-password-form" id="forgotPasswordForm" style="display: none;">
+            <div class="forgot-form-header">
+                <h3><i class="fas fa-envelope"></i> Recuperar Contraseña</h3>
+                <p>Ingresa tu correo electrónico registrado y te enviaremos un enlace para restablecer tu contraseña.</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="recoveryEmail">Correo Electrónico</label>
+                <input type="email" id="recoveryEmail" placeholder="ejemplo@correo.com" required>
+            </div>
+
+            <button type="button" class="login-btn recovery-btn" id="sendRecoveryBtn">
+                <i class="fas fa-paper-plane"></i> Enviar Enlace de Recuperación
+            </button>
+            
+            <a href="#" class="back-to-login-link" id="backToLoginLink">
+                <i class="fas fa-arrow-left"></i> Volver al inicio de sesión
+            </a>
+        </div>
     </div>
 
     <script src="js/databaseMongoDB.js"></script>

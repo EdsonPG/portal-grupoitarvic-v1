@@ -1,3 +1,268 @@
+// === PANEL DE AYUDA ===
+function toggleHelpPanel() {
+    const panel = document.getElementById('helpPanel');
+    const btn = document.querySelector('.nav-action-btn[title="Ayuda"]');
+    if (!panel) return;
+
+    const isOpen = panel.classList.contains('active');
+    
+    if (isOpen) {
+        panel.classList.remove('active');
+        if (btn) btn.classList.remove('active');
+        document.removeEventListener('click', closeHelpOnOutsideClick);
+    } else {
+        panel.classList.add('active');
+        if (btn) btn.classList.add('active');
+        // Cerrar al hacer click fuera (con delay para evitar cierre inmediato)
+        setTimeout(() => {
+            document.addEventListener('click', closeHelpOnOutsideClick);
+        }, 100);
+    }
+}
+
+function closeHelpOnOutsideClick(e) {
+    const panel = document.getElementById('helpPanel');
+    const btn = document.querySelector('.nav-action-btn[title="Ayuda"]');
+    if (!panel) return;
+    
+    if (!panel.contains(e.target) && !btn.contains(e.target)) {
+        panel.classList.remove('active');
+        if (btn) btn.classList.remove('active');
+        document.removeEventListener('click', closeHelpOnOutsideClick);
+    }
+}
+
+function toggleFaq(questionElement) {
+    const faqItem = questionElement.closest('.help-faq-item');
+    if (!faqItem) return;
+    faqItem.classList.toggle('open');
+}
+
+function filterHelpItems(query) {
+    const items = document.querySelectorAll('.help-faq-item');
+    const normalizedQuery = query.toLowerCase().trim();
+    
+    items.forEach(item => {
+        if (!normalizedQuery) {
+            item.classList.remove('hidden');
+            return;
+        }
+        const searchData = (item.getAttribute('data-search') || '') + ' ' + (item.textContent || '');
+        if (searchData.toLowerCase().includes(normalizedQuery)) {
+            item.classList.remove('hidden');
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+}
+
+function navigateFromHelp(sectionName) {
+    // Cerrar panel de ayuda
+    toggleHelpPanel();
+    // Navegar a la sección
+    const menuItem = document.querySelector(`.sidebar-menu-item[data-section="${sectionName}"]`);
+    if (menuItem) {
+        menuItem.click();
+    }
+}
+
+// === PANEL DE NOTIFICACIONES ===
+let notifCurrentUserId = null;
+
+function toggleNotificationsPanel() {
+    const panel = document.getElementById('notificationsPanel');
+    const btn = document.querySelector('.nav-action-btn[title="Notificaciones"]');
+    if (!panel) return;
+
+    // Close help panel if open
+    const helpPanel = document.getElementById('helpPanel');
+    if (helpPanel && helpPanel.classList.contains('active')) {
+        toggleHelpPanel();
+    }
+
+    const isOpen = panel.classList.contains('active');
+    
+    if (isOpen) {
+        panel.classList.remove('active');
+        if (btn) btn.classList.remove('active');
+        document.removeEventListener('click', closeNotifOnOutsideClick);
+    } else {
+        panel.classList.add('active');
+        if (btn) btn.classList.add('active');
+        loadNotifications();
+        setTimeout(() => {
+            document.addEventListener('click', closeNotifOnOutsideClick);
+        }, 100);
+    }
+}
+
+function closeNotifOnOutsideClick(e) {
+    const panel = document.getElementById('notificationsPanel');
+    const btn = document.querySelector('.nav-action-btn[title="Notificaciones"]');
+    if (!panel) return;
+    
+    if (!panel.contains(e.target) && !btn.contains(e.target)) {
+        panel.classList.remove('active');
+        if (btn) btn.classList.remove('active');
+        document.removeEventListener('click', closeNotifOnOutsideClick);
+    }
+}
+
+async function loadNotifications() {
+    const userId = notifCurrentUserId || 'admin';
+    try {
+        const notifications = await window.PortalDB.getNotifications(userId);
+        renderNotifications(notifications);
+    } catch (error) {
+        console.error('Error cargando notificaciones:', error);
+    }
+}
+
+function renderNotifications(notifications) {
+    const container = document.getElementById('notificationsList');
+    if (!container) return;
+
+    if (!notifications || notifications.length === 0) {
+        container.innerHTML = `
+            <div class="notif-empty">
+                <i class="fa-solid fa-bell-slash"></i>
+                <p>No hay notificaciones</p>
+            </div>
+        `;
+        return;
+    }
+
+    const iconMap = {
+        'report_created': 'fa-solid fa-file-circle-plus',
+        'report_approved': 'fa-solid fa-circle-check',
+        'report_rejected': 'fa-solid fa-circle-xmark',
+        'report_resubmitted': 'fa-solid fa-rotate',
+        'assignment_new': 'fa-solid fa-clipboard-list',
+        'user_registered': 'fa-solid fa-user-plus',
+        'system': 'fa-solid fa-gear'
+    };
+
+    container.innerHTML = notifications.map(n => `
+        <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markNotificationRead('${n.notificationId}', this)">
+            <div class="notif-icon type-${n.type}">
+                <i class="${iconMap[n.type] || 'fa-solid fa-bell'}"></i>
+            </div>
+            <div class="notif-body">
+                <div class="notif-title">${n.title}</div>
+                <div class="notif-message">${n.message}</div>
+                <div class="notif-time">
+                    <i class="fa-solid fa-clock"></i>
+                    ${timeAgo(n.createdAt)}
+                </div>
+            </div>
+            ${!n.read ? '<span class="notif-unread-dot"></span>' : ''}
+        </div>
+    `).join('');
+}
+
+function timeAgo(dateStr) {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMs / 3600000);
+    const diffDay = Math.floor(diffMs / 86400000);
+
+    if (diffMin < 1) return 'Ahora mismo';
+    if (diffMin < 60) return `Hace ${diffMin} min`;
+    if (diffHr < 24) return `Hace ${diffHr} hr${diffHr > 1 ? 's' : ''}`;
+    if (diffDay < 7) return `Hace ${diffDay} día${diffDay > 1 ? 's' : ''}`;
+    return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+}
+
+async function markNotificationRead(notifId, element) {
+    try {
+        await window.PortalDB.markNotificationAsRead(notifId);
+        if (element) {
+            element.classList.remove('unread');
+            const dot = element.querySelector('.notif-unread-dot');
+            if (dot) dot.remove();
+        }
+        updateNotificationBadge();
+    } catch (error) {
+        console.error('Error marcando notificación:', error);
+    }
+}
+
+async function markAllNotificationsRead() {
+    const userId = notifCurrentUserId || 'admin';
+    try {
+        await window.PortalDB.markAllNotificationsAsRead(userId);
+        loadNotifications();
+        updateNotificationBadge();
+    } catch (error) {
+        console.error('Error marcando todas:', error);
+    }
+}
+
+async function updateNotificationBadge() {
+    const userId = notifCurrentUserId || 'admin';
+    try {
+        const count = await window.PortalDB.getUnreadNotificationCount(userId);
+        const badge = document.getElementById('notifyBadge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error actualizando badge:', error);
+    }
+}
+
+// Auto-actualizar badge cada 30 segundos
+setInterval(() => {
+    if (window.PortalDB) {
+        updateNotificationBadge();
+    }
+}, 30000);
+
+// Iniciar badge al cargar
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        // Detectar userId del admin
+        const user = window.AuthSys?.getCurrentUser?.();
+        if (user) {
+            notifCurrentUserId = user.userId;
+        }
+        updateNotificationBadge();
+    }, 2000);
+});
+
+// Función helper para crear notificaciones desde otros flujos
+async function sendNotification(userId, type, title, message, relatedId = null) {
+    try {
+        const iconMap = {
+            'report_created': 'fa-solid fa-file-circle-plus',
+            'report_approved': 'fa-solid fa-circle-check',
+            'report_rejected': 'fa-solid fa-circle-xmark',
+            'report_resubmitted': 'fa-solid fa-rotate',
+            'assignment_new': 'fa-solid fa-clipboard-list',
+            'user_registered': 'fa-solid fa-user-plus',
+            'system': 'fa-solid fa-gear'
+        };
+
+        await window.PortalDB.createNotification({
+            userId,
+            type,
+            title,
+            message,
+            icon: iconMap[type] || 'fa-solid fa-bell',
+            relatedId
+        });
+    } catch (error) {
+        console.error('Error enviando notificación:', error);
+    }
+}
+
 let dataCacheTimestamp = null;
 let currentReportFilter = 'all';
 let currentApprovedReportFilter = 'all';
