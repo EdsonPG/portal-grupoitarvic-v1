@@ -185,13 +185,15 @@ router.post('/forgot-password', async (req, res) => {
     if (process.env.APP_URL) {
       baseUrl = process.env.APP_URL.replace(/\/$/, ''); // Quitar trailing slash
     } else {
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      // Fallback: usar headers de Vercel para detectar el dominio correcto
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
       const host = req.headers['x-forwarded-host'] || req.get('host');
       baseUrl = `${protocol}://${host}`;
     }
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
     console.log('🔗 Reset URL generada:', resetUrl);
+    console.log('📌 APP_URL env:', process.env.APP_URL || '(no definida)');
 
     // Enviar email
     await sendPasswordResetEmail(user.email, resetUrl, user.name);
