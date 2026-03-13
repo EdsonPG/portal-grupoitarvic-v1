@@ -1266,8 +1266,7 @@ class PortalDatabase {
      * @note Esta funcionalidad no está implementada en el backend de MongoDB
      */
     getGeneratedReports() {
-        console.warn('⚠️ getGeneratedReports() es un stub. Esta funcionalidad no está migrada a MongoDB.');
-        console.warn('📝 El historial de reportes generados está vacío hasta que se implemente en el backend.');
+        // Stub silencioso - funcionalidad no migrada a MongoDB aún
         return {};
     }
 
