@@ -280,7 +280,7 @@ class ChatWidget {
             // For a simpler deep check, compare last message ID or text
             const lastMsg = history[history.length - 1];
             if (lastMsg && !document.getElementById(`msg-${lastMsg._id}`)) {
-                await this.loadChatHistory(this.currentContextId);
+                this.renderHistory(history);
                 this.playNotificationSound();
             }
         } catch(e) {}
@@ -577,16 +577,58 @@ class ChatWidget {
         this.clearAttachment();
 
         // Stop typing
+        // Optimistic UI update for instant feedback
+        const currentUserId = this.currentUser.userId || this.currentUser.id;
+        const tempId = 'temp-' + Date.now();
+        const optimisticMsg = {
+            _id: tempId,
+            senderId: currentUserId,
+            receiverId: payload.receiverId,
+            message: payload.message,
+            attachment: payload.attachment,
+            fileName: payload.fileName,
+            timestamp: new Date().toISOString(),
+            read: false,
+            isOptimistic: true
+        };
+        
+        // Render locally immediately
+        this.appendMessage(optimisticMsg);
+        this.scrollToBottom();
+        
+        // Update header/contacts last message immediately
+        this.lastMessages[payload.receiverId] = {
+            lastMessage: payload.message || '📎 Archivo',
+            lastTimestamp: optimisticMsg.timestamp,
+            lastSenderId: currentUserId,
+            read: false
+        };
+        this.renderContacts(this.contacts);
+
         if (this._typingSent && this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ type: 'typing_stop', receiverId: this.currentContextId }));
             this._typingSent = false;
         }
 
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'chat_message', payload }));
+            this.ws.send(JSON.stringify({ type: 'chat_message', payload, tempId }));
         } else {
             const res = await window.PortalDB.sendChatMessage(payload);
-            if (res.success) this.handleIncomingMessage(res.data);
+            if (res.success) {
+                // Remove the optimistic message so we can render the real one from DB (with correct Mongoose ID)
+                const optEl = document.getElementById(`msg-${tempId}`);
+                if (optEl) optEl.remove();
+                this.handleIncomingMessage(res.data);
+            } else {
+                // Mark optimistic msg as failed
+                const failedEl = document.getElementById(`msg-${tempId}`);
+                if (failedEl) {
+                    const statusSpan = failedEl.querySelector('.msg-status');
+                    if (statusSpan) {
+                        statusSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:red;" title="Error al enviar"></i>';
+                    }
+                }
+            }
         }
     }
 
@@ -649,8 +691,18 @@ class ChatWidget {
         }
 
         const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        let readStatusHtml = '';
+        if (msg.isOptimistic) {
+            readStatusHtml = '<i class="fa-regular fa-clock" title="Enviando..."></i>'; // Reloj de envío
+        } else if (msg.read) {
+            readStatusHtml = '<i class="fa-solid fa-check-double"></i>';
+        } else {
+            readStatusHtml = '<i class="fa-solid fa-check"></i>';
+        }
+        
         const readStatus = isMe
-            ? `<span class="msg-status ${msg.read ? 'read' : 'sent'}"><i class="fa-solid fa-${msg.read ? 'check-double' : 'check'}"></i></span>`
+            ? `<span class="msg-status ${msg.read ? 'read' : 'sent'}">${readStatusHtml}</span>`
             : '';
             
         const deleteBtn = isMe 
