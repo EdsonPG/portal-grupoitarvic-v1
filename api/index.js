@@ -140,6 +140,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
+// Fail-safe para navegadores que tienen el viejo auth.js cacheado y piden /index.html explicitly
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
+
 app.get('/admin/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'admin', 'dashboard.html'));
 });
