@@ -27,7 +27,9 @@
                     <span>SOPORTE</span>
                 </button>
                 <button class="nav-action-btn" title="Chat">
-                    <i class="fa-solid fa-comments"></i>
+                    <span class="notify-wrapper">
+                        <i class="fa-solid fa-comments"></i>
+                    </span>
                     <span>CHAT</span>
                 </button>
                 <button class="nav-action-btn nav-action-btn--notify" title="Notificaciones" onclick="toggleNotificationsPanel()">
@@ -410,6 +412,8 @@
 
                 <!-- Contenido Principal -->
                 <div class="admin-main-content">
+
+
                     <!-- Sección de Usuarios -->
                     <div id="usuarios-section" class="content-section active">
                         <div class="section-header">
@@ -502,21 +506,30 @@
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label for="assignCompany">Empresa Cliente</label>
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <label for="assignCompany" style="margin:0;">Empresa Cliente</label>
+                                            <button type="button" class="btn btn-sm btn-link" onclick="openCompanyModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        </div>
                                         <select id="assignCompany" name="assignCompany" required>
                                             <option value="">Seleccionar empresa</option>
                                         </select>
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label for="assignSupport">Soporte</label>
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <label for="assignSupport" style="margin:0;">Soporte</label>
+                                            <button type="button" class="btn btn-sm btn-link" onclick="openSupportModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        </div>
                                         <select id="assignSupport" name="assignSupport" required>
                                             <option value="">Seleccionar Soporte</option>
                                         </select>
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label for="assignModule">Módulos</label>
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <label for="assignModule" style="margin:0;">Módulos</label>
+                                            <button type="button" class="btn btn-sm btn-link" onclick="openModuleModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        </div>
                                         <select id="assignModule" name="assignModule" required>
                                             <option value="">Seleccionar Módulo</option>
                                         </select>
@@ -599,21 +612,30 @@
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label for="assignProjectProject">Proyecto</label>
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <label for="assignProjectProject" style="margin:0;">Proyecto</label>
+                                            <button type="button" class="btn btn-sm btn-link" onclick="openProjectModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        </div>
                                         <select id="assignProjectProject" name="assignProjectProject" required>
                                             <option value="">Seleccionar proyecto</option>
                                         </select>
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label for="assignProjectCompany">Empresa Cliente</label>
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <label for="assignProjectCompany" style="margin:0;">Empresa Cliente</label>
+                                            <button type="button" class="btn btn-sm btn-link" onclick="openCompanyModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        </div>
                                         <select id="assignProjectCompany" name="assignProjectCompany" required>
                                             <option value="">Seleccionar empresa cliente</option>
                                         </select>
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label for="assignProjectModule">Módulo</label>
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <label for="assignProjectModule" style="margin:0;">Módulo</label>
+                                            <button type="button" class="btn btn-sm btn-link" onclick="openModuleModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        </div>
                                         <select id="assignProjectModule" name="assignProjectModule" required>
                                             <option value="">Seleccionar módulo</option>
                                         </select>
@@ -804,6 +826,14 @@
                             <h2 class="section-title"> <i class="fa-solid fa-chart-line"></i> Reportes Pendientes</h2>
                         </div>
                         
+                        <!-- ✨ NUEVO: Quick Acciones de Aprobación Masiva -->
+                        <div class="mass-approval-tools" id="massApprovalTools" style="display: none;">
+                            <span id="selectedReportsCount" style="font-weight: 600; color: var(--color-arvic-primary);">0 reportes seleccionados</span>
+                            <button class="btn btn-success" id="btnApproveSelected" onclick="approveSelectedReports()">
+                                <i class="fa-solid fa-check-double"></i> Aprobar Seleccionados
+                            </button>
+                        </div>
+
                         <!-- ✨ NUEVO: Filtros por Categoría -->
                         <div class="reports-category-filters">
                             <div class="filter-buttons-group">
@@ -829,6 +859,9 @@
                             <table class="admin-table reports-table" id="reportsTable">
                                 <thead>
                                     <tr>
+                                        <th style="width: 40px; text-align: center;">
+                                            <input type="checkbox" id="selectAllReports" onclick="toggleAllReportsSelection(this)">
+                                        </th>
                                         <th>ID Consultor</th>
                                         <th>Nombre Consultor</th>
                                         <th>Cliente (Empresa)</th>
@@ -838,7 +871,7 @@
                                         <th>Horas Reportadas</th>
                                         <th>Fecha Reporte</th>
                                         <th>Estado</th>
-                                        <th>Acciones</th>
+                                        <th>Acciones / Estatus Rápidos</th>
                                     </tr>
                                 </thead>
                                 <tbody id="reportsTableBody">
@@ -1481,5 +1514,8 @@
     <script src="../js/settings-menu.js"></script>
     <script src="admin.js"></script>
     <script type="module" src="../js/modules/users/index.js"></script>
+    <script src="../js/supportBot.js"></script>
+    <script src="../js/chatWidget.js"></script>
+
 </body>
-</html>
+</html>

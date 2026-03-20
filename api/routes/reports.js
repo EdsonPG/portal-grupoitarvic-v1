@@ -91,6 +91,50 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PUT actualizar múltiples reportes
+router.put('/mass-update', async (req, res) => {
+  try {
+    const { reportIds, status } = req.body;
+    
+    if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Arreglo de reportIds es requerido' });
+    }
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'El estado es requerido' });
+    }
+
+    console.log(`📝 Actualización masiva de reportes. IDs: ${reportIds.length}, Estado: ${status}`);
+
+    const updateData = {
+      status,
+      updatedAt: new Date()
+    };
+
+    if (status === 'Resubmitted') {
+      updateData.resubmittedAt = new Date();
+    }
+
+    const result = await Report.updateMany(
+      { reportId: { $in: reportIds } },
+      { $set: updateData }
+    );
+
+    console.log(`✅ Reportes actualizados: ${result.modifiedCount}`);
+
+    res.json({
+      success: true,
+      message: `${result.modifiedCount} reportes actualizados exitosamente`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('❌ Error en actualización masiva:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error en actualización masiva'
+    });
+  }
+});
+
 // PUT actualizar reporte
 router.put('/:id', async (req, res) => {
   try {

@@ -551,6 +551,9 @@ async function loadAllData() {
         currentData.projectAssignments = await window.PortalDB.getProjectAssignments() || {};
         currentData.taskAssignments = await window.PortalDB.getTaskAssignments() || {};
         
+        // Set cache timestamp so loadCurrentData() won't re-fetch immediately
+        dataCacheTimestamp = Date.now();
+        
         console.log('Datos cargados:', {
             users: Object.keys(currentData.users).length,
             companies: Object.keys(currentData.companies).length,
@@ -558,7 +561,7 @@ async function loadAllData() {
             modules: Object.keys(currentData.modules).length
         });
         
-        updateUI();
+        await updateUI();
         
         if (currentSection === 'crear-asignacion') {
             console.log('Actualizando dropdowns después de cargar datos...');
@@ -569,15 +572,12 @@ async function loadAllData() {
     }
 }
 
-function updateUI() {
+async function updateUI() {
     console.log('=== ACTUALIZANDO UI ===');
     
     try {
-        updateSidebarCounts();
-        updateCurrentSectionData();
-        
-        // NO llamar updateDropdowns aquí automáticamente
-        // Se llamará específicamente cuando sea necesario
+        await updateSidebarCounts();
+        await updateCurrentSectionData();
         
         console.log('UI actualizada correctamente');
     } catch (error) {
@@ -585,14 +585,14 @@ function updateUI() {
     }
 }
 
-function updateCurrentSectionData() {
+async function updateCurrentSectionData() {
     if (!currentSection) {
         console.log('currentSection no definida');
         return;
     }
 
     console.log(`Actualizando datos para sección actual: ${currentSection}`);
-    loadSectionData(currentSection);
+    await loadSectionData(currentSection);
 }
 
 function updateStats() {
@@ -2536,6 +2536,9 @@ function createReportTableRow(report) {
     const descripcionContent = report.description || report.title || 'Sin descripción';
 
     row.innerHTML = `
+        <td style="text-align: center;">
+            <input type="checkbox" class="report-checkbox" value="${report.id}" onchange="toggleReportSelection()">
+        </td>
         <td><span class="consultant-id">${user.userId}</span></td>
         <td><span class="consultant-name">${user.name}</span></td>
         <td><span class="company-name">${company ? company.name : 'Sin asignación'}</span></td>
@@ -2547,15 +2550,12 @@ function createReportTableRow(report) {
         <td><span class="status-badge status-pending">Pendiente</span></td>
         <td>
             <div class="action-buttons">
-                <button class="action-btn btn-view" onclick="viewReport('${report.id}')" title="Ver detalles">
-                    <i class="fa-solid fa-eye"></i> Ver
-                </button>
-                <button class="action-btn btn-approve" onclick="approveReport('${report.id}')" title="Aprobar reporte">
-                    <i class="fa-solid fa-check"></i> Aprobar
-                </button>
-                <button class="action-btn btn-reject" onclick="rejectReport('${report.id}')" title="Rechazar reporte">
-                    <i class="fa-solid fa-xmark"></i> Rechazar
-                </button>
+                <select class="quick-action-select" onchange="handleQuickAction(this, '${report.id}')">
+                    <option value="">Acciones Rápidas...</option>
+                    <option value="view">👁️ Ver Detalles</option>
+                    <option value="approve">✅ Aprobar Reporte</option>
+                    <option value="reject">❌ Rechazar Reporte</option>
+                </select>
             </div>
         </td>
     `;
@@ -3555,29 +3555,67 @@ async function viewReport(reportId) {
             }
         }
         
-        // Mostrar modal con detalles
-        const modalContent = `
-            <div style="padding: 20px;">
-                <h3>Detalles del Reporte</h3>
-                <hr>
-                <p><strong>ID Reporte:</strong> ${report.id}</p>
-                <p><strong>Consultor:</strong> ${user ? user.name : 'Desconocido'} (${report.userId})</p>
-                <p><strong>Cliente:</strong> ${company ? company.name : 'No asignado'}</p>
-                <p><strong>Trabajo:</strong> ${workName}</p>
-                <p><strong>Módulo:</strong> ${module ? module.name : 'Sin módulo'}</p>
-                <p><strong>Horas Reportadas:</strong> ${report.hours} hrs</p>
-                <p><strong>Descripción:</strong> ${report.description || 'Sin descripción'}</p>
-                <p><strong>Fecha de Creación:</strong> ${window.DateUtils ? window.DateUtils.formatDateTime(report.createdAt) : report.createdAt}</p>
-                <p><strong>Estado:</strong> <span class="status-badge status-${report.status.toLowerCase()}">${report.status}</span></p>
-                ${report.rejectionReason ? `<p><strong>Razón de Rechazo:</strong> ${report.rejectionReason}</p>` : ''}
+        // Mostrar modal con detalles usando SideDrawerUtils
+        const drawerContent = `
+            <div style="padding: 10px;">
+                <h4 style="color: var(--color-arvic-primary); margin-bottom: 20px;">
+                    <i class="fa-solid fa-file-invoice"></i> Información del Reporte
+                </h4>
+                
+                <div class="detail-card" style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:15px; border-left:4px solid var(--color-arvic-primary);">
+                    <p style="margin:5px 0;"><strong>ID:</strong> <span style="font-family:monospace; background:#e2e8f0; padding:2px 6px; border-radius:4px;">${report.id}</span></p>
+                    <p style="margin:5px 0;"><strong>Consultor:</strong> ${user ? user.name : 'Desconocido'} <span style="color:#64748b; font-size:0.85em;">(${report.userId})</span></p>
+                    <p style="margin:5px 0;"><strong>Fecha Registro:</strong> ${window.DateUtils ? window.DateUtils.formatDateTime(report.createdAt) : report.createdAt}</p>
+                </div>
+                
+                <div class="detail-card" style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:15px; border-left:4px solid var(--primary-color);">
+                    <p style="margin:5px 0;"><strong>Cliente:</strong> ${company ? company.name : 'No asignado'}</p>
+                    <p style="margin:5px 0;"><strong>Trabajo:</strong> ${workName}</p>
+                    <p style="margin:5px 0;"><strong>Módulo:</strong> ${module ? module.name : 'Sin módulo'}</p>
+                </div>
+                
+                <div class="detail-card" style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border-left:4px solid var(--warning-color);">
+                    <p style="margin:5px 0; font-size: 1.1em;"><strong>Horas Reportadas:</strong> <span style="font-weight:bold; color:var(--warning-color);">${report.hours} hrs</span></p>
+                    <p style="margin:10px 0 5px 0;"><strong>Descripción / Actividades:</strong></p>
+                    <div style="background:white; padding:10px; border-radius:6px; border:1px solid #e2e8f0; min-height:60px;">
+                        ${report.description || 'Sin descripción'}
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:15px; border-radius:8px;">
+                    <div>
+                        <strong>Estado Actual:</strong><br>
+                        <span class="status-badge status-${report.status.toLowerCase()}" style="margin-top:5px; display:inline-block;">${report.status}</span>
+                    </div>
+                    ${report.status === 'Pendiente' ? `
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-sm btn-success" onclick="SideDrawerUtils.close(); approveReport('${report.id}')">
+                            <i class="fa-solid fa-check"></i> Aprobar
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                ${report.rejectionReason ? `
+                <div style="margin-top:15px; background:#fef2f2; padding:15px; border-radius:8px; border-left:4px solid var(--danger-color);">
+                    <p style="margin:0; color:var(--danger-color);"><strong><i class="fa-solid fa-circle-exclamation"></i> Motivo de Rechazo:</strong><br>${report.rejectionReason}</p>
+                </div>
+                ` : ''}
+
+                <div style="margin-top:25px; border-top: 1px dashed #cbd5e1; padding-top: 20px; text-align:center;">
+                    <button class="btn btn-outline-primary" style="width:100%;" onclick="if(window.chatWidget) { window.chatWidget.setContext('${report.reportId || report.id}', true, 'Chat de Ticket: ${report.reportId || report.id}'); SideDrawerUtils.close(); }">
+                        <i class="fa-solid fa-comments"></i> Iniciar Chat de Soporte
+                    </button>
+                    <small style="display:block; margin-top:8px; color:#64748b;">Comunícate directamente con el consultor sobre este reporte.</small>
+                </div>
             </div>
         `;
         
-        // Si existe una función para mostrar modales, úsala
-        if (typeof showModal === 'function') {
-            showModal('Detalles del Reporte', modalContent);
+        if (window.SideDrawerUtils) {
+            SideDrawerUtils.open(`Reporte #${report.id.substring(0,6)}`, drawerContent);
+        } else if (typeof showModal === 'function') {
+            showModal('Detalles del Reporte', drawerContent);
         } else {
-            // Alternativa: alert con información básica
             alert(`Reporte: ${report.id}\nConsultor: ${user?.name}\nHoras: ${report.hours}\nEstado: ${report.status}`);
         }
         
@@ -9553,3 +9591,175 @@ window.addEventListener('load', function() {
         
     }, 1000);
 });
+
+// Función para actualizar el avatar del header con la foto del usuario
+function updateHeaderAvatar(photoUrl) {
+    const avatar = document.querySelector('.user-avatar');
+    if (avatar && photoUrl) {
+        avatar.innerHTML = `<img src="${photoUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+    }
+}
+
+// Escuchar cargas iniciales para poner la foto
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const session = JSON.parse(localStorage.getItem('arvic_current_session'));
+        if (session && session.user && session.user.profilePhoto) {
+            updateHeaderAvatar(session.user.profilePhoto);
+        }
+    }, 1500);
+});
+
+// === QUICK ACTIONS Y SELECCIÓN MASIVA ===
+
+window.handleQuickAction = async function(selectElement, reportId) {
+    const action = selectElement.value;
+    selectElement.value = ''; // Reset select
+    
+    if (!action) return;
+    
+    switch (action) {
+        case 'view':
+            await viewReport(reportId);
+            break;
+        case 'approve':
+            await approveReport(reportId);
+            break;
+        case 'reject':
+            await rejectReport(reportId);
+            break;
+    }
+};
+
+window.toggleAllReportsSelection = function(checkbox) {
+    const checkboxes = document.querySelectorAll('.report-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateMassApprovalTools();
+};
+
+window.toggleReportSelection = function() {
+    updateMassApprovalTools();
+};
+
+window.updateMassApprovalTools = function() {
+    const checkboxes = document.querySelectorAll('.report-checkbox:checked');
+    const toolsContainer = document.getElementById('massApprovalTools');
+    const countDisplay = document.getElementById('selectedReportsCount');
+    
+    if (checkboxes.length > 0) {
+        toolsContainer.style.display = 'flex';
+        countDisplay.textContent = `${checkboxes.length} reporte${checkboxes.length > 1 ? 's' : ''} seleccionado${checkboxes.length > 1 ? 's' : ''}`;
+    } else {
+        toolsContainer.style.display = 'none';
+        
+        // Uncheck 'Select All' if no items are selected
+        const selectAll = document.getElementById('selectAllReports');
+        if (selectAll) selectAll.checked = false;
+    }
+};
+
+window.approveSelectedReports = async function() {
+    const checkboxes = document.querySelectorAll('.report-checkbox:checked');
+    if (checkboxes.length === 0) return;
+    
+    const reportIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (!confirm(`¿Está seguro de aprobar los ${reportIds.length} reportes seleccionados de manera masiva?`)) {
+        return;
+    }
+    
+    const btnApprove = document.getElementById('btnApproveSelected');
+    if (window.SpinnerUtils) window.SpinnerUtils.showButtonSpinner(btnApprove, 'Procesando...');
+    
+    try {
+        const response = await fetch('/api/reports/mass-update', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                reportIds: reportIds,
+                status: 'Aprobado'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.NotificationUtils?.success(`${data.modifiedCount} reportes aprobados exitosamente.`);
+            
+            // Re-fetch everything and update table
+            await loadAllData();
+            
+            // Uncheck "Select All" and hide tools
+            const selectAll = document.getElementById('selectAllReports');
+            if (selectAll) selectAll.checked = false;
+            updateMassApprovalTools();
+        } else {
+            throw new Error(data.message || 'Error al aprobar reportes masivamente');
+        }
+    } catch (error) {
+        console.error('❌ Error en aprobación masiva:', error);
+        window.NotificationUtils?.error('Error en aprobación masiva: ' + error.message);
+    } finally {
+        if (window.SpinnerUtils) window.SpinnerUtils.hideButtonSpinner(btnApprove);
+    }
+};
+
+// === ACTUALIZACIÓN KPIs DASHBOARD ===
+// KPIs removed from UI - function kept as no-op for compatibility
+window.updateDashboardKPIs = function() {
+    // KPI cards were removed from the dashboard
+};
+
+// === OMNI-CREATE WIZARD ===
+window.openOmniCreateDrawer = function() {
+    const html = `
+        <div class="omni-options-grid">
+            <div class="omni-option-card" onclick="SideDrawerUtils.close(); setTimeout(() => openCompanyModal(), 300)">
+                <i class="fa-solid fa-building"></i>
+                <h4 style="margin:10px 0; font-size:1.1rem; color:#1e293b;">Empresa Cliente</h4>
+                <small style="color:#64748b; font-size:0.85em;">Registrar un nuevo cliente</small>
+            </div>
+            
+            <div class="omni-option-card" onclick="SideDrawerUtils.close(); setTimeout(() => openProjectModal(), 300)">
+                <i class="fa-solid fa-folder-plus"></i>
+                <h4 style="margin:10px 0; font-size:1.1rem; color:#1e293b;">Proyecto</h4>
+                <small style="color:#64748b; font-size:0.85em;">Crear un nuevo proyecto</small>
+            </div>
+            
+            <div class="omni-option-card" onclick="SideDrawerUtils.close(); setTimeout(() => openSupportModal(), 300)">
+                <i class="fa-solid fa-headset"></i>
+                <h4 style="margin:10px 0; font-size:1.1rem; color:#1e293b;">Soporte</h4>
+                <small style="color:#64748b; font-size:0.85em;">Añadir tipo de soporte base</small>
+            </div>
+            
+            <div class="omni-option-card" onclick="SideDrawerUtils.close(); setTimeout(() => openModuleModal(), 300)">
+                <i class="fa-solid fa-puzzle-piece"></i>
+                <h4 style="margin:10px 0; font-size:1.1rem; color:#1e293b;">Módulo</h4>
+                <small style="color:#64748b; font-size:0.85em;">Registrar módulo del sistema</small>
+            </div>
+
+            <div class="omni-option-card" onclick="SideDrawerUtils.close(); setTimeout(() => openUserModal(), 300)">
+                <i class="fa-solid fa-user-plus"></i>
+                <h4 style="margin:10px 0; font-size:1.1rem; color:#1e293b;">Nuevo Usuario</h4>
+                <small style="color:#64748b; font-size:0.85em;">Consultor, Admin o Cliente</small>
+            </div>
+            
+            <div class="omni-option-card" style="background:var(--color-arvic-primary); color:white; border-color:var(--color-arvic-secondary);" onclick="SideDrawerUtils.close(); setTimeout(() => showSection('crear-asignacion-section'), 300)">
+                <i class="fa-solid fa-link" style="color:white;"></i>
+                <h4 style="margin:10px 0; font-size:1.1rem; color:white;">Asignación Completa</h4>
+                <small style="color:#e2e8f0; font-size:0.85em;">Asignar consultor a cliente/proyecto</small>
+            </div>
+        </div>
+        <div style="margin-top:25px; text-align:center; color:#64748b; padding-top:20px; border-top:1px dashed #cbd5e1;">
+            <p style="font-size:0.9em;">💡 Selecciona qué deseas crear. Usaremos paneles laterales para que no pierdas tu contexto actual de trabajo.</p>
+        </div>
+    `;
+    
+    if (window.SideDrawerUtils) {
+        SideDrawerUtils.open('¿Qué deseas registrar?', html);
+    }
+};

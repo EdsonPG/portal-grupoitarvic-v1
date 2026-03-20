@@ -510,6 +510,7 @@ const StorageUtils = {
     }
 };
 
+// === UTILIDADES COMPARTIDAS PARA PORTAL ARVIC ===
 // === EXPORTAR UTILIDADES ===
 window.DateUtils = DateUtils;
 window.ValidationUtils = ValidationUtils;
@@ -519,6 +520,119 @@ window.ModalUtils = ModalUtils;
 window.NotificationUtils = NotificationUtils;
 window.DataUtils = DataUtils;
 window.StorageUtils = StorageUtils;
+
+// === SPINNERS Y CARGA ===
+const SpinnerUtils = {
+    showButtonSpinner(buttonElement, loadingText = 'Cargando...') {
+        if (typeof buttonElement === 'string') {
+            buttonElement = document.getElementById(buttonElement);
+        }
+        if (!buttonElement) return;
+        
+        // Guardar estado original
+        if (buttonElement.dataset.originalHtml === undefined) {
+            buttonElement.dataset.originalHtml = buttonElement.innerHTML;
+        }
+        
+        // Mantener ancho
+        const currentWidth = buttonElement.offsetWidth;
+        if (currentWidth > 0 && !buttonElement.style.width) {
+            buttonElement.style.width = currentWidth + 'px';
+        }
+        
+        buttonElement.disabled = true;
+        buttonElement.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${loadingText}`;
+    },
+    
+    hideButtonSpinner(buttonElement) {
+        if (typeof buttonElement === 'string') {
+            buttonElement = document.getElementById(buttonElement);
+        }
+        if (!buttonElement || buttonElement.dataset.originalHtml === undefined) return;
+        
+        buttonElement.innerHTML = buttonElement.dataset.originalHtml;
+        buttonElement.disabled = false;
+        buttonElement.style.width = '';
+        delete buttonElement.dataset.originalHtml;
+    }
+};
+
+window.SpinnerUtils = SpinnerUtils;
+
+// === SIDE DRAWERS ===
+const SideDrawerUtils = {
+    open(title, contentHTML, onSaveCallback = null, saveText = 'Guardar') {
+        let overlay = document.getElementById('sideDrawerOverlay');
+        let drawer = document.getElementById('sideDrawer');
+        
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'sideDrawerOverlay';
+            overlay.className = 'side-drawer-overlay';
+            overlay.onclick = this.close;
+            document.body.appendChild(overlay);
+            
+            drawer = document.createElement('div');
+            drawer.id = 'sideDrawer';
+            drawer.className = 'side-drawer';
+            document.body.appendChild(drawer);
+        }
+        
+        const saveButtonHtml = onSaveCallback 
+            ? `<button class="btn btn-primary" id="sideDrawerSaveBtn">
+                 <i class="fa-solid fa-save"></i> ${saveText}
+               </button>` 
+            : '';
+
+        drawer.innerHTML = `
+            <div class="side-drawer-header">
+                <h3>${title}</h3>
+                <button class="side-drawer-close" onclick="SideDrawerUtils.close()">&times;</button>
+            </div>
+            <div class="side-drawer-body">
+                ${contentHTML}
+            </div>
+            ${onSaveCallback ? `
+            <div class="side-drawer-footer">
+                <button class="btn btn-secondary" onclick="SideDrawerUtils.close()">Cancelar</button>
+                ${saveButtonHtml}
+            </div>` : ''}
+        `;
+        
+        if (onSaveCallback) {
+            document.getElementById('sideDrawerSaveBtn').onclick = async function() {
+                SpinnerUtils.showButtonSpinner(this, 'Guardando...');
+                try {
+                    await onSaveCallback();
+                } finally {
+                    SpinnerUtils.hideButtonSpinner(this);
+                }
+            };
+        }
+        
+        document.body.style.overflow = 'hidden';
+        
+        // Small delay to allow fade-in effect via CSS class addition
+        setTimeout(() => {
+            overlay.classList.add('active');
+            drawer.classList.add('active');
+        }, 10);
+    },
+    
+    close() {
+        const overlay = document.getElementById('sideDrawerOverlay');
+        const drawer = document.getElementById('sideDrawer');
+        if (overlay && drawer) {
+            overlay.classList.remove('active');
+            drawer.classList.remove('active');
+            setTimeout(() => {
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+    }
+};
+
+window.SideDrawerUtils = SideDrawerUtils;
 
 // === INICIALIZACIÓN GLOBAL ===
 document.addEventListener('DOMContentLoaded', function() {

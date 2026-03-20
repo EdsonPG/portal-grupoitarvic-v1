@@ -19,9 +19,9 @@
 
 /* 4. CONTENIDO PRINCIPAL SIN SCROLL DE PÁGINA */
 .main-content {
-    /* Nota: El header del consultor es 70px */
-    height: calc(100vh - 70px) !important; /* ← Altura fija */
-    margin-top: 70px !important; /* ← Mantiene el espacio del header fijo */
+    /* Nota: El header del consultor es 80px */
+    height: calc(100vh - 80px) !important; /* ← Altura ajustada */
+    margin-top: 80px !important; /* ← Mantiene el espacio del header fijo */
     overflow: hidden !important; /* ← Sin scroll de página */
     background: var(--gray-50);
     padding: var(--spacing-xl);
@@ -183,15 +183,16 @@
 
 /* Header del consultor profesional */
 .consultor-header {
-    background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-800) 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); /* Azul marino premium */
     color: white;
-    border-bottom: 1px solid var(--gray-700);
-    box-shadow: var(--shadow-lg);
+    border-bottom: 2px solid #334155;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     position: fixed;
+    height: 80px; /* ← Taller */
     top: 0;
     left: 0;
     right: 0;
-    z-index: 40;
+    z-index: 1000;
     width: 100%;
 }
 
@@ -535,10 +536,10 @@
 .consultor-header .notif-panel {
     display: none;
     position: absolute;
-    top: 70px;
+    top: 80px;
     right: 180px;
     width: 400px;
-    max-height: calc(100vh - 90px);
+    max-height: calc(100vh - 100px);
     z-index: 1000;
     animation: helpPanelSlideDown 0.3s ease;
 }
@@ -579,9 +580,9 @@
 
 /* Contenido principal */
 .main-content {
-    margin-top: 70px;
+    margin-top: 80px;
     padding: var(--spacing-xl);
-    min-height: calc(100vh - 70px);
+    min-height: calc(100vh - 80px);
     background: var(--gray-50);
 }
 

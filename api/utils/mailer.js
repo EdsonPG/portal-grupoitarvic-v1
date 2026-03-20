@@ -34,113 +34,60 @@ async function sendPasswordResetEmail(toEmail, resetUrl, userName) {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
       </head>
-      <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f1f5f9; padding: 40px 20px;">
+      <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 50px 20px;">
           <tr>
             <td align="center">
-              <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
+              <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                 
-                <!-- Header Corporativo -->
+                <!-- Header -->
                 <tr>
-                  <td style="background-color: #1e3a8a; padding: 28px 40px; text-align: center;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td align="center">
-                          <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 1px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                            GRUPO IT ARVIC
-                          </h1>
-                          <p style="color: rgba(255,255,255,0.7); margin: 4px 0 0; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;">
-                            Portal de Gestión
-                          </p>
-                        </td>
-                      </tr>
-                    </table>
+                  <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 35px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 600; letter-spacing: 2px;">
+                      GRUPO IT ARVIC
+                    </h1>
                   </td>
                 </tr>
 
-                <!-- Contenido Principal -->
+                <!-- Content -->
                 <tr>
-                  <td style="padding: 40px 40px 32px;">
+                  <td style="padding: 40px;">
+                    <h2 style="color: #0f172a; font-size: 18px; margin: 0 0 15px; font-weight: 600;">
+                      Recuperación de Acceso
+                    </h2>
                     
-                    <!-- Saludo -->
-                    <p style="color: #1e293b; font-size: 16px; margin: 0 0 6px; font-weight: 600; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                      Estimado/a ${userName},
-                    </p>
-                    
-                    <!-- Mensaje principal -->
-                    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin: 16px 0 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                      Hemos recibido una solicitud para restablecer la contraseña asociada a su cuenta en el Portal de Gestión ARVIC.
-                    </p>
-                    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin: 12px 0 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                      Para proceder con el restablecimiento, haga clic en el siguiente botón:
+                    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 25px;">
+                      Hola <strong>${userName}</strong>,<br><br>
+                      Hemos recibido una solicitud formal para restablecer la credencial de acceso de su cuenta en el Portal de Gestión.
                     </p>
 
-                    <!-- Botón de acción -->
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td align="center" style="padding: 28px 0;">
+                        <td align="center" style="padding: 10px 0 35px;">
                           <a href="${resetUrl}" 
-                             style="display: inline-block; background-color: #1e3a8a; color: #ffffff; text-decoration: none; padding: 14px 48px; border-radius: 6px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                            Restablecer contraseña
+                             style="display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-size: 15px; font-weight: 600; letter-spacing: 0.5px; transition: background-color 0.2s;">
+                            Restablecer mi contraseña
                           </a>
                         </td>
                       </tr>
                     </table>
 
-                    <!-- Separador -->
-                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 8px 0 24px;">
-
-                    <!-- Información de seguridad -->
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="background-color: #f8fafc; border-left: 3px solid #1e3a8a; padding: 16px 20px; border-radius: 0 4px 4px 0;">
-                          <p style="color: #475569; font-size: 13px; margin: 0; line-height: 1.6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                            <strong style="color: #1e293b;">Información importante:</strong>
-                          </p>
-                          <ul style="color: #64748b; font-size: 13px; margin: 8px 0 0; padding-left: 20px; line-height: 1.8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                            <li>Este enlace tiene una validez de <strong style="color: #1e293b;">1 hora</strong> a partir de su generación.</li>
-                            <li>Si usted no realizó esta solicitud, puede ignorar este correo de manera segura.</li>
-                            <li>Su contraseña actual permanecerá sin cambios hasta que complete el proceso.</li>
-                          </ul>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <!-- URL alternativa -->
-                    <p style="color: #94a3b8; font-size: 11px; margin: 24px 0 0; line-height: 1.5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                      Si el botón no funciona correctamente, copie y pegue la siguiente dirección en su navegador:
-                    </p>
-                    <p style="margin: 6px 0 0;">
-                      <a href="${resetUrl}" style="color: #3b82f6; word-break: break-all; font-size: 11px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">${resetUrl}</a>
+                    <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin: 0; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+                      Este enlace seguro expirará en 1 hora. Si usted no solicitó este cambio, puede ignorar este mensaje; su cuenta sigue estando protegida.
                     </p>
                   </td>
                 </tr>
 
                 <!-- Footer -->
                 <tr>
-                  <td style="background-color: #f8fafc; padding: 20px 40px; border-top: 1px solid #e2e8f0;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td>
-                          <p style="color: #94a3b8; font-size: 11px; margin: 0; line-height: 1.5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                            Este es un correo electrónico automático generado por el sistema del Portal de Gestión ARVIC. 
-                            Por favor, no responda a este mensaje.
-                          </p>
-                          <p style="color: #cbd5e1; font-size: 11px; margin: 12px 0 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                            © ${currentYear} Grupo IT ARVIC — Todos los derechos reservados.
-                          </p>
-                        </td>
-                      </tr>
-                    </table>
+                  <td style="background-color: #f8fafc; padding: 25px 40px; text-align: center;">
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0; font-weight: 500;">
+                      © ${currentYear} Grupo IT ARVIC. Todos los derechos reservados.
+                    </p>
                   </td>
                 </tr>
 
               </table>
-
-              <!-- Nota de privacidad -->
-              <p style="color: #94a3b8; font-size: 10px; margin: 16px 0 0; text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                Este correo fue enviado a ${toEmail} porque se solicitó un restablecimiento de contraseña para esta cuenta.
-              </p>
             </td>
           </tr>
         </table>
@@ -154,4 +101,90 @@ async function sendPasswordResetEmail(toEmail, resetUrl, userName) {
   return info;
 }
 
-module.exports = { sendPasswordResetEmail };
+/**
+ * Envía un email de soporte desde el Chatbot
+ * @param {string} fromUser - Nombre del usuario que solicita soporte
+ * @param {string} userEmail - Email del usuario que solicita soporte
+ * @param {string} message - El mensaje o problema descrito
+ */
+async function sendSupportEmail(fromUser, userEmail, message) {
+  const currentYear = new Date().getFullYear();
+  const toEmail = process.env.EMAIL_USER; // Enviar a la misma cuenta de servicio o a otra configurada
+  
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || `Portal ARVIC <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    replyTo: userEmail,
+    subject: `[Soporte Técnico] Nueva solicitud de ${fromUser}`,
+    html: `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head><meta charset="UTF-8"></head>
+      <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 50px 20px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+                
+                <!-- Header -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 35px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 600; letter-spacing: 2px;">
+                      SOPORTE TÉCNICO
+                    </h1>
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 40px;">
+                    <h2 style="color: #0f172a; font-size: 16px; margin: 0 0 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                      Nuevo Requerimiento
+                    </h2>
+                    
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px;">
+                      <tr>
+                        <td style="padding-bottom: 8px;">
+                          <span style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Usuario Solicitante</span><br>
+                          <strong style="color: #1e293b; font-size: 15px;">${fromUser}</strong>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom: 8px;">
+                          <span style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Correo de Contacto</span><br>
+                          <strong style="color: #0284c7; font-size: 15px;">${userEmail}</strong>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <div style="background-color: #f1f5f9; border-left: 4px solid #0284c7; padding: 20px; border-radius: 0 8px 8px 0;">
+                      <span style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Descripción del Problema</span>
+                      <p style="color: #1e293b; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 25px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0; font-weight: 500;">
+                      Portal de Gestión ARVIC — Notificación Automática
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log('📧 Email de soporte enviado | MessageId:', info.messageId);
+  return info;
+}
+
+module.exports = { sendPasswordResetEmail, sendSupportEmail };

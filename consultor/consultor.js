@@ -1199,6 +1199,11 @@ async function viewAssignmentReports(assignmentId) {
                                 <p style="margin: 5px 0 0 0; color: #666;">${report.feedback}</p>
                             </div>
                         ` : ''}
+                        <div style="margin-top:10px;">
+                            <button class="btn btn-sm" style="background: #1cb5e0; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;" onclick="if(window.chatWidget) window.chatWidget.setContext('${report.reportId || report.id}', true, 'Chat de Ticket: ${report.reportId || report.id}')">
+                                <i class="fa-solid fa-comments"></i> Chat del Ticket
+                            </button>
+                        </div>
                     `;
                     reportsListElement.appendChild(reportDiv);
                 });
@@ -1955,3 +1960,20 @@ window.normalizeReport = normalizeReport;
 window.normalizeReports = normalizeReports;
 
 console.log('✅ Funciones del consultor exportadas globalmente');
+
+// Función para actualizar el avatar del header con la foto del usuario
+function updateHeaderAvatar(photoUrl) {
+    const avatar = document.querySelector('.user-avatar');
+    if (avatar && photoUrl) {
+        avatar.innerHTML = `<img src="${photoUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const session = JSON.parse(localStorage.getItem('arvic_current_session'));
+        if (session && session.user && session.user.profilePhoto) {
+            updateHeaderAvatar(session.user.profilePhoto);
+        }
+    }, 1500);
+});

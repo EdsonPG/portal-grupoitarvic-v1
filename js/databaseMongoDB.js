@@ -86,7 +86,7 @@ class PortalDatabase {
     logout() {
         this.token = null;
         localStorage.removeItem('arvic_token');
-        localStorage.removeItem('arvic_currentUser');
+        localStorage.removeItem('arvic_current_session');
         console.log('✅ Sesión cerrada');
     }
 
@@ -1784,6 +1784,102 @@ async getTarifario() {
         } catch (error) {
             console.error('❌ Error eliminando notificación:', error);
             return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    // === GESTIÓN DE CHAT ===
+    async getChatHistory(contextId, isReport = false) {
+        try {
+            const url = `${this.API_URL}/chat/history/${contextId}${isReport ? '?isReport=true' : ''}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result.success ? result.data : [];
+        } catch (error) {
+            console.error('❌ Error obteniendo historial de chat:', error);
+            return [];
+        }
+    }
+
+    async sendChatMessage(payload) {
+        try {
+            const response = await fetch(`${this.API_URL}/chat/send`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(payload)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error enviando mensaje de chat:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async sendSupportEmail(message) {
+        try {
+            const response = await fetch(`${this.API_URL}/chat/support-email`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify({ message })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error enviando email de soporte:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async getUnreadChatCounts(userId) {
+        try {
+            const response = await fetch(`${this.API_URL}/chat/unread-count/${userId}`, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result.success ? result : { totalUnread: 0, bySender: [] };
+        } catch (error) {
+            console.error('❌ Error obteniendo conteo de no leídos:', error);
+            return { totalUnread: 0, bySender: [] };
+        }
+    }
+
+    async markChatAsRead(senderId) {
+        try {
+            const response = await fetch(`${this.API_URL}/chat/mark-read/${senderId}`, {
+                method: 'PUT',
+                headers: this.getHeaders()
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error marcando chat como leído:', error);
+            return { success: false };
+        }
+    }
+
+    async getLastMessages(userId) {
+        try {
+            const response = await fetch(`${this.API_URL}/chat/last-messages/${userId}`, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result.success ? result.data : [];
+        } catch (error) {
+            console.error('❌ Error obteniendo últimos mensajes:', error);
+            return [];
+        }
+    }
+
+    async deleteChatMessage(messageId) {
+        try {
+            const response = await fetch(`${this.API_URL}/chat/message/${messageId}`, {
+                method: 'DELETE',
+                headers: this.getHeaders()
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error eliminando mensaje:', error);
+            return { success: false };
         }
     }
 }
