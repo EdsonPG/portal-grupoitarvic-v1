@@ -117,26 +117,23 @@ window.UserModal = class UserModal {
                                 <div style="display: flex; gap: 8px;">
                                     <input type="text" 
                                            id="editUserPassword" 
-                                           placeholder="cons1234.5678"
+                                           placeholder="Escriba una contraseña segura"
                                            style="flex: 1;">
                                     <button type="button" 
                                             class="btn btn-secondary" 
                                             id="generatePasswordBtn"
                                             style="white-space: nowrap; padding: 0 15px;"
-                                            title="Generar contraseña aleatoria única">
+                                            title="Generar contraseña segura aleatoria">
                                         <i class="fa-solid fa-rotate"></i> Generar
                                     </button>
                                 </div>
+                                <div id="passwordStrengthMeter" class="password-strength-meter" style="margin-top: 8px; display: none;">
+                                    <div class="strength-bar-bg">
+                                        <div id="strengthBar" class="strength-bar"></div>
+                                    </div>
+                                    <span id="strengthLabel" class="strength-label"></span>
+                                </div>
                                 <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 5px;">
-                                    <i class="fa-solid fa-info-circle"></i> Formato requerido: 
-                                    <code style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px;">cons####.####</code>
-                                    (cons + 4 dígitos + punto + 4 dígitos)
-                                </small>
-                                <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 3px;">
-                                    Ejemplo: 
-                                    <code style="background: #fff3cd; padding: 2px 6px; border-radius: 3px;">cons1234.5678</code>
-                                </small>
-                                <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 3px;">
                                     Dejar vacío para mantener la contraseña actual
                                 </small>
                                 <small style="color: #e74c3c; font-size: 0.85rem; display: block; margin-top: 5px;">
@@ -196,6 +193,14 @@ window.UserModal = class UserModal {
         if (generateBtn) {
             generateBtn.addEventListener('click', async () => {
                 await this.handleGeneratePassword(userId);
+            });
+        }
+
+        // Handler para medir fuerza de contraseña en tiempo real
+        const passwordInput = document.getElementById('editUserPassword');
+        if (passwordInput) {
+            passwordInput.addEventListener('input', () => {
+                this.updateStrengthMeter(passwordInput.value);
             });
         }
     }
@@ -275,15 +280,58 @@ window.UserModal = class UserModal {
                 passwordInput.value = password;
             }
 
+            // Actualizar medidor de fuerza
+            this.updateStrengthMeter(password);
+
             // Feedback visual
             this.notifier.success(`Contraseña generada: ${password}`);
-
-            //console.log('✅ Contraseña generada:', password);
 
         } catch (error) {
             console.error('Error generando contraseña:', error);
             this.notifier.error('Error al generar contraseña');
         }
+    }
+
+    /**
+     * Actualizar la barra visual de fuerza de contraseña
+     * @param {string} password
+     */
+    updateStrengthMeter(password) {
+        const meter = document.getElementById('passwordStrengthMeter');
+        const bar = document.getElementById('strengthBar');
+        const label = document.getElementById('strengthLabel');
+        if (!meter || !bar || !label) return;
+
+        if (!password || password.length === 0) {
+            meter.style.display = 'none';
+            return;
+        }
+
+        meter.style.display = 'flex';
+
+        // Usar la función del UserValidator si disponible, sino calcular internamente
+        let strength;
+        if (this.userService && this.userService.validator && this.userService.validator.calculatePasswordStrength) {
+            strength = this.userService.validator.calculatePasswordStrength(password);
+        } else {
+            // Fallback
+            let score = 0;
+            if (password.length >= 6) score += 20;
+            if (password.length >= 10) score += 10;
+            if (/[A-Z]/.test(password)) score += 20;
+            if (/[a-z]/.test(password)) score += 20;
+            if (/[0-9]/.test(password)) score += 20;
+            if (/[^A-Za-z0-9]/.test(password)) score += 10;
+            if (score <= 40) strength = { score, label: 'Débil', color: '#ff4d4f', class: 'strength-weak' };
+            else if (score <= 70) strength = { score, label: 'Media', color: '#faad14', class: 'strength-medium' };
+            else strength = { score, label: 'Fuerte', color: '#52c41a', class: 'strength-strong' };
+        }
+
+        bar.style.width = strength.score + '%';
+        bar.style.backgroundColor = strength.color;
+        bar.className = 'strength-bar ' + strength.class;
+        label.textContent = strength.label;
+        label.style.color = strength.color;
     }
 
     /**

@@ -2986,11 +2986,17 @@ async function handleCreateUser(event) {
         const timestamp = Date.now().toString().slice(-4);
         const userId = `USR${timestamp}`;  // Ejemplo: USR1234
         
-        // Generar contraseña temporal que cumpla con formato requerido
-        // Formato: cons + 4 dígitos + . + 4 dígitos = 13 caracteres
-        const firstPart = Math.floor(1000 + Math.random() * 9000); // 4 dígitos aleatorios (1000-9999)
-        const secondPart = Math.floor(1000 + Math.random() * 9000); // 4 dígitos aleatorios (1000-9999)
-        const tempPassword = `cons${firstPart}.${secondPart}`; // Ejemplo: cons1234.5678
+        // Generar contraseña segura aleatoria
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+        let tempPassword = '';
+        tempPassword += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
+        tempPassword += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
+        tempPassword += '0123456789'[Math.floor(Math.random() * 10)];
+        tempPassword += '!@#$%^&*'[Math.floor(Math.random() * 8)];
+        for (let i = 0; i < 8; i++) {
+            tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        tempPassword = tempPassword.split('').sort(() => 0.5 - Math.random()).join('');
 
         const userData = {
             userId: userId,
@@ -3071,11 +3077,10 @@ async function handleEditUser() {
                 return;
             }
             
-            // ✅ VALIDACIÓN 2: Verificar formato
-            if (!validateConsultorPassword(newPassword)) {
+            // ✅ VALIDACIÓN 2: Verificar longitud mínima
+            if (newPassword.length < 6) {
                 window.NotificationUtils.error(
-                    'La contraseña debe seguir el formato: cons####.####\n\n' +
-                    'Ejemplo: cons1234.5678\n\n' +
+                    'La contraseña debe tener al menos 6 caracteres.\n\n' +
                     'Use el botón "Generar" para crear una automáticamente.'
                 );
                 return;
@@ -3150,12 +3155,19 @@ function generateRandomPasswordForEdit() {
     let newPassword;
     let attempts = 0;
     const maxAttempts = 100;
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     
     // Generar hasta encontrar una única
     do {
-        const firstPart = Math.floor(1000 + Math.random() * 9000);
-        const secondPart = Math.floor(1000 + Math.random() * 9000);
-        newPassword = `cons${firstPart}.${secondPart}`;
+        let tempPassword = '';
+        tempPassword += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
+        tempPassword += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
+        tempPassword += '0123456789'[Math.floor(Math.random() * 10)];
+        tempPassword += '!@#$%^&*'[Math.floor(Math.random() * 8)];
+        for (let i = 0; i < 8; i++) {
+            tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        newPassword = tempPassword.split('').sort(() => 0.5 - Math.random()).join('');
         attempts++;
         
         if (attempts >= maxAttempts) {
@@ -3172,9 +3184,8 @@ function generateRandomPasswordForEdit() {
 }
 
 function validateConsultorPassword(password) {
-    // Patrón: cons + 4 dígitos + punto + 4 dígitos
-    const pattern = /^cons\d{4}\.\d{4}$/;
-    return pattern.test(password);
+    // Ya no se requiere un formato específico, solo longitud mínima
+    return password && password.length >= 6;
 }
 
 function closeEditUserModal() {

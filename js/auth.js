@@ -106,13 +106,7 @@ class AuthSystem {
         */
 
         if (userId !== 'admin' && user.role === 'consultor') {
-            // Verificar formato de contraseña de consultor
-            if (!this.isConsultorPassword(password)) {
-                return {
-                    success: false,
-                    message: 'Formato de contraseña no válido para consultor'
-                };
-            }
+            // Ya no se requiere un formato estricto de contraseña
         }
         // Guardar sesión
         const sessionSaved = this.saveCurrentSession(user);
@@ -141,11 +135,7 @@ class AuthSystem {
     }
 }
 
-isConsultorPassword(password) {
-    // Patrón: "cons" + 4 dígitos + "." + 4 dígitos
-    const consultorPattern = /^cons\d{4}\.\d{4}$/;
-    return consultorPattern.test(password);
-}
+    // Función isConsultorPassword eliminada para permitir cualquier formato
 
 
     logout() {

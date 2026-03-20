@@ -4458,4 +4458,51 @@ body {
 
 .mass-approval-tools .btn {
     margin-left: auto;
+}
+
+/* ==========================================
+   MEDIDOR DE FUERZA DE CONTRASEÑA
+   ========================================== */
+.password-strength-meter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    transition: all 0.3s ease;
+}
+
+.strength-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.strength-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    transition: width 0.4s ease, background-color 0.4s ease;
+}
+
+.strength-bar.strength-weak {
+    background: linear-gradient(90deg, #ff4d4f, #ff7875);
+}
+
+.strength-bar.strength-medium {
+    background: linear-gradient(90deg, #faad14, #ffc53d);
+}
+
+.strength-bar.strength-strong {
+    background: linear-gradient(90deg, #52c41a, #73d13d);
+}
+
+.strength-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    min-width: 50px;
+    text-align: right;
+    transition: color 0.3s ease;
 }

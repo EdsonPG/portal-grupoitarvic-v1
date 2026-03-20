@@ -111,19 +111,40 @@ window.UserValidator = class UserValidator {
 
         const trimmedPassword = password.trim();
 
-        // Patrón: cons + 4 dígitos + punto + 4 dígitos
-        const passwordRegex = /^cons\d{4}\.\d{4}$/;
-
-        if (!passwordRegex.test(trimmedPassword)) {
+        if (trimmedPassword.length < 6) {
             return {
                 valid: false,
-                message: 'La contraseña debe seguir el formato: cons####.####\n\n' +
-                        'Ejemplo: cons1234.5678\n\n' +
+                message: 'La contraseña debe tener al menos 6 caracteres.\n\n' +
                         'Use el botón "Generar" para crear una automáticamente.'
             };
         }
 
         return { valid: true, message: '' };
+    }
+
+    /**
+     * Calcula la fuerza de una contraseña y devuelve un puntaje y etiqueta
+     * @param {string} password 
+     * @returns {Object} { score: number, label: string, color: string }
+     */
+    calculatePasswordStrength(password) {
+        if (!password || password.length === 0) return { score: 0, label: '', color: '#ddd', class: '' };
+        
+        let score = 0;
+        
+        // Longitud
+        if (password.length >= 6) score += 20;
+        if (password.length >= 10) score += 10;
+        
+        // Variedad de caracteres
+        if (/[A-Z]/.test(password)) score += 20;
+        if (/[a-z]/.test(password)) score += 20;
+        if (/[0-9]/.test(password)) score += 20;
+        if (/[^A-Za-z0-9]/.test(password)) score += 10;
+        
+        if (score <= 40) return { score, label: 'Débil', color: '#ff4d4f', class: 'strength-weak' };
+        if (score <= 70) return { score, label: 'Media', color: '#faad14', class: 'strength-medium' };
+        return { score, label: 'Fuerte', color: '#52c41a', class: 'strength-strong' };
     }
 
     /**
@@ -229,35 +250,47 @@ window.UserValidator = class UserValidator {
      * @returns {Promise<string>} Contraseña única generada
      */
     async generateUniquePassword(excludeUserId = null) {
-        try {
-            const existingPasswords = await this.repository.getAllPasswords(excludeUserId);
+        let isUnique = false;
+        let finalPassword = '';
+        let attempts = 0;
+        const maxAttempts = 10; // Prevenir ciclo infinito
+
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+
+        while (!isUnique && attempts < maxAttempts) {
+            attempts++;
             
-            let password;
-            let attempts = 0;
-            const maxAttempts = 100;
+            // Generar contraseña aleatoria fuerte de 12 caracteres
+            let tempPassword = '';
+            // Asegurar al menos uno de cada tipo
+            tempPassword += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
+            tempPassword += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)];
+            tempPassword += "0123456789"[Math.floor(Math.random() * 10)];
+            tempPassword += "!@#$%^&*"[Math.floor(Math.random() * 8)];
+            
+            // Completar hasta 12 caracteres
+            for (let i = 0; i < 8; i++) {
+                tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            
+            // Mezclar (shuffle)
+            finalPassword = tempPassword.split('').sort(() => 0.5 - Math.random()).join('');
 
-            do {
-                // Generar contraseña en formato cons####.####
-                const firstPart = Math.floor(1000 + Math.random() * 9000);
-                const secondPart = Math.floor(1000 + Math.random() * 9000);
-                password = `cons${firstPart}.${secondPart}`;
-                
-                attempts++;
-
-                if (attempts >= maxAttempts) {
-                    throw new Error('No se pudo generar una contraseña única después de ' + maxAttempts + ' intentos');
-                }
-
-            } while (existingPasswords.includes(password));
-
-            console.log('Contraseña única generada:');
-            return password;
-
-        } catch (error) {
-            console.error('Error generando contraseña única:', error);
-            throw new Error('Error al generar contraseña: ' + error.message);
+            // Verificar si es única
+            const check = await this.validatePasswordUnique(finalPassword, excludeUserId);
+            if (check.valid) {
+                isUnique = true;
+            }
         }
-    }
+
+        if (!isUnique) {
+            console.warn('No se pudo generar una contraseña única después de múltiples intentos');
+            // Como fallback si hay extrema colisión, usar timestamp
+            finalPassword = `P@ss${Date.now()}${(Math.random() * 1000).toFixed(0)}`;
+        }
+
+        return finalPassword;
+    }      
 
     /**
      * VALIDACIÓN COMPLETA para actualizar usuario
