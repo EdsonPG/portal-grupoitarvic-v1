@@ -1512,6 +1512,10 @@
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/settings-menu.js"></script>
+    
+    <!-- Fix temporal para error "exports is not defined" en Vercel -->
+    <script>window.exports = {};</script>
+    
     <script src="admin.js"></script>
     <script type="module" src="../js/modules/users/index.js"></script>
     <script src="../js/supportBot.js"></script>

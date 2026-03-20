@@ -459,6 +459,12 @@ class ChatWidget {
             try { host = new URL(window.PortalDB.API_URL).host; } catch(e) {}
         }
 
+        const isVercel = window.location.hostname.includes('vercel.app');
+        if (isVercel) {
+            console.log('Modo Vercel detectado: WebSockets desactivados (usando polling).');
+            return;
+        }
+
         this.ws = new WebSocket(`${protocol}//${host}`);
 
         this.ws.onopen = () => {

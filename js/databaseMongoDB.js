@@ -95,7 +95,8 @@ class PortalDatabase {
         try {
             const response = await fetch(`${this.API_URL}/users`, {
                 method: 'GET',
-                headers: this.getHeaders()
+                headers: this.getHeaders(),
+                cache: 'no-store'
             });
             const result = await response.json();
             
@@ -153,7 +154,8 @@ class PortalDatabase {
         try {
             const response = await fetch(`${this.API_URL}/users/passwords`, {
                 method: 'GET',
-                headers: this.getHeaders()
+                headers: this.getHeaders(),
+                cache: 'no-store'
             });
             const result = await response.json();
             
@@ -253,7 +255,8 @@ class PortalDatabase {
         try {
             const response = await fetch(`${this.API_URL}/companies`, {
                 method: 'GET',
-                headers: this.getHeaders()
+                headers: this.getHeaders(),
+                cache: 'no-store'
             });
             const result = await response.json();
             
@@ -350,7 +353,8 @@ class PortalDatabase {
         try {
             const response = await fetch(`${this.API_URL}/projects`, {
                 method: 'GET',
-                headers: this.getHeaders()
+                headers: this.getHeaders(),
+                cache: 'no-store'
             });
             const result = await response.json();
             
@@ -444,7 +448,8 @@ class PortalDatabase {
         try {
             const response = await fetch(`${this.API_URL}/supports`, {
                 method: 'GET',
-                headers: this.getHeaders()
+                headers: this.getHeaders(),
+                cache: 'no-store'
             });
             const result = await response.json();
             
@@ -541,7 +546,8 @@ class PortalDatabase {
         try {
             const response = await fetch(`${this.API_URL}/modules`, {
                 method: 'GET',
-                headers: this.getHeaders()
+                headers: this.getHeaders(),
+                cache: 'no-store'
             });
             const result = await response.json();
             
@@ -638,7 +644,8 @@ class PortalDatabase {
     async getAssignments() {
         try {
             const response = await fetch(`${this.API_URL}/assignments`, {
-                headers: this.getHeaders()
+                headers: this.getHeaders(),
+                cache: 'no-store'
             });
             const data = await response.json();
             
