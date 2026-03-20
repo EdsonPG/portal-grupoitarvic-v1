@@ -337,7 +337,8 @@ function initializeConsultor() {
             console.error('❌ Usuario no autenticado');
             showError('Sesión no válida. Redirigiendo al login...');
             setTimeout(() => {
-                window.location.href = '../index.html';
+                if (window.AuthSys) window.AuthSys.logout();
+                else window.location.href = window.location.protocol === 'file:' ? '../index.html' : '/';
             }, 2000);
             return;
         }
@@ -1279,12 +1280,12 @@ function logout() {
             if (window.AuthSys) {
                 window.AuthSys.logout();
             } else {
-                window.location.href = '../index.html';
+                window.location.href = window.location.protocol === 'file:' ? '../index.html' : '/';
             }
         }
     } catch (error) {
         console.error('Error en logout:', error);
-        window.location.href = '../index.html';
+        window.location.href = window.location.protocol === 'file:' ? '../index.html' : '/';
     }
 }
 
