@@ -158,11 +158,7 @@ isConsultorPassword(password) {
             this.currentUser = null;
             
             // Redirigir al login
-            if (window.location.pathname !== '/index.html' && !window.location.pathname.endsWith('/')) {
-                window.location.href = '../index.html';
-            } else {
-                window.location.href = 'index.html';
-            }
+            this.redirectToLogin();
             
             return true;
         } catch (error) {
@@ -239,11 +235,18 @@ isConsultorPassword(password) {
     }
 
     redirectToLogin() {
-        const currentPath = window.location.pathname;
-        let loginPath = 'index.html';
+        // En Vercel o en servidor (localhost:3000), la ruta del login es siempre "/" 
+        // ya que el backend de Express (api/index.js) mapea "/" a "index.html".
+        let loginPath = '/';
         
-        if (currentPath.includes('/admin/') || currentPath.includes('/consultor/')) {
-            loginPath = '../index.html';
+        // Fallback por si lo están abriendo directamente con doble clic en el archivo HTML local
+        if (window.location.protocol === 'file:') {
+            const currentPath = window.location.pathname;
+            if (currentPath.includes('/admin/') || currentPath.includes('/consultor/')) {
+                loginPath = '../index.html';
+            } else {
+                loginPath = 'index.html';
+            }
         }
         
         window.location.href = loginPath;
