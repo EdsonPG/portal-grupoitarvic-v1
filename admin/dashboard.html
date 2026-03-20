@@ -1513,11 +1513,14 @@
     <script src="../js/utils.js"></script>
     <script src="../js/settings-menu.js"></script>
     
-    <!-- Fix temporal para error "exports is not defined" en Vercel -->
-    <script>window.exports = {};</script>
+    <!-- Scripts Módulo de Usuarios (Cargados secuencialmente) -->
+    <script src="../js/modules/users/UserRepository.js"></script>
+    <script src="../js/modules/users/UserValidator.js"></script>
+    <script src="../js/modules/users/UserService.js"></script>
+    <script src="../js/modules/users/UserModal.js"></script>
+    <script src="../js/modules/users/index.js"></script>
     
     <script src="admin.js"></script>
-    <script type="module" src="../js/modules/users/index.js"></script>
     <script src="../js/supportBot.js"></script>
     <script src="../js/chatWidget.js"></script>
 

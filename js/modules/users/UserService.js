@@ -11,7 +11,7 @@
  * - NO accede directamente a BD (UserRepository hace eso)
  */
 
-export class UserService {
+window.UserService = class UserService {
     /**
      * @param {UserRepository} repository - Repositorio de datos
      * @param {UserValidator} validator - Validador de reglas

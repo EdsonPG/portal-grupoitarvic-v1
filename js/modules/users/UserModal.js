@@ -11,7 +11,7 @@
  * - Muestra notificaciones de éxito/error
  */
 
-export class UserModal {
+window.UserModal = class UserModal {
     /**
      * @param {UserService} userService - Servicio de lógica de negocio
      * @param {Object} notifier - Sistema de notificaciones (window.NotificationUtils)

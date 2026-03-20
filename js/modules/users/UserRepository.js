@@ -10,7 +10,7 @@
  * - Es fácil de mockear para testing
  */
 
-export class UserRepository {
+window.UserRepository = class UserRepository {
     /**
      * @param {Object} database - Instancia de PortalDB
      */

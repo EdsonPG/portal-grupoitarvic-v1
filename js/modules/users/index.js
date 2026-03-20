@@ -7,17 +7,11 @@
  * Principio SOLID: Dependency Injection - Inyecta dependencias desde un punto central
  * 
  * Este archivo:
- * - Importa todas las clases del módulo
  * - Crea instancias en el orden correcto
  * - Inyecta dependencias entre ellas
  * - Expone API pública del módulo
  * - Mantiene compatibilidad con código legacy (window.userModule)
  */
-
-import { UserRepository } from './UserRepository.js';
-import { UserValidator } from './UserValidator.js';
-import { UserService } from './UserService.js';
-import { UserModal } from './UserModal.js';
 
 /**
  * Inicializar módulo de usuarios
@@ -26,7 +20,7 @@ import { UserModal } from './UserModal.js';
  * @param {Object} notifier - Sistema de notificaciones (window.NotificationUtils)
  * @returns {Object} API pública del módulo
  */
-export function initializeUserModule(database, notifier) {
+window.initializeUserModule = function(database, notifier) {
     console.log('Inicializando módulo de usuarios...');
 
     // Validar dependencias externas
@@ -124,6 +118,3 @@ function autoInitialize() {
 
 // Ejecutar auto-inicialización
 autoInitialize();
-
-// Exportar para uso manual si es necesario
-export default initializeUserModule;

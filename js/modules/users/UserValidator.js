@@ -10,7 +10,7 @@
  * - Generación de contraseñas únicas
  */
 
-export class UserValidator {
+window.UserValidator = class UserValidator {
     /**
      * @param {UserRepository} userRepository - Repositorio para consultar datos
      */
