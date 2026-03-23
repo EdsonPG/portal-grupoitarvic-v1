@@ -117,6 +117,20 @@ function showEditProfile() {
     }
 }
 
+function showEditEmail() {
+    document.querySelectorAll('.settings-view').forEach(v => v.style.display = 'none');
+    const view = document.getElementById('settingsEditEmailView');
+    if (view) {
+        view.style.display = 'block';
+        // Pre-rellenar correo actual
+        const user = window.AuthSys?.getCurrentUser();
+        if (user) {
+            const input = document.getElementById('settingsEditEmail');
+            if (input) input.value = user.email || '';
+        }
+    }
+}
+
 function showChangePassword() {
     document.querySelectorAll('.settings-view').forEach(v => v.style.display = 'none');
     const view = document.getElementById('settingsChangePasswordView');
@@ -243,6 +257,7 @@ async function saveProfileName() {
         if (!user) return;
 
         const userId = user.userId || user.id;
+
         const result = await window.PortalDB.updateUser(userId, { name: newName });
 
         if (result.success) {
@@ -265,6 +280,47 @@ async function saveProfileName() {
     } catch (error) {
         console.error('Error actualizando nombre:', error);
         showSettingsToast('Error al actualizar nombre', 'error');
+    }
+}
+
+// ============================================
+// EDITAR CORREO
+// ============================================
+async function saveProfileEmail() {
+    const input = document.getElementById('settingsEditEmail');
+    if (!input) return;
+
+    const newEmail = input.value.trim();
+    if (!newEmail || !newEmail.includes('@')) {
+        showSettingsToast('Ingresa un correo válido', 'error');
+        return;
+    }
+
+    try {
+        const user = window.AuthSys?.getCurrentUser();
+        if (!user) return;
+
+        const userId = user.userId || user.id;
+
+        const result = await window.PortalDB.updateUser(userId, { email: newEmail });
+
+        if (result.success) {
+            // Actualizar la sesión
+            user.email = newEmail;
+            window.AuthSys.saveCurrentSession(user);
+
+            // Actualizar UI
+            const dropdownEmail = document.getElementById('settingsUserEmail');
+            if (dropdownEmail) dropdownEmail.textContent = newEmail;
+
+            showSettingsToast('Correo actualizado correctamente', 'success');
+            showSettingsMain();
+        } else {
+            showSettingsToast(result.message || 'Error al actualizar correo', 'error');
+        }
+    } catch (error) {
+        console.error('Error actualizando correo:', error);
+        showSettingsToast('Error al actualizar correo', 'error');
     }
 }
 
@@ -297,6 +353,7 @@ async function saveNewPassword() {
         if (!user) return;
 
         const userId = user.userId || user.id;
+
         const API_URL = window.PortalDB?.API_URL || 'http://localhost:3000/api';
         const token = localStorage.getItem('arvic_token');
 
@@ -459,6 +516,39 @@ function showSettingsToast(message, type = 'success') {
 // INICIALIZACIÓN
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
+    // Evitar que clics dentro del menú cierren el propio menú
+    const settingsDropdown = document.getElementById('settingsDropdown');
+    if (settingsDropdown) {
+        settingsDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    // Atajos de teclado (tecla Enter) para inputs del menú de perfil
+    const editNameInput = document.getElementById('settingsEditName');
+    if (editNameInput) {
+        editNameInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') saveProfileName();
+        });
+    }
+
+    const editEmailInput = document.getElementById('settingsEditEmail');
+    if (editEmailInput) {
+        editEmailInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') saveProfileEmail();
+        });
+    }
+
+    const pwdInputs = ['settingsCurrentPwd', 'settingsNewPwd', 'settingsConfirmPwd'];
+    pwdInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') saveNewPassword();
+            });
+        }
+    });
+
     // Cargar preferencia de dark mode
     loadDarkModePreference();
 

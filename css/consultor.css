@@ -507,7 +507,7 @@
 
 .consultor-header .help-search { position: relative; margin-bottom: 16px; }
 .consultor-header .help-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; }
-.consultor-header .help-search input { width: 100%; padding: 10px 12px 10px 36px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.85rem; font-family: inherit; transition: all 0.2s ease; background: #f9fafb; box-sizing: border-box; }
+.consultor-header .help-search input { width: 100%; padding: 10px 12px 10px 36px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.85rem; font-family: inherit; transition: all 0.2s ease; background: var(--gray-50); box-sizing: border-box; }
 .consultor-header .help-search input:focus { outline: none; border-color: var(--primary-color); background: white; box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); }
 
 .consultor-header .help-section { margin-bottom: 20px; }
@@ -528,7 +528,7 @@
 .consultor-header .help-faq-item.open .help-faq-answer { display: block; }
 
 .consultor-header .help-info-grid { display: flex; flex-direction: column; gap: 6px; }
-.consultor-header .help-info-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f9fafb; border-radius: 8px; font-size: 0.8rem; }
+.consultor-header .help-info-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--gray-50); border-radius: 8px; font-size: 0.8rem; }
 .consultor-header .help-info-label { color: #6b7280; font-weight: 500; }
 .consultor-header .help-info-value { color: #1f2937; font-weight: 600; }
 
@@ -558,7 +558,7 @@
 .consultor-header .notify-badge { position: absolute; top: -6px; right: -8px; min-width: 18px; height: 18px; padding: 0 5px; background: #ef4444; color: white; border-radius: 10px; font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 2px solid var(--gray-900); line-height: 1; box-sizing: border-box; }
 
 .consultor-header .notif-item { display: flex; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: all 0.2s ease; position: relative; }
-.consultor-header .notif-item:hover { background: #f9fafb; }
+.consultor-header .notif-item:hover { background: var(--gray-50); }
 .consultor-header .notif-item.unread { background: #f0f4ff; border-left: 3px solid var(--primary-color); }
 .consultor-header .notif-item.unread:hover { background: #e8eeff; }
 .consultor-header .notif-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.9rem; }
@@ -752,7 +752,7 @@
 }
 
 .assignment-card {
-    background: white;
+    background: var(--gray-50);
     border: 1px solid var(--gray-200);
     border-radius: var(--border-radius-xl);
     padding: var(--spacing-2xl);
@@ -947,7 +947,7 @@
 
 /* Información de asignación en modales mejorada */
 .assignment-info-display {
-    background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);
+    background: var(--gray-50);
     padding: var(--spacing-lg);
     border-radius: var(--border-radius-lg);
     border-left: 4px solid var(--primary-color);
@@ -1294,49 +1294,54 @@
     }
 }
 
-@media (max-width: 480px) {
-    .consultor-header .user-menu {
+@media (max-width: 768px) {
+    .consultor-layout {
         flex-direction: column;
-        gap: var(--spacing-sm);
-        align-items: center;
+    }
+    
+    .consultor-sidebar {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 300px;
+        position: relative !important;
+        left: 0 !important;
+        border-right: none;
+        border-bottom: 1px solid var(--gray-200);
     }
     
     .main-content {
-        margin-top: 160px;
+        margin-left: 0 !important;
+        width: 100% !important;
         padding: var(--spacing-md);
     }
     
-    .consultor-main {
-        padding: var(--spacing-lg);
+    .consultor-header {
+        flex-wrap: wrap;
+        height: auto;
+        padding: var(--spacing-md);
     }
     
-    .assignment-card {
-        padding: var(--spacing-lg);
+    .consultor-header .nav-right {
+        width: 100%;
+        justify-content: center;
+        margin-top: var(--spacing-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .consultor-header .user-menu {
+        flex-direction: row;
+        gap: var(--spacing-sm);
+        justify-content: center;
     }
     
     .section-title {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
     }
     
     .modal-content {
-        width: 98%;
-        margin: 2% auto;
-        max-height: 95vh;
-        border-radius: var(--border-radius-lg);
-    }
-    
-    .modal-header {
-        padding: var(--spacing-md);
-        border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
-    }
-    
-    .modal-title {
-        font-size: 1rem;
-    }
-    
-    .modal-body {
-        padding: var(--spacing-lg);
-        max-height: calc(95vh - 70px);
+        width: 95%;
+        margin: 5% auto;
     }
 }
 
@@ -1832,6 +1837,14 @@
     color: #721c24;
 }
 
+.redesigned-modal .rejected-report-card {
+    background: var(--gray-50);
+    border: 1px solid #ff4757;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .redesigned-modal {
@@ -1981,4 +1994,55 @@
 
 .task-assignment {
     border-left: 4px solid #10b981;
+}
+
+/* ==========================================
+   MODO OSCURO (DARK MODE) OVERRIDES
+   ========================================== */
+body.dark-mode .consultor-sidebar {
+    background: #0f172a;
+    border-color: #334155;
+}
+body.dark-mode .sidebar-menu-item {
+    background: transparent;
+    color: var(--gray-700);
+}
+body.dark-mode .sidebar-menu-item:hover {
+    background: var(--gray-100);
+    border-color: var(--primary-color);
+}
+body.dark-mode .sidebar-menu-item.active {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #1e40af 100%);
+    color: white;
+}
+body.dark-mode .content-section,
+body.dark-mode .modal-content {
+    background: var(--gray-50);
+}
+body.dark-mode .section-header {
+    background: var(--gray-50);
+    border-color: var(--gray-200);
+    color: var(--gray-800);
+}
+body.dark-mode .card,
+body.dark-mode .dashboard-card,
+body.dark-mode .consultor-card,
+body.dark-mode .assignment-card,
+body.dark-mode .report-item {
+    background: #1e293b;
+    border-color: var(--gray-200);
+    color: var(--gray-800);
+}
+body.dark-mode .empty-state {
+    background: #1e293b;
+    border-color: var(--gray-200);
+    color: var(--gray-500);
+}
+body.dark-mode .empty-state-title {
+    color: var(--gray-800);
+}
+
+/* Fix for nested backgrounds in dark mode */
+body.dark-mode div[style*="background"] {
+    background: transparent !important;
 }

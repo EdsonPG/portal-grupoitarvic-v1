@@ -1224,10 +1224,10 @@ body {
     padding: var(--spacing-lg);
     border-bottom: 1px solid var(--gray-200);
     transition: var(--transition-normal);
-    background: white;
-    margin-bottom: var(--spacing-lg); /* ✅ AGREGAR ESTO */
-    border-radius: var(--border-radius-lg); /* ✅ AGREGAR ESTO */
-    box-shadow: var(--shadow-sm); /* ✅ AGREGAR ESTO */
+    background: var(--gray-50);
+    margin-bottom: var(--spacing-lg);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm);
     min-height: 180px;
 }
 
@@ -4505,4 +4505,114 @@ body {
     min-width: 50px;
     text-align: right;
     transition: color 0.3s ease;
+}
+
+/* ==========================================
+   MODO OSCURO (DARK MODE) OVERRIDES
+   ========================================== */
+body.dark-mode .admin-sidebar,
+body.dark-mode .consultor-sidebar {
+    background: #0f172a;
+    border-color: #334155;
+}
+body.dark-mode .sidebar-menu-item {
+    background: transparent;
+    color: var(--gray-700);
+}
+body.dark-mode .sidebar-menu-item:hover {
+    background: var(--gray-100);
+    border-color: var(--primary-color);
+}
+body.dark-mode .sidebar-menu-item.active {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #1e40af 100%);
+    color: white;
+}
+body.dark-mode .content-section,
+body.dark-mode .admin-main-content {
+    background: #0f172a; /* Same as body background */
+}
+body.dark-mode .section-header {
+    background: var(--gray-50);
+    border-color: var(--gray-200);
+    color: var(--gray-800);
+}
+body.dark-mode .card,
+body.dark-mode .admin-card,
+body.dark-mode .dashboard-card,
+body.dark-mode .consultor-card,
+body.dark-mode .assignment-card,
+body.dark-mode .item,
+body.dark-mode .report-item {
+    background: #1e293b;
+    border-color: var(--gray-200);
+    color: var(--gray-800);
+}
+body.dark-mode .empty-state {
+    background: #1e293b;
+    border-color: var(--gray-200);
+    color: var(--gray-500);
+}
+body.dark-mode .empty-state-title {
+    color: var(--gray-800);
+}
+body.dark-mode .kpi-card {
+    background: #1e293b;
+    border-color: var(--gray-200);
+}
+body.dark-mode .kpi-title {
+    color: var(--gray-600);
+}
+body.dark-mode .kpi-value {
+    color: var(--gray-800);
+}
+
+/* Fix for nested backgrounds in dark mode */
+body.dark-mode .item div[style*="background"] {
+    background: transparent !important;
+}
+
+/* ==========================================
+   MOBILE RESPONSE (MÓVILES) - ADMIN
+   ========================================== */
+@media (max-width: 768px) {
+    /* Desbloqueamos el scroll total para permitir apilamiento */
+    html, body {
+        height: auto !important;
+        overflow: auto !important;
+    }
+    .admin-layout-wrapper {
+        flex-direction: column;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .admin-sidebar {
+        width: 100% !important;
+        max-height: 220px;
+        overflow-y: auto !important;
+        border-right: none;
+        border-bottom: 1px solid var(--gray-300);
+    }
+    .admin-main-content {
+        flex: 1;
+        width: 100% !important;
+        height: auto !important;
+        overflow-y: visible !important;
+        padding: var(--spacing-sm);
+    }
+    .admin-header .navbar {
+        height: auto;
+        padding: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .nav-actions {
+        width: 100%;
+        justify-content: center;
+        margin-top: 10px;
+    }
+    .user-info {
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
 }

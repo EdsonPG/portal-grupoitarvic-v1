@@ -28,6 +28,9 @@ class SupportChatBot {
         this.container = document.createElement('div');
         this.container.id = 'supportChatbotPanel';
         this.container.className = 'support-bot-panel';
+        this.container.style.visibility = 'hidden';
+        this.container.style.opacity = '0';
+        this.container.style.transition = 'opacity 0.3s ease';
         this.container.innerHTML = `
             <div class="support-bot-header">
                 <div class="support-bot-title">
@@ -85,8 +88,10 @@ class SupportChatBot {
     togglePanel(forceOpen = undefined) {
         this.isOpen = forceOpen !== undefined ? forceOpen : !this.isOpen;
         this.container.classList.toggle('active', this.isOpen);
-
+        
         if (this.isOpen) {
+            this.container.style.visibility = 'visible';
+            this.container.style.opacity = '1';
             // Close other panels
             document.getElementById('notificationsPanel')?.classList.remove('active');
             document.getElementById('helpPanel')?.classList.remove('active');
@@ -96,6 +101,11 @@ class SupportChatBot {
             }
             this.input.focus();
             this.scrollToBottom();
+        } else {
+            this.container.style.opacity = '0';
+            setTimeout(() => {
+                if (!this.isOpen) this.container.style.visibility = 'hidden';
+            }, 300);
         }
     }
 

@@ -1,0 +1,150 @@
+/* =========================================================================
+   SISTEMA DE NOTIFICACIONES PREMIUM (TOASTS) - PORTAL ARVIC
+   ========================================================================= */
+
+   #arvic-toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+
+/* Base Toast Style */
+.arvic-toast {
+    position: relative;
+    width: 350px;
+    max-width: 90vw;
+    background: rgba(15, 23, 42, 0.85); /* Deep slate with opacity */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25), 0 5px 15px rgba(0,0,0,0.1);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    pointer-events: auto;
+    overflow: hidden;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+}
+
+.arvic-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.arvic-toast.hiding {
+    transform: translateX(120%);
+    opacity: 0;
+    margin-top: -80px; /* Collapse gap space smoothly */
+}
+
+/* Icon Area */
+.toast-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+/* Content Area */
+.toast-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
+}
+
+.toast-message {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.4;
+}
+
+/* Progress Bar */
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.2);
+    width: 100%;
+}
+
+.toast-progress-bar {
+    height: 100%;
+    width: 100%;
+    transform-origin: left;
+    transition: transform 0.1s linear;
+}
+
+/* Interactive Close */
+.toast-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 4px;
+}
+
+.toast-close-btn:hover {
+    color: white;
+}
+
+/* ===== THEMES ===== */
+/* Success */
+.arvic-toast.toast-success { border-left: 4px solid #10b981; }
+.toast-success .toast-icon { color: #10b981; }
+.toast-success .toast-progress-bar { background: linear-gradient(90deg, #059669, #34d399); }
+
+/* Error */
+.arvic-toast.toast-error { border-left: 4px solid #ef4444; }
+.toast-error .toast-icon { color: #ef4444; }
+.toast-error .toast-progress-bar { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+/* Info */
+.arvic-toast.toast-info { border-left: 4px solid #3b82f6; }
+.toast-info .toast-icon { color: #3b82f6; }
+.toast-info .toast-progress-bar { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+
+/* Warning */
+.arvic-toast.toast-warning { border-left: 4px solid #f59e0b; }
+.toast-warning .toast-icon { color: #f59e0b; }
+.toast-warning .toast-progress-bar { background: linear-gradient(90deg, #d97706, #fbbf24); }
+
+/* Mobile */
+@media (max-width: 480px) {
+    #arvic-toast-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        align-items: stretch;
+    }
+    .arvic-toast {
+        width: 100%;
+        max-width: none;
+    }
+}

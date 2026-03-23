@@ -167,25 +167,29 @@ function showLoadingState(button, isLoading) {
 }
 
 function showError(message) {
-    const errorDiv = document.getElementById('errorMessage');
-    if (errorDiv) {
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'flex';
-        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        
-        // Auto-hide después de 5 segundos
-        setTimeout(() => {
-            errorDiv.style.display = 'none';
-        }, 5000);
+    if (window.ArvicToast) {
+        window.ArvicToast.error('Error de Acceso', message, 5000);
+    } else {
+        // Fallback básico
+        const errorDiv = document.getElementById('errorMessage');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'flex';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
     }
 }
 
 function showSuccess(message) {
-    const successDiv = document.getElementById('successMessage');
-    if (successDiv) {
-        successDiv.textContent = message;
-        successDiv.style.display = 'flex';
-        successDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (window.ArvicToast) {
+        window.ArvicToast.success('Éxito', message, 3000);
+    } else {
+        // Fallback básico
+        const successDiv = document.getElementById('successMessage');
+        if (successDiv) {
+            successDiv.textContent = message;
+            successDiv.style.display = 'flex';
+        }
     }
 }
 

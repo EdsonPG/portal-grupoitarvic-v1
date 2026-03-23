@@ -35,4 +35,9 @@ const chatMessageSchema = new mongoose.Schema({
   }
 });
 
+// Compound indexes for fast chat queries
+chatMessageSchema.index({ senderId: 1, receiverId: 1, timestamp: 1 });
+chatMessageSchema.index({ receiverId: 1, read: 1, reportId: 1 });
+chatMessageSchema.index({ timestamp: -1 });
+
 module.exports = mongoose.model('ChatMessage', chatMessageSchema);

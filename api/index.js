@@ -32,7 +32,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control']
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -103,6 +103,9 @@ const reportsRoutes = require('./routes/reports');
 const tarifarioRoutes = require('./routes/tarifario');
 const notificationsRoutes = require('./routes/notifications');
 const chatRoutes = require('./routes/chat');  // ✅ NUEVO
+const calendarRoutes = require('./routes/calendar');  // ✅ CALENDARIO
+const videoRoutes = require('./routes/video');        // ✅ VIDEO/VOICE CALLS
+const { sendSSEToUser, broadcastSSE: broadcastSSEChat } = chatRoutes;
 
 // Usar rutas
 app.use('/api/auth', authRoutes);
@@ -118,6 +121,8 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/tarifario', tarifarioRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/chat', chatRoutes); // ✅ NUEVO
+app.use('/api/calendar', calendarRoutes); // ✅ CALENDARIO
+app.use('/api/video', videoRoutes); // ✅ VIDEO/VOICE CALLS
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {
@@ -236,26 +241,18 @@ wss.on('connection', (ws) => {
           payload: newMsg
         };
 
-        // Enviar al receptor
+        // Enviar al receptor via WS
         const receiverWs = clients.get(data.payload.receiverId);
         if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
           receiverWs.send(JSON.stringify(messagePayload));
-        } else {
-            // Si el receptor no está conectado, crear notificación persistente
-            try {
-                const notif = new Notification({
-                    notificationId: `CHAT-${Date.now()}-${Math.floor(Math.random()*1000)}`,
-                    userId: data.payload.receiverId,
-                    type: 'system',
-                    title: 'Mensaje de Chat Nuevo',
-                    message: `Tienes un nuevo mensaje de ${authenticatedUserId}`,
-                    icon: 'fa-solid fa-comments'
-                });
-                await notif.save();
-            } catch (err) { console.error('Error notif:', err); }
         }
+        
+        // Also broadcast via SSE for production compatibility
+        const ssePayload = { ...newMsg.toObject(), tempId: data.tempId };
+        sendSSEToUser(data.payload.receiverId, 'new_message', ssePayload);
+        sendSSEToUser(authenticatedUserId, 'new_message', ssePayload);
 
-        // Eco al emisor
+        // Eco al emisor via WS
         ws.send(JSON.stringify(messagePayload));
       }
 

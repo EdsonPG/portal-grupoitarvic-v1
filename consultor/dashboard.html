@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../css/shared.css">
     <link rel="stylesheet" href="../css/consultor.css">
+    <link rel="stylesheet" href="../css/notifications.css">
 </head>
 <body class="consultor-layout">
     <header class="consultor-header">
@@ -106,6 +107,10 @@
                                     <i class="fa-solid fa-user-pen"></i>
                                     <span>Editar Nombre</span>
                                 </button>
+                                <button class="settings-menu-item" onclick="showEditEmail()">
+                                    <i class="fa-solid fa-envelope"></i>
+                                    <span>Editar Correo</span>
+                                </button>
                                 <button class="settings-menu-item" onclick="showChangePassword()">
                                     <i class="fa-solid fa-key"></i>
                                     <span>Seguridad / Contraseña</span>
@@ -147,6 +152,23 @@
                                 <label for="settingsEditName">Nombre completo</label>
                                 <input type="text" id="settingsEditName" placeholder="Tu nombre completo">
                                 <button class="settings-save-btn" onclick="saveProfileName()">
+                                    <i class="fa-solid fa-check"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Vista: Editar Correo -->
+                        <div id="settingsEditEmailView" class="settings-view" style="display:none;">
+                            <div class="settings-subheader">
+                                <button class="settings-back-btn" onclick="showSettingsMain()">
+                                    <i class="fa-solid fa-arrow-left"></i>
+                                </button>
+                                <span>Editar Correo</span>
+                            </div>
+                            <div class="settings-form">
+                                <label for="settingsEditEmail">Correo electrónico</label>
+                                <input type="email" id="settingsEditEmail" placeholder="Tu correo electrónico">
+                                <button class="settings-save-btn" onclick="saveProfileEmail()">
                                     <i class="fa-solid fa-check"></i> Guardar
                                 </button>
                             </div>
@@ -478,12 +500,13 @@
     </div>
 
     <!-- Scripts en orden correcto -->
-    <script src="../js/databaseMongoDB.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/settings-menu.js"></script>
-    <script src="consultor.js"></script>
-    <script src="../js/supportBot.js"></script>
-    <script src="../js/chatWidget.js"></script>
+    <script src="../js/databaseMongoDB.js?v=3"></script>
+    <script src="../js/modules/toastSystem.js?v=3"></script>
+    <script src="../js/auth.js?v=3"></script>
+    <script src="../js/utils.js?v=3"></script>
+    <script src="../js/settings-menu.js?v=3"></script>
+    <script src="consultor.js?v=3"></script>
+    <script src="../js/supportBot.js?v=3"></script>
+    <script src="../js/chatWidget.js?v=3"></script>
 </body>
 </html>

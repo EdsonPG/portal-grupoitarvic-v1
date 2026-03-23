@@ -108,6 +108,16 @@ window.UserModal = class UserModal {
                                        value="${user.email || ''}" 
                                        placeholder="usuario@empresa.com">
                             </div>
+
+                            <!-- Rol -->
+                            <div class="form-group">
+                                <label for="editUserRole">Rol del Usuario</label>
+                                <select id="editUserRole" ${user.userId === 'admin' ? 'disabled' : ''}>
+                                    <option value="consultor" ${user.role === 'consultor' ? 'selected' : ''}>Consultor (Estándar)</option>
+                                    <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador (Acceso Total)</option>
+                                </select>
+                                ${user.userId === 'admin' ? '<small style="color: #666; font-size: 0.85rem; display: block; margin-top: 5px;">El rol del administrador principal no puede ser modificado.</small>' : ''}
+                            </div>
                             
                             <!-- Nueva Contraseña -->
                             <div class="form-group">
@@ -217,7 +227,8 @@ window.UserModal = class UserModal {
             const formData = {
                 name: document.getElementById('editUserName').value.trim(),
                 email: document.getElementById('editUserEmail').value.trim(),
-                password: document.getElementById('editUserPassword').value.trim()
+                password: document.getElementById('editUserPassword').value.trim(),
+                role: document.getElementById('editUserRole') ? document.getElementById('editUserRole').value : undefined
             };
 
             // Preparar datos de actualización
@@ -226,6 +237,10 @@ window.UserModal = class UserModal {
                 email: formData.email || `${userId.toLowerCase()}@grupoitarvic.com`,
                 updatedAt: new Date().toISOString()
             };
+            
+            if (formData.role && userId !== 'admin') {
+                updateData.role = formData.role;
+            }
 
             // Solo incluir contraseña si se proporcionó una nueva
             if (formData.password) {

@@ -1889,6 +1889,134 @@ async getTarifario() {
             return { success: false };
         }
     }
+
+    // === GESTIÓN DE CALENDARIO ===
+    async getCalendarEvents(startDate, endDate, userId) {
+        try {
+            let url = `${this.API_URL}/calendar/events?`;
+            if (startDate) url += `start=${startDate}&`;
+            if (endDate) url += `end=${endDate}&`;
+            if (userId) url += `userId=${userId}`;
+            
+            const response = await fetch(url, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result.success ? result.data : [];
+        } catch (error) {
+            console.error('❌ Error obteniendo eventos:', error);
+            return [];
+        }
+    }
+
+    async getCalendarEvent(eventId) {
+        try {
+            const response = await fetch(`${this.API_URL}/calendar/events/${eventId}`, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.error('❌ Error obteniendo evento:', error);
+            return null;
+        }
+    }
+
+    async createCalendarEvent(eventData) {
+        try {
+            const response = await fetch(`${this.API_URL}/calendar/events`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(eventData)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error creando evento:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async updateCalendarEvent(eventId, updates) {
+        try {
+            const response = await fetch(`${this.API_URL}/calendar/events/${eventId}`, {
+                method: 'PUT',
+                headers: this.getHeaders(),
+                body: JSON.stringify(updates)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error actualizando evento:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async deleteCalendarEvent(eventId) {
+        try {
+            const response = await fetch(`${this.API_URL}/calendar/events/${eventId}`, {
+                method: 'DELETE',
+                headers: this.getHeaders()
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error eliminando evento:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async getDaySummary(date) {
+        try {
+            const response = await fetch(`${this.API_URL}/calendar/day-summary/${date}`, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result.success ? result.data : null;
+        } catch (error) {
+            console.error('❌ Error obteniendo resumen del día:', error);
+            return null;
+        }
+    }
+
+    async rsvpCalendarEvent(eventId, status) {
+        try {
+            const response = await fetch(`${this.API_URL}/calendar/events/${eventId}/rsvp`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify({ status })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error actualizando RSVP:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    async sendCalendarInvites(eventId) {
+        try {
+            const response = await fetch(`${this.API_URL}/calendar/events/${eventId}/invite`, {
+                method: 'POST',
+                headers: this.getHeaders()
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error enviando invitaciones:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    // === VIDEOCONFERENCIAS ===
+    async createVideoRoom(isPrivate = false, type = 'video') {
+        try {
+            const response = await fetch(`${this.API_URL}/video/create-room`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify({ isPrivate, type })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error creando sala de video:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
 }
 
 // Crear instancia global de la base de datos

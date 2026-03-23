@@ -714,20 +714,20 @@ async function updateSupportsList() {
 
                 <div style="display: flex; justify-content: space-between; align-items: center;
                             padding: 12px 20px; margin: 0 -20px 0 -20px;
-                            border-top: 1px solid #e5e7eb; background: #f9fafb;">
-                    <small style="color: #555; font-weight: 500; font-size: 0.8rem;">
+                            border-top: 1px solid var(--gray-200); background: var(--gray-50);">
+                    <small style="color: var(--gray-600); font-weight: 500; font-size: 0.8rem;">
                         Consultores asignados: <strong>${assignedConsultors.length}</strong>
                     </small>
-                    <small style="color: #555; font-weight: 500; font-size: 0.8rem;">
-                        ${support.description ? `<i class="fa-solid fa-file-alt" style="color:#6b7280;"></i> ${window.TextUtils.truncate(support.description, 50)}` : '<span style="color:#9ca3af;">Sin descripción</span>'}
+                    <small style="color: var(--gray-600); font-weight: 500; font-size: 0.8rem;">
+                        ${support.description ? `<i class="fa-solid fa-file-alt" style="color:var(--gray-500);"></i> ${window.TextUtils.truncate(support.description, 50)}` : '<span style="color:var(--gray-400);">Sin descripción</span>'}
                     </small>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center;
                             padding: 12px 20px; margin: 0 -20px -20px -20px;
-                            border-top: 1px solid #e5e7eb; background: #ffffff;">
-                    <small style="color: #666; font-weight: 500; font-size: 0.75rem;">
-                        <i class="fa-solid fa-calendar" style="color: #10b981;"></i>
+                            border-top: 1px solid var(--gray-200); background: var(--gray-0, #ffffff);">
+                    <small style="color: var(--gray-500); font-weight: 500; font-size: 0.75rem;">
+                        <i class="fa-solid fa-calendar" style="color: var(--success-color);"></i>
                         ${window.DateUtils.formatDate(support.createdAt)}
                     </small>
                     <small style="color: transparent; font-size: 0.75rem;">—</small>
@@ -2206,9 +2206,7 @@ function closeAllModals() {
 
 // === FUNCIONES DE UTILIDAD ===
 function logout() {
-    if (confirm('¿Está seguro de cerrar sesión?')) {
-        window.AuthSys.logout();
-    }
+    window.AuthSys.logout();
 }
 
 /**
@@ -2655,8 +2653,8 @@ console.log('Admin.js cargado, funciones mejoradas');
 function initializeAdminPanel() {
     const currentUser = window.AuthSys.getCurrentUser();
     if (currentUser) {
-        // Usar nombre fijo para el administrador
-        document.getElementById('adminUserName').textContent = 'Hector Perez';
+        // Usar el nombre real del administrador logueado
+        document.getElementById('adminUserName').textContent = currentUser.name || 'Administrador';
     }
 
     // Mostrar mensaje de bienvenida
@@ -2998,12 +2996,15 @@ async function handleCreateUser(event) {
         }
         tempPassword = tempPassword.split('').sort(() => 0.5 - Math.random()).join('');
 
+        const userRoleInput = document.getElementById('userRole');
+        const role = userRoleInput ? userRoleInput.value : 'consultor';
+
         const userData = {
             userId: userId,
             name: name,
             email: email || `${userId.toLowerCase()}@grupoitarvic.com`,
             password: tempPassword,
-            role: 'consultor',
+            role: role,
             isActive: true
         };
 
@@ -3982,10 +3983,10 @@ async function updateUsersList() {
     const users = Object.values(currentData.users);
     
     const consultorUsers = users.filter(user => 
-        user.role === 'consultor' && 
         user.isActive !== false &&
         user.userId &&
-        user.userId !== 'undefined'
+        user.userId !== 'undefined' &&
+        user.userId !== 'admin' // Ocultar al super admin original, pero mostrar a otros admins
     );
     
     if (consultorUsers.length === 0) {
@@ -4031,6 +4032,9 @@ async function updateUsersList() {
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span class="item-id">${user.userId}</span>
                         <strong style="font-size: 1rem;">${user.name}</strong>
+                        ${user.role === 'admin' ? 
+                           `<span class="custom-badge" style="background-color: var(--color-arvic-primary); color: white;"><i class="fa-solid fa-crown" style="margin-right:4px;"></i> ADMIN</span>` 
+                           : ''}
                         ${totalAssignments > 1 ? 
                             `<span class="custom-badge badge-info">MÚLTIPLE</span>
                              <span class="custom-badge badge-primary">${totalAssignments}</span>` : 
@@ -4064,15 +4068,15 @@ async function updateUsersList() {
                 ${totalAssignments > 0 ? `
                     <div style="display: flex; justify-content: space-between; align-items: center;
                                 padding: 12px 20px; margin: 0 -20px 0 -20px;
-                                border-top: 1px solid #e5e7eb;
-                                background: #f9fafb;">
-                        <small style="color: #555; font-weight: 500; font-size: 0.8rem;">
+                                border-top: 1px solid var(--gray-200);
+                                background: var(--gray-50);">
+                        <small style="color: var(--gray-600); font-weight: 500; font-size: 0.8rem;">
                             Soporte: <strong>${supportAssignments.length}</strong>
                         </small>
-                        <small style="color: #555; font-weight: 500; font-size: 0.8rem;">
+                        <small style="color: var(--gray-600); font-weight: 500; font-size: 0.8rem;">
                             Proyectos: <strong>${projectAssignments.length}</strong>
                         </small>
-                        <small style="color: #555; font-weight: 500; font-size: 0.8rem;">
+                        <small style="color: var(--gray-600); font-weight: 500; font-size: 0.8rem;">
                             Tareas: <strong>${taskAssignments.length}</strong>
                         </small>
                     </div>
@@ -4081,15 +4085,15 @@ async function updateUsersList() {
                 <!-- FILA 2: Información del usuario (SIEMPRE visible) -->
                 <div style="display: flex; justify-content: space-between; align-items: center;
                             padding: 12px 20px; margin: 0 -20px -20px -20px;
-                            border-top: 1px solid #e5e7eb;
-                            background: #ffffff;">
-                    <small style="color: #666; font-weight: 500; font-size: 0.75rem;">
-                        <i class="fa-solid fa-calendar" style="color: #10b981;"></i> 
+                            border-top: 1px solid var(--gray-200);
+                            background: var(--gray-0, #ffffff);">
+                    <small style="color: var(--gray-500); font-weight: 500; font-size: 0.75rem;">
+                        <i class="fa-solid fa-calendar" style="color: var(--success-color);"></i> 
                         ${window.DateUtils.formatDate(user.createdAt)}
                     </small>
                     
-                    <small style="color: #666; font-weight: 500; font-size: 0.75rem;">
-                        <i class="fa-solid fa-envelope" style="color: #3b82f6;"></i> 
+                    <small style="color: var(--gray-500); font-weight: 500; font-size: 0.75rem;">
+                        <i class="fa-solid fa-envelope" style="color: var(--primary-light);"></i> 
                         ${user.email || 'Sin correo'}
                     </small>
                     
@@ -6333,7 +6337,7 @@ function generateStandardTable(report) {
     const totalHours = Object.values(editablePreviewData).reduce((sum, row) => sum + row.editedTime, 0);
     const totalAmount = Object.values(editablePreviewData).reduce((sum, row) => sum + row.editedTotal, 0);
     
-    tableHTML += '<tr style="background: #f1f5f9; font-weight: bold;">';
+    tableHTML += '<tr style="background: var(--gray-100); font-weight: bold;">';
     report.structure.forEach((header, index) => {
         if (index === 0) {
             tableHTML += '<td>TOTALES</td>';
@@ -6368,9 +6372,9 @@ function generateRemanenteTable() {
     console.log(`📅 Generando tabla para ${weekStructure.totalWeeks} semanas`);
     
     let tableHTML = `
-        <div style="margin-bottom: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #0ea5e9;">
-            <strong><i class="fa-solid fa-calendar"></i> Distribución del Mes:</strong> ${weekStructure.description}<br>
-            <strong><i class="fa-solid fa-hashtag"></i> Total de Semanas:</strong> ${weekStructure.totalWeeks}
+        <div style="margin-bottom: 1rem; padding: 1rem; background: var(--gray-100); border-radius: 8px; border-left: 4px solid var(--info-color);">
+            <strong style="color: var(--info-color);"><i class="fa-solid fa-calendar"></i> Distribución del Mes:</strong> ${weekStructure.description}<br>
+            <strong style="color: var(--info-color);"><i class="fa-solid fa-hashtag"></i> Total de Semanas:</strong> ${weekStructure.totalWeeks}
         </div>
         <table class="preview-table">
             <thead>
@@ -6446,7 +6450,7 @@ function generateRemanenteTable() {
     });
     
     // Fila de totales
-    tableHTML += '<tr style="background: #f1f5f9; font-weight: bold;"><td>TOTALES</td>';
+    tableHTML += '<tr style="background: var(--gray-100); font-weight: bold;"><td>TOTALES</td>';
     
     for (let semana = 1; semana <= weekStructure.totalWeeks; semana++) {
         const semanaTotalHours = Object.values(editablePreviewData)
@@ -6507,7 +6511,7 @@ function generateRemanenteTableWithProjects() {
     } else {
         console.log('📞 No hay soportes, omitiendo sección');
         tableHTML += `
-            <div style="margin-bottom: 1rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; text-align: center; color: #64748b;">
+            <div style="margin-bottom: 1rem; padding: 1rem; background: var(--gray-100); border-radius: 8px; text-align: center; color: var(--gray-500);">
                 <i class="fa-solid fa-headset"></i> No hay datos de soporte para este cliente y período
             </div>
         `;
@@ -6524,7 +6528,7 @@ function generateRemanenteTableWithProjects() {
         console.log('📋 No hay proyectos para mostrar - hasProjectData:', hasProjectData);
         if (currentReportData.projectSelection === 'ninguno') {
             tableHTML += `
-                <div style="margin-top: 1rem; padding: 1rem; background: #f8fafc; border-radius: 8px; text-align: center; color: #64748b;">
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; text-align: center; color: var(--gray-500);">
                     <i class="fa-solid fa-folder"></i> Proyectos excluidos por selección de filtros
                 </div>
             `;
@@ -6551,14 +6555,14 @@ function generateProjectsSection() {
     console.log('📋 Generando sección de proyectos');
     
     let projectsHTML = `
-        <div style="margin-top: 2rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">
-            <h4 style="margin: 0 0 1rem 0; color: #1e40af; font-size: 1.125rem;">
+        <div style="margin-top: 2rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; border-left: 4px solid var(--primary-light);">
+            <h4 style="margin: 0 0 1rem 0; color: var(--primary-dark); font-size: 1.125rem;">
                 <i class="fa-solid fa-folder"></i> PROYECTOS DEL CLIENTE
             </h4>
         </div>
         <table class="preview-table projects-table">
             <thead>
-                <tr style="background: #dbeafe;">
+                <tr style="background: var(--gray-100);">
                     <th>Proyecto</th>
                     <th>Módulo</th>
                     <th>Total Horas</th>
@@ -6584,7 +6588,7 @@ function generateProjectsSection() {
     Object.entries(projectGroups).forEach(([projectName, modules]) => {
         // Fila de encabezado del proyecto
         projectsHTML += `
-            <tr style="background: #eff6ff; font-weight: bold;">
+            <tr style="background: var(--gray-50); font-weight: bold;">
                 <td colspan="5" style="color: #1d4ed8; font-size: 1rem;">
                     <i class="fa-solid fa-bullseye"></i> ${projectName}
                 </td>

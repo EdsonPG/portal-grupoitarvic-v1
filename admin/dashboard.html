@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../css/shared.css">
     <link rel="stylesheet" href="../css/admin.css">
     <link rel="stylesheet" href="../css/arvic-pdf-styles.css">
+    <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -53,7 +54,7 @@
                     </div>
                     <div class="avatar-settings-badge" id="userStatusBadge" title="En línea"></div>
                 </div>
-                <span class="user-name" id="adminUserName">Hector Perez</span>
+                <span class="user-name" id="adminUserName">Cargando...</span>
 
                 <!-- Settings Dropdown -->
                 <div id="settingsDropdown" class="settings-dropdown">
@@ -108,6 +109,10 @@
                                 <i class="fa-solid fa-user-pen"></i>
                                 <span>Editar Nombre</span>
                             </button>
+                            <button class="settings-menu-item" onclick="showEditEmail()">
+                                <i class="fa-solid fa-envelope"></i>
+                                <span>Editar Correo</span>
+                            </button>
                             <button class="settings-menu-item" onclick="showChangePassword()">
                                 <i class="fa-solid fa-key"></i>
                                 <span>Seguridad / Contraseña</span>
@@ -150,6 +155,23 @@
                             <label for="settingsEditName">Nombre completo</label>
                             <input type="text" id="settingsEditName" placeholder="Tu nombre completo">
                             <button class="settings-save-btn" onclick="saveProfileName()">
+                                <i class="fa-solid fa-check"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Vista: Editar Correo -->
+                    <div id="settingsEditEmailView" class="settings-view" style="display:none;">
+                        <div class="settings-subheader">
+                            <button class="settings-back-btn" onclick="showSettingsMain()">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <span>Editar Correo</span>
+                        </div>
+                        <div class="settings-form">
+                            <label for="settingsEditEmail">Correo electrónico</label>
+                            <input type="email" id="settingsEditEmail" placeholder="Tu correo electrónico">
+                            <button class="settings-save-btn" onclick="saveProfileEmail()">
                                 <i class="fa-solid fa-check"></i> Guardar
                             </button>
                         </div>
@@ -408,11 +430,25 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-section-title">Herramientas</h3>
+                        <div class="sidebar-menu">
+                            <div class="sidebar-menu-item" data-section="calendario">
+                                <span class="menu-icon"> <i class="fa-solid fa-calendar-days"></i> </span>
+                                <span class="menu-text">Calendario</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Contenido Principal -->
                 <div class="admin-main-content">
 
+                    <!-- Sección de Calendario -->
+                    <div id="calendario-section" class="content-section">
+                        <div id="calendarModuleRoot"></div>
+                    </div>
 
                     <!-- Sección de Usuarios -->
                     <div id="usuarios-section" class="content-section active">
@@ -1257,6 +1293,13 @@
                         <input type="email" id="userEmail" placeholder="juan.perez@empresa.com">
                     </div>
                     <div class="form-group">
+                        <label for="userRole">Rol del Usuario *</label>
+                        <select id="userRole" required>
+                            <option value="consultor" selected>Consultor (Estándar)</option>
+                            <option value="admin">Administrador (Acceso Total)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <button type="submit" class="btn btn-primary">Crear Usuario</button>
                     </div>
                 </form>
@@ -1508,21 +1551,23 @@
     </div>
 
     <!-- Scripts -->
-    <script src="../js/databaseMongoDB.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/settings-menu.js"></script>
+    <script src="../js/databaseMongoDB.js?v=3"></script>
+    <script src="../js/modules/toastSystem.js?v=3"></script>
+    <script src="../js/auth.js?v=3"></script>
+    <script src="../js/utils.js?v=3"></script>
+    <script src="../js/settings-menu.js?v=3"></script>
     
     <!-- Scripts Módulo de Usuarios (Cargados secuencialmente) -->
-    <script src="../js/modules/users/UserRepository.js"></script>
-    <script src="../js/modules/users/UserValidator.js"></script>
-    <script src="../js/modules/users/UserService.js"></script>
-    <script src="../js/modules/users/UserModal.js"></script>
-    <script src="../js/modules/users/index.js"></script>
+    <script src="../js/modules/users/UserRepository.js?v=3"></script>
+    <script src="../js/modules/users/UserValidator.js?v=3"></script>
+    <script src="../js/modules/users/UserService.js?v=3"></script>
+    <script src="../js/modules/users/UserModal.js?v=3"></script>
+    <script src="../js/modules/users/index.js?v=3"></script>
     
-    <script src="admin.js"></script>
-    <script src="../js/supportBot.js"></script>
-    <script src="../js/chatWidget.js"></script>
+    <script src="admin.js?v=3"></script>
+    <script src="../js/supportBot.js?v=3"></script>
+    <script src="../js/modules/calendarModule.js?v=3"></script>
+    <script src="../js/chatWidget.js?v=3"></script>
 
 </body>
 </html>

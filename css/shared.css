@@ -377,6 +377,8 @@ body {
     transition: var(--transition-normal);
     background-color: white;
     color: var(--gray-900);
+    cursor: default;
+    caret-color: var(--primary-color);
 }
 
 .form-group input:focus,
@@ -1253,6 +1255,8 @@ body.dark-mode .settings-form input {
     background: #0f172a;
     border-color: #475569;
     color: #e2e8f0;
+    cursor: default;
+    caret-color: #3b82f6;
 }
 
 body.dark-mode .settings-subheader {

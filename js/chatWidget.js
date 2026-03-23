@@ -1,14 +1,16 @@
 /**
- * Chat Widget v3.0 for Portal ARVIC
+ * Chat Widget v4.0 for Portal ARVIC
+ * Real-time messaging via SSE (Server-Sent Events) — works on Vercel production
  * Premium UX: Unread badges, typing indicators, message read receipts,
  * date separators, last-message previews, smooth animations
  */
 
 class ChatWidget {
     constructor() {
-        console.log('💬 ChatWidget v3.0 inicializando...');
+        console.log('💬 ChatWidget v4.0 inicializando (SSE mode)...');
         this.isOpen = false;
-        this.ws = null;
+        this.sseSource = null;      // EventSource for SSE
+        this.ws = null;             // WebSocket fallback (local dev only)
         this.currentContextId = null;
         this.currentUser = null;
         this.token = localStorage.getItem('arvic_token');
@@ -16,26 +18,40 @@ class ChatWidget {
         this.selectedFile = null;
         this.userStatus = 'online';
         this.soundEnabled = true;
-        this.unreadCounts = {};  // { senderId: count }
-        this.lastMessages = {};  // { partnerId: { message, timestamp, senderId } }
+        this.unreadCounts = {};     // { senderId: count }
+        this.lastMessages = {};     // { partnerId: { message, timestamp, senderId } }
         this.typingTimers = {};
         this.totalUnread = 0;
+        this.sseConnected = false;
+        this._typingSent = false;
+        this._typingTimeout = null;
 
         const session = JSON.parse(localStorage.getItem('arvic_current_session')) || null;
         this.currentUser = session ? session.user : null;
         if (!this.currentUser) return;
 
+        // Determine API base URL
+        this.apiBase = '';
+        if (window.PortalDB && window.PortalDB.API_URL) {
+            this.apiBase = window.PortalDB.API_URL.replace(/\/api\/?$/, '');
+        }
+
         this.initDOM();
         this.initEvents();
         this.loadContacts();
         this.loadUnreadCounts();
+        
+        // Start SSE connection (primary real-time transport)
+        setTimeout(() => this.initSSE(), 800);
+        
+        // Also try WebSocket for local dev (optional, additive)
         setTimeout(() => this.initWebSocket(), 1500);
 
         // Polling unread counts every 30s
         setInterval(() => this.loadUnreadCounts(), 30000);
         
-        // Fallback polling for active chat messages if WebSocket fails (Vercel support)
-        setInterval(() => this.pollActiveChat(), 5000);
+        // Fallback polling for active chat messages if both SSE and WS fail
+        setInterval(() => this.pollActiveChat(), 8000);
     }
 
     initDOM() {
@@ -48,17 +64,31 @@ class ChatWidget {
 
         this.container = document.createElement('div');
         this.container.className = 'chat-widget-container';
+        this.container.style.visibility = 'hidden';
+        this.container.style.opacity = '0';
+        this.container.style.transition = 'opacity 0.3s ease';
         this.container.innerHTML = `
             <div class="chat-overlay" id="chatOverlay"></div>
+            <div class="chat-call-modal" id="chatCallModal" style="display:none;">
+                <div class="chat-call-header">
+                    <span id="chatCallTitle"><i class="fa-solid fa-video"></i> Llamada en curso</span>
+                    <button id="chatCallCloseBtn" title="Salir de la llamada"><i class="fa-solid fa-phone-slash"></i></button>
+                </div>
+                <div class="chat-call-body">
+                    <iframe id="chatCallFrame" allow="camera; microphone; fullscreen; display-capture; autoplay"></iframe>
+                </div>
+            </div>
             <div class="chat-panel">
                 <div class="chat-sidebar">
                     <div class="chat-sidebar-header">
-                        <div class="chat-sidebar-title">
-                            <i class="fa-solid fa-comments"></i>
-                            <span>Mensajes</span>
-                        </div>
-                        <div class="chat-sidebar-actions">
-                            <button id="chatSoundToggle" title="Sonido: Activado" class="tool-btn"><i class="fa-solid fa-bell"></i></button>
+                        <div class="chat-sidebar-header-top" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                            <div class="chat-sidebar-title" style="margin:0;">
+                                <i class="fa-solid fa-comments"></i>
+                                <span>Mensajes</span>
+                            </div>
+                            <div class="chat-sidebar-actions">
+                                <button id="chatSoundToggle" title="Sonido: Activado" class="tool-btn"><i class="fa-solid fa-bell"></i></button>
+                            </div>
                         </div>
                         <div class="chat-my-status">
                             <select id="chatMyStatus">
@@ -84,6 +114,10 @@ class ChatWidget {
                                 <span class="chat-header-name" id="chatHeaderName">Selecciona un chat</span>
                                 <span class="chat-header-status" id="chatHeaderStatus"></span>
                             </div>
+                        </div>
+                        <div class="chat-header-actions" id="chatHeaderActions" style="display:none; gap:10px; margin-right:15px;">
+                            <button class="chat-call-btn" id="chatVoiceCallBtn" title="Iniciar llamada de voz"><i class="fa-solid fa-phone"></i></button>
+                            <button class="chat-call-btn" id="chatVideoCallBtn" title="Iniciar videollamada"><i class="fa-solid fa-video"></i></button>
                         </div>
                         <button class="chat-close-btn" id="chatCloseBtn" title="Cerrar">
                             <i class="fa-solid fa-xmark"></i>
@@ -141,6 +175,9 @@ class ChatWidget {
         this.headerName = this.container.querySelector('#chatHeaderName');
         this.headerStatus = this.container.querySelector('#chatHeaderStatus');
         this.headerAvatar = this.container.querySelector('#chatHeaderAvatar');
+        this.headerActions = this.container.querySelector('#chatHeaderActions');
+        this.voiceCallBtn = this.container.querySelector('#chatVoiceCallBtn');
+        this.videoCallBtn = this.container.querySelector('#chatVideoCallBtn');
         this.fileInput = this.container.querySelector('#chatFileInput');
         this.attachBtn = this.container.querySelector('#chatAttachBtn');
         this.attachmentBar = this.container.querySelector('#chatAttachmentBar');
@@ -151,6 +188,12 @@ class ChatWidget {
         this.soundTogglebtn = this.container.querySelector('#chatSoundToggle');
         this.emojiBtn = this.container.querySelector('#chatEmojiBtn');
         this.emojiPicker = this.container.querySelector('#chatEmojiPicker');
+        
+        // Call Modal
+        this.callModal = this.container.querySelector('#chatCallModal');
+        this.callFrame = this.container.querySelector('#chatCallFrame');
+        this.callCloseBtn = this.container.querySelector('#chatCallCloseBtn');
+        this.callTitle = this.container.querySelector('#chatCallTitle');
     }
 
     initEvents() {
@@ -160,6 +203,11 @@ class ChatWidget {
         this.closeBtn.addEventListener('click', () => this.toggleChat(false));
         this.overlay.addEventListener('click', () => this.toggleChat(false));
         this.searchInput.addEventListener('input', (e) => this.filterContacts(e.target.value));
+        
+        // Call bindings
+        this.voiceCallBtn.addEventListener('click', () => this.startCall('voice'));
+        this.videoCallBtn.addEventListener('click', () => this.startCall('video'));
+        this.callCloseBtn.addEventListener('click', () => this.leaveCall());
         this.attachBtn.addEventListener('click', () => this.fileInput.click());
         this.fileInput.addEventListener('change', (e) => this.handleFileSelection(e));
         this.attachmentRemove.addEventListener('click', () => this.clearAttachment());
@@ -197,33 +245,202 @@ class ChatWidget {
         });
     }
 
-    // === TYPING INDICATOR ===
-    emitTyping() {
-        if (!this.currentContextId || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-        
-        if (!this._typingSent) {
-            this.ws.send(JSON.stringify({ type: 'typing_start', receiverId: this.currentContextId }));
-            this._typingSent = true;
+    // ========================================
+    // SSE (Server-Sent Events) — PRIMARY
+    // ========================================
+    initSSE() {
+        if (this.sseSource) {
+            try { this.sseSource.close(); } catch(e) {}
         }
+
+        const streamUrl = `${this.apiBase}/api/chat/stream`;
+        
+        // EventSource doesn't support custom headers, so we'll pass token as query param
+        // We need a workaround: use fetch-based SSE or a proxy approach
+        // For simplicity + security, we'll use the fetch API for SSE
+        this._connectSSE(streamUrl);
+    }
+
+    async _connectSSE(url) {
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Accept': 'text/event-stream',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+
+            if (!response.ok) {
+                console.warn('⚠️ SSE connection failed:', response.status);
+                // Retry after 5 seconds
+                setTimeout(() => this._connectSSE(url), 5000);
+                return;
+            }
+
+            this.sseConnected = true;
+            console.log('📡 SSE conectado exitosamente');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            const processStream = async () => {
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        
+                        // Parse SSE events from buffer
+                        const events = buffer.split('\n\n');
+                        buffer = events.pop(); // Keep incomplete event in buffer
+
+                        for (const eventStr of events) {
+                            if (!eventStr.trim() || eventStr.startsWith(': ping')) continue;
+
+                            let eventType = 'message';
+                            let eventData = '';
+
+                            const lines = eventStr.split('\n');
+                            for (const line of lines) {
+                                if (line.startsWith('event: ')) {
+                                    eventType = line.substring(7).trim();
+                                } else if (line.startsWith('data: ')) {
+                                    eventData = line.substring(6);
+                                }
+                            }
+
+                            if (eventData) {
+                                try {
+                                    const data = JSON.parse(eventData);
+                                    this._handleSSEEvent(eventType, data);
+                                } catch (parseErr) {
+                                    // Skip malformed events
+                                }
+                            }
+                        }
+                    }
+                } catch (readErr) {
+                    console.warn('📡 SSE stream interrupted, reconnecting...');
+                }
+
+                // Reconnect after stream ends
+                this.sseConnected = false;
+                setTimeout(() => this._connectSSE(url), 3000);
+            };
+
+            processStream();
+
+        } catch (err) {
+            console.warn('📡 SSE error, will retry:', err.message);
+            this.sseConnected = false;
+            setTimeout(() => this._connectSSE(url), 5000);
+        }
+    }
+
+    _handleSSEEvent(type, data) {
+        switch (type) {
+            case 'connected':
+                console.log('📡 SSE auth OK:', data.userId);
+                break;
+
+            case 'new_message':
+                this.handleIncomingMessage(data);
+                break;
+
+            case 'message_deleted':
+                this.handleMessageDeleted(data.messageId);
+                break;
+
+            case 'typing_start':
+                this.showTyping(data.senderId);
+                break;
+
+            case 'typing_stop':
+                this.hideTyping(data.senderId);
+                break;
+
+            case 'messages_read':
+                this.handleMessagesRead(data.readBy);
+                break;
+
+            case 'user_status':
+                this.updateContactUIStatus(data.userId, data.status);
+                break;
+
+            case 'active_users':
+                if (data.users) {
+                    data.users.forEach(u => this.updateContactUIStatus(u.userId, u.status));
+                }
+                break;
+        }
+    }
+
+    // ========================================
+    // TYPING INDICATOR (via REST API)
+    // ========================================
+    emitTyping() {
+        if (!this.currentContextId) return;
+
+        if (!this._typingSent) {
+            this._typingSent = true;
+            // Send typing via REST (works everywhere including Vercel)
+            this._sendTypingAPI(true);
+        }
+        
         clearTimeout(this._typingTimeout);
         this._typingTimeout = setTimeout(() => {
-            this.ws.send(JSON.stringify({ type: 'typing_stop', receiverId: this.currentContextId }));
+            this._sendTypingAPI(false);
             this._typingSent = false;
         }, 2000);
+    }
+
+    async _sendTypingAPI(isTyping) {
+        try {
+            await fetch(`${this.apiBase}/api/chat/typing`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ 
+                    receiverId: this.currentContextId, 
+                    isTyping 
+                })
+            });
+        } catch (e) {
+            // Also try via WebSocket if available
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                const type = isTyping ? 'typing_start' : 'typing_stop';
+                this.ws.send(JSON.stringify({ type, receiverId: this.currentContextId }));
+            }
+        }
     }
 
     showTyping(senderId) {
         if (senderId !== this.currentContextId) return;
         this.typingIndicator.style.display = 'flex';
         this.scrollToBottom();
+        
+        // Auto-hide after 4 seconds (safety net)
+        clearTimeout(this._typingAutoHide);
+        this._typingAutoHide = setTimeout(() => {
+            this.typingIndicator.style.display = 'none';
+        }, 4000);
     }
 
     hideTyping(senderId) {
         if (senderId !== this.currentContextId) return;
         this.typingIndicator.style.display = 'none';
+        clearTimeout(this._typingAutoHide);
     }
 
-    // === FILE ATTACHMENT ===
+    // ========================================
+    // FILE ATTACHMENT
+    // ========================================
     handleFileSelection(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -247,7 +464,9 @@ class ChatWidget {
         this.attachmentBar.style.display = 'none';
     }
 
-    // === CONTACTS ===
+    // ========================================
+    // CONTACTS
+    // ========================================
     async loadContacts() {
         try {
             const users = await window.PortalDB.getUsers();
@@ -267,17 +486,14 @@ class ChatWidget {
 
     async pollActiveChat() {
         if (!this.isOpen || !this.currentContextId) return;
-        // Don't poll if WebSocket is fully healthy
+        // Don't poll if SSE or WebSocket is healthy
+        if (this.sseConnected) return;
         if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
 
         try {
             const history = await window.PortalDB.getChatHistory(this.currentContextId);
             if (!history || history.length === 0) return;
             
-            // Check if there are new messages we haven't rendered
-            const existingMessages = this.messagesArea.querySelectorAll('.bot-msg-row, .chat-message');
-            // If the count of messages differs significantly, just reload history
-            // For a simpler deep check, compare last message ID or text
             const lastMsg = history[history.length - 1];
             if (lastMsg && !document.getElementById(`msg-${lastMsg._id}`)) {
                 this.renderHistory(history);
@@ -356,7 +572,9 @@ class ChatWidget {
         this.renderContacts(filtered);
     }
 
-    // === UNREAD COUNTS ===
+    // ========================================
+    // UNREAD COUNTS
+    // ========================================
     async loadUnreadCounts() {
         if (!this.currentUser) return;
         try {
@@ -398,13 +616,18 @@ class ChatWidget {
         }
     }
 
-    // === SELECT CONTACT & LOAD HISTORY ===
+    // ========================================
+    // SELECT CONTACT & LOAD HISTORY
+    // ========================================
     async selectContact(user) {
         this.currentContextId = user.userId;
         this.headerName.textContent = user.name;
         this.headerStatus.textContent = user.role === 'admin' ? 'Administrador' : 'Consultor';
         this.inputBar.style.display = 'flex';
         this.typingIndicator.style.display = 'none';
+        
+        // Show Call actions
+        this.headerActions.style.display = 'flex';
 
         // Update avatar
         if (user.profilePhoto) {
@@ -428,12 +651,10 @@ class ChatWidget {
     }
 
     async markConversationRead(senderId) {
-        // Via WebSocket for real-time
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'mark_read', senderId }));
-        } else {
+        // Use REST API (works everywhere)
+        try {
             await window.PortalDB.markChatAsRead(senderId);
-        }
+        } catch(e) {}
 
         // Update local counts
         if (this.unreadCounts[senderId]) {
@@ -451,7 +672,9 @@ class ChatWidget {
         }
     }
 
-    // === WEBSOCKET ===
+    // ========================================
+    // WEBSOCKET (Fallback for local dev)
+    // ========================================
     initWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         let host = window.location.host;
@@ -461,38 +684,45 @@ class ChatWidget {
 
         const isVercel = window.location.hostname.includes('vercel.app');
         if (isVercel) {
-            console.log('Modo Vercel detectado: WebSockets desactivados (usando polling).');
+            console.log('Modo Vercel: WebSockets desactivados (usando SSE).');
             return;
         }
 
-        this.ws = new WebSocket(`${protocol}//${host}`);
+        try {
+            this.ws = new WebSocket(`${protocol}//${host}`);
 
-        this.ws.onopen = () => {
-            this.ws.send(JSON.stringify({ type: 'auth', token: this.token }));
-            this.updateMyStatus(this.statusSelect.value);
-        };
+            this.ws.onopen = () => {
+                this.ws.send(JSON.stringify({ type: 'auth', token: this.token }));
+                this.updateMyStatus(this.statusSelect.value);
+            };
 
-        this.ws.onmessage = (e) => {
-            const data = JSON.parse(e.data);
-            
-            if (data.type === 'new_message') this.handleIncomingMessage(data.payload);
-            if (data.type === 'message_deleted') this.handleMessageDeleted(data.messageId);
-            if (data.type === 'user_status_update') this.updateContactUIStatus(data.userId, data.status);
-            if (data.type === 'active_users_list') {
-                data.users.forEach(u => this.updateContactUIStatus(u.userId, u.status));
-            }
-            if (data.type === 'typing_start') this.showTyping(data.senderId);
-            if (data.type === 'typing_stop') this.hideTyping(data.senderId);
-            if (data.type === 'messages_read') this.handleMessagesRead(data.readBy);
-        };
+            this.ws.onmessage = (e) => {
+                // Only handle WS messages if SSE is NOT connected (avoid duplicates)
+                if (this.sseConnected) return;
 
-        this.ws.onclose = () => setTimeout(() => this.initWebSocket(), 5000);
-        this.ws.onerror = () => {};
+                const data = JSON.parse(e.data);
+                
+                if (data.type === 'new_message') this.handleIncomingMessage(data.payload);
+                if (data.type === 'message_deleted') this.handleMessageDeleted(data.messageId);
+                if (data.type === 'user_status_update') this.updateContactUIStatus(data.userId, data.status);
+                if (data.type === 'active_users_list') {
+                    data.users.forEach(u => this.updateContactUIStatus(u.userId, u.status));
+                }
+                if (data.type === 'typing_start') this.showTyping(data.senderId);
+                if (data.type === 'typing_stop') this.hideTyping(data.senderId);
+                if (data.type === 'messages_read') this.handleMessagesRead(data.readBy);
+            };
+
+            this.ws.onclose = () => setTimeout(() => this.initWebSocket(), 5000);
+            this.ws.onerror = () => {};
+        } catch (e) {
+            // WebSocket not available, SSE will handle everything
+        }
     }
 
     updateMyStatus(status) {
+        this.userStatus = status;
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.userStatus = status;
             this.ws.send(JSON.stringify({ type: 'status_change', status }));
         }
     }
@@ -510,9 +740,38 @@ class ChatWidget {
         }
     }
 
-    // === MESSAGES ===
+    // ========================================
+    // MESSAGES
+    // ========================================
     handleIncomingMessage(msg) {
         const currentUserId = this.currentUser.userId || this.currentUser.id;
+        
+        // If this message has a tempId and was sent by me, replace the optimistic message
+        if (msg.tempId && msg.senderId === currentUserId) {
+            const optEl = document.getElementById(`msg-${msg.tempId}`);
+            if (optEl) {
+                optEl.id = `msg-${msg._id}`;
+                // Update status indicator from clock to checkmark
+                const statusSpan = optEl.querySelector('.msg-status');
+                if (statusSpan) {
+                    statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    statusSpan.className = 'msg-status sent';
+                }
+                // Update last messages and contacts
+                this.lastMessages[msg.receiverId] = {
+                    lastMessage: msg.message || '📎 Archivo',
+                    lastTimestamp: msg.timestamp,
+                    lastSenderId: msg.senderId,
+                    read: msg.read
+                };
+                this.renderContacts(this.contacts);
+                return; // Don't re-append
+            }
+        }
+
+        // Prevent duplicate rendering
+        if (msg._id && document.getElementById(`msg-${msg._id}`)) return;
+
         const isCurrent = msg.senderId === this.currentContextId || msg.receiverId === this.currentContextId;
 
         if (isCurrent && this.isOpen) {
@@ -566,20 +825,21 @@ class ChatWidget {
         const text = this.input.value.trim();
         if (!text && !this.selectedFile) return;
 
+        const currentUserId = this.currentUser.userId || this.currentUser.id;
+        const tempId = 'temp-' + Date.now();
+
         const payload = {
             receiverId: this.currentContextId,
             message: text,
             attachment: this.selectedFile ? this.selectedFile.base64 : undefined,
-            fileName: this.selectedFile ? this.selectedFile.name : undefined
+            fileName: this.selectedFile ? this.selectedFile.name : undefined,
+            tempId: tempId
         };
 
         this.input.value = '';
         this.clearAttachment();
 
-        // Stop typing
         // Optimistic UI update for instant feedback
-        const currentUserId = this.currentUser.userId || this.currentUser.id;
-        const tempId = 'temp-' + Date.now();
         const optimisticMsg = {
             _id: tempId,
             senderId: currentUserId,
@@ -605,20 +865,29 @@ class ChatWidget {
         };
         this.renderContacts(this.contacts);
 
-        if (this._typingSent && this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'typing_stop', receiverId: this.currentContextId }));
+        // Stop typing
+        if (this._typingSent) {
+            this._sendTypingAPI(false);
             this._typingSent = false;
         }
 
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'chat_message', payload, tempId }));
-        } else {
+        // Always send via REST API (works everywhere, SSE will broadcast)
+        try {
             const res = await window.PortalDB.sendChatMessage(payload);
             if (res.success) {
-                // Remove the optimistic message so we can render the real one from DB (with correct Mongoose ID)
-                const optEl = document.getElementById(`msg-${tempId}`);
-                if (optEl) optEl.remove();
-                this.handleIncomingMessage(res.data);
+                // The SSE event will handle replacing the optimistic message
+                // But if SSE isn't connected, handle it here
+                if (!this.sseConnected) {
+                    const optEl = document.getElementById(`msg-${tempId}`);
+                    if (optEl) {
+                        optEl.id = `msg-${res.data._id}`;
+                        const statusSpan = optEl.querySelector('.msg-status');
+                        if (statusSpan) {
+                            statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
+                            statusSpan.className = 'msg-status sent';
+                        }
+                    }
+                }
             } else {
                 // Mark optimistic msg as failed
                 const failedEl = document.getElementById(`msg-${tempId}`);
@@ -627,6 +896,15 @@ class ChatWidget {
                     if (statusSpan) {
                         statusSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:red;" title="Error al enviar"></i>';
                     }
+                }
+            }
+        } catch (err) {
+            // Mark as failed
+            const failedEl = document.getElementById(`msg-${tempId}`);
+            if (failedEl) {
+                const statusSpan = failedEl.querySelector('.msg-status');
+                if (statusSpan) {
+                    statusSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:red;" title="Error al enviar"></i>';
                 }
             }
         }
@@ -676,11 +954,27 @@ class ChatWidget {
 
         const div = document.createElement('div');
         div.id = `msg-${msg._id}`;
-        div.className = `chat-msg ${isMe ? 'msg-out' : 'msg-in'}`;
+        div.className = `chat-msg ${isMe ? 'msg-out' : 'msg-in'} msg-animate-in`;
 
         let content = '';
         if (msg.message) {
-            content += `<div class="msg-text">${this.escapeHTML(msg.message)}</div>`;
+            // Check for call tags
+            const callMatch = msg.message.match(/^\[MEET_CALL_(VIDEO|VOICE)\]:(.+)$/);
+            if (callMatch) {
+                const callType = callMatch[1] === 'VIDEO' ? 'Videollamada' : 'Llamada de Voz';
+                const callUrl = callMatch[2];
+                const icon = callMatch[1] === 'VIDEO' ? 'fa-video' : 'fa-phone';
+                content += `
+                    <div class="msg-call-block">
+                        <div class="msg-call-icon"><i class="fa-solid ${icon}"></i></div>
+                        <div class="msg-call-details">
+                            <strong>${callType} iniciada</strong>
+                            <button class="chat-join-btn" onclick="window.chatWidget.joinCall('${callUrl}', '${callType}')">Unirse</button>
+                        </div>
+                    </div>`;
+            } else {
+                content += `<div class="msg-text">${this.escapeHTML(msg.message)}</div>`;
+            }
         }
         if (msg.fileName && msg.attachment) {
             if (msg.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
@@ -694,7 +988,7 @@ class ChatWidget {
         
         let readStatusHtml = '';
         if (msg.isOptimistic) {
-            readStatusHtml = '<i class="fa-regular fa-clock" title="Enviando..."></i>'; // Reloj de envío
+            readStatusHtml = '<i class="fa-regular fa-clock" title="Enviando..."></i>';
         } else if (msg.read) {
             readStatusHtml = '<i class="fa-solid fa-check-double"></i>';
         } else {
@@ -718,9 +1012,14 @@ class ChatWidget {
             </div>
         `;
         this.messagesArea.appendChild(div);
+        
+        // Remove animation class after animation completes
+        setTimeout(() => div.classList.remove('msg-animate-in'), 350);
     }
 
-    // === UTILITIES ===
+    // ========================================
+    // UTILITIES
+    // ========================================
     async deleteMessage(messageId) {
         if (!confirm('¿Estás seguro de eliminar este mensaje?')) return;
         
@@ -728,22 +1027,25 @@ class ChatWidget {
         const el = document.getElementById(`msg-${messageId}`);
         if (el) el.remove();
 
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'delete_message', messageId }));
-        } else {
+        try {
             await window.PortalDB.deleteChatMessage(messageId);
+        } catch(e) {
+            console.error('Error deleting message:', e);
         }
     }
 
     handleMessageDeleted(messageId) {
         const el = document.getElementById(`msg-${messageId}`);
-        if (el) el.remove();
+        if (el) {
+            el.style.opacity = '0';
+            el.style.transform = 'scale(0.8)';
+            setTimeout(() => el.remove(), 200);
+        }
     }
 
     playNotificationSound() {
         if (!this.soundEnabled) return;
         try {
-            // Generates a short soft beep
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -785,13 +1087,63 @@ class ChatWidget {
         return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
     }
 
+    // ========================================
+    // VIDEO / VOICE CALLS
+    // ========================================
+    async startCall(type) {
+        if (!this.currentContextId) return;
+        
+        // 1. Create room via API
+        const response = await window.PortalDB.createVideoRoom(true, type);
+        if (!response.success || !response.data?.url) {
+            window.NotificationUtils?.error('Error al iniciar la llamada');
+            return;
+        }
+
+        // 2. Automatically join the call myself
+        this.joinCall(response.data.url, type === 'video' ? 'Videollamada' : 'Llamada de voz');
+
+        // 3. Send message to chat partner so they can join
+        const payload = {
+            receiverId: this.currentContextId,
+            message: `[MEET_CALL_${type.toUpperCase()}]:${response.data.url}`,
+            tempId: 'temp-' + Date.now()
+        };
+
+        try {
+            await window.PortalDB.sendChatMessage(payload);
+        } catch (e) {
+            console.error('Failed to send call invite:', e);
+        }
+    }
+
+    joinCall(url, title = 'Videollamada') {
+        this.callTitle.innerHTML = `<i class="fa-solid ${title.toLowerCase().includes('video') ? 'fa-video' : 'fa-phone'}"></i> ${title}`;
+        this.callFrame.src = url;
+        this.callModal.style.display = 'flex';
+    }
+
+    leaveCall() {
+        this.callFrame.src = '';
+        this.callModal.style.display = 'none';
+    }
+
     toggleChat(show) {
         this.isOpen = show;
         this.container.classList.toggle('active', show);
+        
         if (show) {
+            this.container.style.visibility = 'visible';
+            this.container.style.opacity = '1';
             this.loadContacts();
             this.loadUnreadCounts();
             this.input?.focus();
+        } else {
+            this.container.style.opacity = '0';
+            // Wait for transition before hiding completely
+            setTimeout(() => {
+                if (!this.isOpen) this.container.style.visibility = 'hidden';
+            }, 300);
         }
     }
 }

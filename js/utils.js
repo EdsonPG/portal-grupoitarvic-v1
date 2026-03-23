@@ -322,48 +322,18 @@ const ModalUtils = {
 // === NOTIFICACIONES ===
 const NotificationUtils = {
     show(message, type = 'info', duration = 5000) {
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.innerHTML = `
-            <span>${message}</span>
-            <button onclick="this.parentElement.remove()">&times;</button>
-        `;
-        
-        // Estilos en línea para la notificación
-        Object.assign(notification.style, {
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            padding: '15px',
-            borderRadius: '5px',
-            color: 'white',
-            zIndex: '9999',
-            maxWidth: '300px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            animation: 'slideIn 0.3s ease'
-        });
-        
-        // Colores según el tipo
-        const colors = {
-            success: '#27ae60',
-            error: '#e74c3c',
-            warning: '#f39c12',
-            info: '#3498db'
-        };
-        notification.style.backgroundColor = colors[type] || colors.info;
-        
-        document.body.appendChild(notification);
-        
-        // Auto-remove después del tiempo especificado
-        if (duration > 0) {
-            setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.remove();
-                }
-            }, duration);
+        if (window.ArvicToast) {
+            window.ArvicToast.show({
+                type: type,
+                title: type === 'error' ? 'Error' : type === 'success' ? 'Éxito' : type === 'warning' ? 'Aviso' : 'Notificación',
+                message: message,
+                duration: duration
+            });
+            return null;
+        } else {
+            console.warn('ArvicToast no encontrado. Fallback:', message);
+            return null;
         }
-        
-        return notification;
     },
 
     success(message, duration = 3000) {
@@ -382,6 +352,7 @@ const NotificationUtils = {
         return this.show(message, 'info', duration);
     }
 };
+
 
 // === UTILITARIOS DE DATOS ===
 const DataUtils = {

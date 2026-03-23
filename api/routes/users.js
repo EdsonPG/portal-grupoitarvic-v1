@@ -126,9 +126,17 @@ router.put('/:id', async (req, res) => {
     
     console.log('📝 Actualizando usuario:', req.params.id, updates);
     
+    const mongoose = require('mongoose');
+    const query = { 
+      $or: [
+        { userId: req.params.id }, 
+        ...(mongoose.isValidObjectId(req.params.id) ? [{ _id: req.params.id }] : [])
+      ]
+    };
+
     // Si se actualiza la contraseña, necesita re-hash
     if (updates.password) {
-      const user = await User.findOne({ userId: req.params.id });  // ✅ userId
+      const user = await User.findOne(query);
       
       if (!user) {
         return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
@@ -159,7 +167,7 @@ router.put('/:id', async (req, res) => {
 
     // Actualización normal sin contraseña
     const user = await User.findOneAndUpdate(
-      { userId: req.params.id },  // ✅ userId
+      query,
       { ...updates, updatedAt: new Date() },
       { new: true, runValidators: true }
     ).select('-password');
@@ -276,7 +284,15 @@ router.put('/:id/change-password', async (req, res) => {
       return res.status(400).json({ success: false, message: 'La nueva contraseña debe tener al menos 4 caracteres' });
     }
 
-    const user = await User.findOne({ userId: req.params.id });
+    const mongoose = require('mongoose');
+    const query = { 
+      $or: [
+        { userId: req.params.id }, 
+        ...(mongoose.isValidObjectId(req.params.id) ? [{ _id: req.params.id }] : [])
+      ]
+    };
+
+    const user = await User.findOne(query);
     if (!user) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     }

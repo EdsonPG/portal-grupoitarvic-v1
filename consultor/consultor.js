@@ -245,6 +245,12 @@ let isInitialized = false;
 // === MANEJO DE ERRORES ===
 function showError(message) {
     console.error('Error:', message);
+    if (window.ArvicToast) {
+        window.ArvicToast.error('Error', message, 5000);
+        return;
+    }
+    
+    // Fallback
     const errorContainer = document.getElementById('errorContainer');
     const errorText = document.getElementById('errorText');
     
@@ -1195,13 +1201,13 @@ async function viewAssignmentReports(assignmentId) {
                             ${report.description}
                         </p>
                         ${report.feedback ? `
-                            <div style="background: #fff5f5; padding: 10px; border-radius: 6px; border-left: 3px solid #e74c3c; margin-top: 10px;">
-                                <strong style="color: #e74c3c;">Comentarios de revisión:</strong>
-                                <p style="margin: 5px 0 0 0; color: #666;">${report.feedback}</p>
+                            <div style="background: var(--gray-50); padding: 10px; border-radius: 6px; border-left: 3px solid var(--accent-color); margin-top: 10px;">
+                                <strong style="color: var(--accent-color);">Comentarios de revisión:</strong>
+                                <p style="margin: 5px 0 0 0; color: var(--gray-600);">${report.feedback}</p>
                             </div>
                         ` : ''}
                         <div style="margin-top:10px;">
-                            <button class="btn btn-sm" style="background: #1cb5e0; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;" onclick="if(window.chatWidget) window.chatWidget.setContext('${report.reportId || report.id}', true, 'Chat de Ticket: ${report.reportId || report.id}')">
+                            <button class="btn btn-sm" style="background: var(--primary-light); color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;" onclick="if(window.chatWidget) window.chatWidget.setContext('${report.reportId || report.id}', true, 'Chat de Ticket: ${report.reportId || report.id}')">
                                 <i class="fa-solid fa-comments"></i> Chat del Ticket
                             </button>
                         </div>
@@ -1276,12 +1282,10 @@ function openModal(modalId) {
 
 function logout() {
     try {
-        if (confirm('¿Está seguro de cerrar sesión?')) {
-            if (window.AuthSys) {
-                window.AuthSys.logout();
-            } else {
-                window.location.href = window.location.protocol === 'file:' ? '../index.html' : '/';
-            }
+        if (window.AuthSys) {
+            window.AuthSys.logout();
+        } else {
+            window.location.href = window.location.protocol === 'file:' ? '../index.html' : '/';
         }
     } catch (error) {
         console.error('Error en logout:', error);
@@ -1597,11 +1601,11 @@ async function openEditRejectedReportModal(reportId) {
         // Agregar feedback del admin si existe
         if (report.feedback) {
             const feedbackHtml = `
-                <div class="form-section feedback-section" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px;">
-                    <div class="section-title" style="color: #856404;">
+                        <div class="form-section feedback-section" style="background: var(--gray-100); border-left: 4px solid var(--warning-color); padding: 15px; margin-bottom: 20px;">
+                    <div class="section-title" style="color: var(--warning-color);">
                         <i class="fa-solid fa-comment-dots"></i> Comentarios del Administrador
                     </div>
-                    <p style="margin: 10px 0 0 0; color: #856404;">${report.feedback}</p>
+                    <p style="margin: 10px 0 0 0; color: var(--gray-700);">${report.feedback}</p>
                 </div>
             `;
             
@@ -1859,14 +1863,14 @@ function renderRejectionFeedback(report) {
     
     return `
         <div class="rejection-feedback" style="
-            background: #ffe3e3; 
-            border: 1px solid #ff4757; 
+            background: var(--gray-50); 
+            border: 1px solid var(--accent-color); 
             border-radius: 6px; 
             padding: 12px; 
             margin-bottom: 15px;
         ">
-            <strong style="color: #ff4757;"><i class="fa-solid fa-comments"></i> Comentarios del Administrador:</strong><br>
-            <span style="color: #721c24;">${report.feedback}</span>
+            <strong style="color: var(--accent-color);"><i class="fa-solid fa-comments"></i> Comentarios del Administrador:</strong><br>
+            <span style="color: var(--gray-600);">${report.feedback}</span>
         </div>
     `;
 }
@@ -1875,7 +1879,7 @@ function renderReportActions(reportId) {
     return `
         <div class="assignment-actions report-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
             <button class="btn btn-primary" onclick="openEditRejectedReportModal('${reportId}')" style="
-                background: #ffa502; 
+                background: var(--warning-color); 
                 color: white; 
                 border: none; 
                 padding: 8px 16px; 
@@ -1885,7 +1889,7 @@ function renderReportActions(reportId) {
                 <i class="fa-solid fa-pencil-alt"></i> Editar
             </button>
             <button class="btn btn-secondary" onclick="quickResubmitReport('${reportId}')" style="
-                background: #2ed573; 
+                background: var(--success-color); 
                 color: white; 
                 border: none; 
                 padding: 8px 16px; 
