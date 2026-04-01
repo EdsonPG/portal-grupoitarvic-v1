@@ -609,60 +609,43 @@ function updateStats() {
 async function updateSidebarCounts() {
     await loadCurrentData();
     
-    const consultorUsers = Object.values(currentData.users).filter(u => u.role === 'consultor');
-    const companies = Object.values(currentData.companies);
-    const projects = Object.values(currentData.projects);
     const assignments = Object.values(currentData.assignments).filter(a => a.isActive !== false);
     const projectAssignments = Object.values(currentData.projectAssignments || {}).filter(a => a.isActive !== false);
-    const supports = Object.values(currentData.supports);
-    const modules = Object.values(currentData.modules);
-    const reports = Object.values(currentData.reports);
     const taskAssignments = Object.values(currentData.taskAssignments || {}).filter(t => t.isActive !== false);
-
     const totalAssignments = assignments.length + projectAssignments.length + taskAssignments.length;
 
-    document.getElementById('sidebarProjectAssignmentsCount').textContent = projectAssignments.length;
-
-    const tarifario = await window.PortalDB.getTarifario();
-    const tarifarioArray = Array.isArray(tarifario) ? tarifario : Object.values(tarifario);
-    const tarifarioCount = tarifarioArray.length;
-    console.log("Tarifario cargado, conteo:", tarifarioCount);
-
+    const reports = Object.values(currentData.reports || {});
     const pendingReports = reports.filter(r => r.status === 'Pendiente');
     const approvedReports = reports.filter(r => r.status === 'Aprobado');
-    const generatedReports = typeof window.PortalDB.getGeneratedReports === 'function' 
-        ? Object.values(window.PortalDB.getGeneratedReports() || {})
-        : [];
     
+    // Elementos que aún existen en el sidebar
     const sidebarElements = {
-        'sidebarUsersCount': consultorUsers.length,
-        'sidebarCompaniesCount': companies.length,
-        'sidebarProjectsCount': projects.length,
-        'sidebarSupportsCount': supports.length,
-        'sidebarModulesCount': modules.length,
         'sidebarAssignmentsCount': totalAssignments,
+        'sidebarProjectAssignmentsCount': projectAssignments.length,
+        'sidebarTaskCount': taskAssignments.length,
         'sidebarReportsCount': pendingReports.length,
-        'sidebarApprovedReportsCount': approvedReports.length,
-        'sidebarGeneratedReportsCount': generatedReports.length,
-        'sidebarTarifarioCount': tarifarioCount,  
-        'sidebarTaskCount': taskAssignments.length
+        'sidebarApprovedReportsCount': approvedReports.length
     };
 
     Object.entries(sidebarElements).forEach(([elementId, count]) => {
         const element = document.getElementById(elementId);
         if (element) {
             element.textContent = count;
-        } else {
-            console.warn(`Elemento ${elementId} no encontrado`);
         }
     });
 
-    console.log('Contadores de sidebar actualizados correctamente');
+    console.log('Contadores de sidebar actualizados');
 }
 
 async function updateSupportsList() {
     await loadCurrentData();
-    const container = document.getElementById('supportsList');
+    // Intentar obtener el contenedor original o el de Gestión Maestra
+    const container = document.getElementById('supportsList') || document.getElementById('supportsMasterList');
+    
+    if (!container) {
+        console.warn('Contenedor para lista de soportes no encontrado');
+        return;
+    }
 
     if (!currentData.supports) {
         console.warn('currentData.supports es undefined');
@@ -1229,7 +1212,19 @@ function updateTasksList() {
 
 async function updateModulesList() {
     await loadCurrentData();
-    const container = document.getElementById('modulesList');
+    // Intentar obtener el contenedor original o el de Gestión Maestra
+    const container = document.getElementById('modulesList') || document.getElementById('modulesMasterList');
+
+    if (!container) {
+        console.warn('Contenedor para lista de módulos no encontrado');
+        return;
+    }
+
+    if (!currentData.modules) {
+        console.warn('currentData.modules es undefined');
+        currentData.modules = {};
+    }
+
     const modules = Object.values(currentData.modules);
 
     if (modules.length === 0) {
@@ -2196,6 +2191,19 @@ function openModuleModal() {
     window.ModalUtils.open('moduleModal');
 }
 
+function openTarifarioModal() {
+    // Si existe el ID, enfocarlo
+    const el = document.getElementById('tarifaEmpresa');
+    if (el) el.focus();
+    window.ModalUtils.open('tarifarioModal');
+}
+
+function openSupportModal() {
+    const el = document.getElementById('supportName');
+    if (el) el.focus();
+    window.ModalUtils.open('supportModal');
+}
+
 function closeModal(modalId) {
     window.ModalUtils.close(modalId);
 }
@@ -2604,7 +2612,7 @@ let currentData = {
     reports: {}
 };
 
-let currentSection = 'usuarios';
+let currentSection = 'panel-general';
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
@@ -2646,6 +2654,44 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Panel de administrador completamente inicializado');
 
 });
+
+async function loadAllData() {
+    console.log('🚀 Cargando TODOS los datos del sistema...');
+    try {
+        currentData.users = await window.PortalDB.getUsers() || {};
+        currentData.companies = await window.PortalDB.getCompanies() || {};
+        currentData.projects = await window.PortalDB.getProjects() || {};
+        currentData.assignments = await window.PortalDB.getAssignments() || {};
+        currentData.supports = await window.PortalDB.getSupports() || {};
+        currentData.modules = await window.PortalDB.getModules() || {};
+        currentData.reports = await window.PortalDB.getReports() || {};
+        currentData.projectAssignments = await window.PortalDB.getProjectAssignments() || {};
+        currentData.taskAssignments = await window.PortalDB.getTaskAssignments() || {};
+        currentData.tarifario = await window.PortalDB.getTarifario() || {};
+        currentData.timesheets = window.PortalDB.getTimesheets ? window.PortalDB.getTimesheets() : {};
+        
+        console.log('📊 Datos cargados:', {
+            usuarios: Object.keys(currentData.users).length,
+            empresas: Object.keys(currentData.companies).length,
+            reportes: Object.keys(currentData.reports).length
+        });
+
+        // Actualizar UI general
+        updateSidebarCounts();
+        
+        // Si estamos en una sección que requiere renderizado inmediato
+        if (currentSection === 'usuarios') await updateUsersList();
+        if (currentSection === 'reportes-pendientes') await updateReportsList();
+        
+        // Si estamos en Panel General, actualizar stats
+        if (currentSection === 'panel-general') {
+            renderPanelGeneral();
+        }
+
+    } catch (error) {
+        console.error('❌ Error en loadAllData:', error);
+    }
+}
 
 console.log('Admin.js cargado, funciones mejoradas');
 
@@ -2739,6 +2785,8 @@ async function silentAdminRefresh() {
         currentData.reports = await window.PortalDB.getReports() || {};
         currentData.projectAssignments = await window.PortalDB.getProjectAssignments() || {};
         currentData.taskAssignments = await window.PortalDB.getTaskAssignments() || {};
+        currentData.tarifario = await window.PortalDB.getTarifario() || {};
+        currentData.timesheets = window.PortalDB.getTimesheets ? window.PortalDB.getTimesheets() : {};
         
         updateSidebarCounts();
         
@@ -2836,7 +2884,10 @@ async function showSection(sectionName) {
             });
         }
     }
+
+    // No se requiere lógica especial para Panel General
 }
+
 
 function updateActiveSidebarItem(activeSection) {
     document.querySelectorAll('.sidebar-menu-item').forEach(item => {
@@ -2853,36 +2904,39 @@ async function loadSectionData(sectionName) {
     try {
         switch(sectionName) {
             case 'usuarios':
-                await updateUsersList(); // ✅ AGREGADO await
+                await updateUsersList();
+                break;
+                
+            case 'consultores':
+                renderConsultoresList();
                 break;
                 
             case 'empresas':
-                await updateCompaniesList(); // ✅ AGREGADO await
+                renderEmpresasList();
                 break;
                 
             case 'proyectos':
-                await updateProjectsList(); // ✅ AGREGADO await
+                renderProyectosList();
                 break;
                 
             case 'soportes':
-                await updateSupportsList(); // ✅ AGREGADO await
+                renderSoportesList();
                 break;
                 
             case 'modulos':
-                await updateModulesList(); // ✅ AGREGADO await
+                renderModulosList();
                 break;
                 
             case 'tarifario':
-                await loadTarifario(); // ✅ AGREGADO await
+                await loadTarifario();
                 break;
                 
             case 'lista-asignaciones':
             case 'asignaciones-recientes':
-                await updateAssignmentsList(); // ✅ AGREGADO await
+                await updateAssignmentsList();
                 break;
                 
             case 'reportes-pendientes':
-                // ✅ YA TIENE await
                 console.log('📊 Cargando reportes pendientes...');
                 if (typeof initializeReportsFilters === 'function') {
                     await initializeReportsFilters();
@@ -2890,19 +2944,18 @@ async function loadSectionData(sectionName) {
                 break;
                 
             case 'asignar-proyectos':
-                await updateProjectAssignmentDropdowns(); // ✅ AGREGADO await
+                await updateProjectAssignmentDropdowns();
                 break;
                 
             case 'lista-proyectos-asignados':
-                await updateProjectAssignmentsList(); // ✅ AGREGADO await
+                await updateProjectAssignmentsList();
                 break;
                 
             case 'taskAssignments':
-                await loadTaskAssignments(); // ✅ AGREGADO await
+                await loadTaskAssignments();
                 break;
                 
             case 'reportes-aprobados':
-                // ✅ YA TIENE await
                 console.log('✅ Cargando reportes aprobados...');
                 if (typeof updateApprovedReportsList === 'function') {
                     await updateApprovedReportsList();
@@ -2913,11 +2966,18 @@ async function loadSectionData(sectionName) {
                 console.log('📝 Sección crear-asignacion - dropdowns se actualizarán por separado');
                 break;
                 
+            case 'panel-general':
+                renderPanelGeneral();
+                break;
+                
+            case 'timesheets-semanales':
+                console.log('📊 Cargando timesheets semanales...');
+                await renderAdminTimesheets();
+                break;
+                
             case 'generar-reporte':
-                // ✅ CORREGIDO: Usar await para cargar todos los datos
                 console.log('🔄 Forzando recarga de datos para generar-reporte...');
                 
-                // ⭐ IMPORTANTE: Usar await para cargar todos los datos
                 currentData.reports = await window.PortalDB.getReports() || {};
                 currentData.users = await window.PortalDB.getUsers() || {};
                 currentData.companies = await window.PortalDB.getCompanies() || {};
@@ -2926,9 +2986,8 @@ async function loadSectionData(sectionName) {
                 currentData.supports = await window.PortalDB.getSupports() || {};
                 currentData.modules = await window.PortalDB.getModules() || {};
                 currentData.projectAssignments = await window.PortalDB.getProjectAssignments() || {};
-                currentData.taskAssignments = await window.PortalDB.getTaskAssignments() || {}; // ✅ AGREGADO
+                currentData.taskAssignments = await window.PortalDB.getTaskAssignments() || {};
                 
-                // Verificar que los datos se cargaron correctamente
                 console.log('📊 Datos recargados para generar-reporte:', {
                     reportes: Object.keys(currentData.reports).length,
                     usuarios: Object.keys(currentData.users).length,
@@ -2937,15 +2996,13 @@ async function loadSectionData(sectionName) {
                     soportes: Object.keys(currentData.supports).length,
                     modulos: Object.keys(currentData.modules).length,
                     proyectoAsignaciones: Object.keys(currentData.projectAssignments).length,
-                    tareaAsignaciones: Object.keys(currentData.taskAssignments).length // ✅ AGREGADO
+                    tareaAsignaciones: Object.keys(currentData.taskAssignments).length
                 });
                 
-                // Reinicializar el selector de reportes
                 if (typeof initializeReportSelector === 'function') {
                     initializeReportSelector();
                 }
                 
-                // Configurar filtro de tiempo por defecto
                 setTimeout(() => {
                     const timeFilter = document.getElementById('timeFilter');
                     if (timeFilter) {
@@ -2956,9 +3013,9 @@ async function loadSectionData(sectionName) {
                 break;
                 
             case 'historial-reportes':
-                await updateGeneratedReportsList(); // ✅ AGREGADO await
+                await updateGeneratedReportsList();
                 break;
-                
+
             default:
                 console.log(`ℹ️ Sección ${sectionName} no tiene carga de datos específica`);
         }
@@ -3977,17 +4034,23 @@ async function createProjectAssignment() {
 
 async function updateUsersList() {
     await loadCurrentData();
-    const container = document.getElementById('usersList');
-    if (!container) return;
+    // PRIORIZAR el contenedor de Gestión Maestra
+    const container = document.getElementById('usersMasterList') || document.getElementById('usersList');
+    
+    if (!container) {
+        console.warn('Contenedor para lista de usuarios no encontrado');
+        return;
+    }
     
     const users = Object.values(currentData.users);
     
     const consultorUsers = users.filter(user => 
         user.isActive !== false &&
         user.userId &&
-        user.userId !== 'undefined' &&
-        user.userId !== 'admin' // Ocultar al super admin original, pero mostrar a otros admins
+        user.userId !== 'undefined'
     );
+    
+    console.log(`👤 Usuarios filtrados para mostrar: ${consultorUsers.length} de ${users.length} totales`);
     
     if (consultorUsers.length === 0) {
         container.innerHTML = `
@@ -8204,7 +8267,7 @@ Tarifas
 Fecha: ${window.DateUtils ? window.DateUtils.formatDate(tarifa.fechaCreacion) : tarifa.fechaCreacion}
     `;
     
-    alert(detalles);
+    openInfoModal('Detalles de Tarifa', detalles.trim());
 }
 
 /**
@@ -8263,19 +8326,34 @@ async function editTarifaInline(assignmentId, campo) {
         input.removeEventListener('keydown', keyHandler);
         
         const nombreCampo = campo === 'costoConsultor' ? 'Costo Consultor' : 'Costo Cliente';
+        const msg = `¿Confirmar cambio de ${nombreCampo}?\n\nValor actual: ${formatCurrency(valorActual)}\nNuevo valor: ${formatCurrency(nuevoValor)}`;
         
-        if (confirm(`¿Confirmar cambio de ${nombreCampo}?\n\nValor actual: ${formatCurrency(valorActual)}\nNuevo valor: ${formatCurrency(nuevoValor)}`)) {
-            // ✅ Esperar a que termine de guardar
+        openConfirmModal('Confirmar Tarifa', msg, async () => {
             await saveTarifaEdit(tarifa.tarifarioId, campo, nuevoValor);
-            
-            // ✅ Recargar tabla para reflejar cambios
             await loadTarifario();
-        } else {
-            element.innerHTML = originalContent;
-            element.classList.remove('editing');
+            guardando = false;
+        });
+        
+        // Remove editing classes if cancelled (needs to be handled by openConfirmModal ideally, but let's just restore original content to prevent stuck UI)
+        document.getElementById('closeConfirmEntityModal').addEventListener('click', () => {
+            if (element.classList.contains('editing')) {
+                element.innerHTML = originalContent;
+                element.classList.remove('editing');
+                guardando = false;
+            }
+        }, { once: true });
+        
+        const cancelBtn = document.querySelector('#confirmEntityModal .btn-secondary');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                if (element.classList.contains('editing')) {
+                    element.innerHTML = originalContent;
+                    element.classList.remove('editing');
+                    guardando = false;
+                }
+            }, { once: true });
         }
         
-        guardando = false;
     };
     
     const cancelar = () => {
@@ -9580,6 +9658,229 @@ window.cerrarFormularioTarifa = cerrarFormularioTarifa;
 window.silentAdminRefresh = silentAdminRefresh;
 window.isAdminInteracting = isAdminInteracting;
 
+// === GESTIÓN MAESTRA (SISTEMA HÍBRIDO) ===
+
+/**
+ * Cambia entre las pestañas maestras de gestión
+ */
+window.switchMasterTab = async function(tabId) {
+    console.log(`📑 Cambiando a pestaña maestra: ${tabId}`);
+    
+    // Actualizar botones de pestañas
+    document.querySelectorAll('.master-tabs .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('onclick').includes(`'${tabId}'`)) {
+            btn.classList.add('active');
+        }
+    });
+
+    // Mostrar el panel correspondiente
+    document.querySelectorAll('.master-tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+    const targetPane = document.getElementById(`tab-${tabId}`);
+    if (targetPane) targetPane.classList.add('active');
+
+    // Cargar datos según la pestaña
+    await loadCurrentData(true); // Forzar recarga de datos
+
+    switch(tabId) {
+        case 'empresas':
+            renderHierarchicalDirectory();
+            break;
+        case 'usuarios':
+            renderMasterUsersList();
+            break;
+        case 'tarifario':
+            renderMasterTarifarioList();
+            break;
+        case 'config':
+            renderMasterConfig();
+            break;
+    }
+};
+
+/**
+ * Renderiza el directorio jerárquico de Clientes -> Proyectos -> Asignaciones
+ */
+window.renderHierarchicalDirectory = function() {
+    console.log('🏗️ Renderizando Directorio Jerárquico...');
+    const container = document.getElementById('hierarchicalDirectory');
+    if (!container) {
+        console.error('❌ Contenedor hierarchicalDirectory no encontrado');
+        return;
+    }
+
+    // Limpiar el estado de carga inicial OBLIGATORIAMENTE
+    container.innerHTML = '';
+
+    const companies = Object.values(currentData.companies || {});
+    console.log(`📊 Directorio Jerárquico: Renderizando ${companies.length} empresas`);
+    
+    if (companies.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fa-solid fa-building-circle-exclamation" style="font-size: 3rem; color: var(--gray-300); margin-bottom: 1rem;"></i>
+                <div class="empty-state-title">No hay empresas registradas</div>
+                <div class="empty-state-desc">Comience agregando una nueva empresa cliente.</div>
+                <button class="btn btn-primary" onclick="openCompanyModal()" style="margin-top: 1rem;">+ Regístrar Empresa</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Ordenar empresas por nombre
+    companies.sort((a, b) => a.name.localeCompare(b.name)).forEach(company => {
+        const companyId = company.companyId;
+        
+        // Obtener proyectos de esta empresa
+        const projects = Object.values(currentData.projects || {}).filter(p => p.companyId === companyId);
+        
+        const companyItem = document.createElement('div');
+        companyItem.className = 'hierarchy-item';
+        companyItem.innerHTML = `
+            <div class="hierarchy-node" onclick="this.parentElement.classList.toggle('expanded')">
+                <i class="fa-solid fa-chevron-right toggle-icon"></i>
+                <i class="fa-solid fa-building" style="color: var(--primary-color)"></i>
+                <span class="node-title">${company.name}</span>
+                <span class="node-badge">${projects.length} Proyectos</span>
+                <div class="node-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); editCompany('${companyId}')"><i class="fa-solid fa-edit"></i></button>
+                </div>
+            </div>
+            <div class="hierarchy-children" id="children-${companyId}">
+                <!-- Proyectos se cargan aquí -->
+            </div>
+        `;
+        
+        const childrenContainer = companyItem.querySelector('.hierarchy-children');
+        
+        if (projects.length === 0) {
+            childrenContainer.innerHTML = '<div style="padding: 10px 52px; color: #94a3b8; font-size: 0.85rem;">Sin proyectos registrados</div>';
+        } else {
+            projects.forEach(project => {
+                const projectId = project.projectId;
+                
+                // Obtener asignaciones de este proyecto (Soporte o Proyecto Directo)
+                const projectAsg = Object.values(currentData.projectAssignments || {}).filter(a => a.projectId === projectId);
+                
+                const projectDiv = document.createElement('div');
+                projectDiv.className = 'child-project-wrapper';
+                projectDiv.innerHTML = `
+                    <div class="child-project">
+                        <div class="project-info">
+                            <span class="project-name"><i class="fa-solid fa-folder-open"></i> ${project.name}</span>
+                            <span class="project-details">${projectAsg.length} Consultores asignados</span>
+                        </div>
+                        <div class="project-actions">
+                            <button class="btn btn-xs btn-primary" onclick="event.stopPropagation(); editProject('${projectId}')">Editar</button>
+                        </div>
+                    </div>
+                    <div class="child-assignments">
+                        ${projectAsg.map(asg => {
+                            const consultor = currentData.users[asg.consultorId];
+                            return `
+                                <div class="assignment-mini-pill">
+                                    <span class="consultant-name"><i class="fa-solid fa-user"></i> ${consultor?.name || 'Desconocido'}</span>
+                                    <span class="rate-info">$${asg.tarifaCliente || 0}/hr</span>
+                                    <button class="btn btn-xs text-danger" onclick="deleteProjectAssignment('${asg.projectAssignmentId}')"><i class="fa-solid fa-times"></i></button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+                childrenContainer.appendChild(projectDiv);
+            });
+        }
+        
+        container.appendChild(companyItem);
+    });
+};
+
+/**
+ * Renderiza la lista de usuarios en la pestaña maestra
+ */
+window.renderMasterUsersList = function() {
+    // La función updateUsersList ahora detecta automáticamente usersMasterList
+    updateUsersList();
+};
+
+/**
+ * Renderiza el tarifario en la pestaña maestra
+ */
+window.renderMasterTarifarioList = function() {
+    const container = document.getElementById('tarifarioMasterList');
+    if (!container) return;
+    
+    loadTarifario().then(() => {
+        const source = document.getElementById('tarifarioTableBody');
+        if (source) {
+            // Aquí podríamos crear una vista más compacta o reutilizar la tabla
+            container.innerHTML = `
+                <table class="reports-table">
+                    <thead>
+                        <tr>
+                            <th>Entidad</th>
+                            <th>Consultor</th>
+                            <th>Tarifa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${source.innerHTML}
+                    </tbody>
+                </table>
+            `;
+        }
+    });
+};
+
+window.renderMasterConfig = function() {
+    // Estas funciones ahora manejan el renderizado de catálogos
+    updateMasterCatalogs();
+};
+
+/**
+ * Renderiza de forma completa los catálogos del sistema (Soportes y Módulos)
+ */
+async function updateMasterCatalogs() {
+    const supportsContainer = document.getElementById('supportsMasterList');
+    const modulesContainer = document.getElementById('modulesMasterList');
+    
+    if (!supportsContainer || !modulesContainer) return;
+    
+    await loadCurrentData();
+    
+    // Render Soportes
+    const supports = Object.values(currentData.supports || {});
+    if (supports.length === 0) {
+        supportsContainer.innerHTML = '<div class="empty-mini">No hay soportes</div>';
+    } else {
+        supportsContainer.innerHTML = supports.map(s => `
+            <div class="catalog-item">
+                <span class="catalog-name">${s.name}</span>
+                <div class="catalog-actions">
+                    <button class="btn-icon" onclick="deleteSupport('${s.id}')" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Render Módulos
+    const modules = Object.values(currentData.modules || {});
+    if (modules.length === 0) {
+        modulesContainer.innerHTML = '<div class="empty-mini">No hay módulos</div>';
+    } else {
+        modulesContainer.innerHTML = modules.map(m => `
+            <div class="catalog-item">
+                <span class="catalog-name">${m.name}</span>
+                <div class="catalog-actions">
+                    <button class="btn-icon" onclick="deleteModule('${m.id}')" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
 console.log('✅ Funciones de asignación de proyectos cargadas');
 console.log('✅ Funciones del administrador exportadas globalmente');
 
@@ -9778,3 +10079,726 @@ window.openOmniCreateDrawer = function() {
         SideDrawerUtils.open('¿Qué deseas registrar?', html);
     }
 };
+
+// ==============================================
+// PANEL GENERAL + CRUD SECTIONS — RENDER FUNCTIONS
+// ==============================================
+
+/**
+ * Actualiza los contadores del sidebar para las nuevas secciones
+ */
+function updateSidebarCounts() {
+    try {
+        const users = currentData.users || {};
+        const companies = currentData.companies || {};
+        const projects = currentData.projects || {};
+        const supports = currentData.supports || {};
+        const modules = currentData.modules || {};
+        const assignments = currentData.assignments || {};
+        const reports = currentData.reports || {};
+        const tarifario = currentData.tarifario || {};
+        const projectAssignments = currentData.projectAssignments || {};
+        const taskAssignments = currentData.taskAssignments || {};
+
+        // Contar consultores activos (excluyendo admin)
+        const consultorCount = Object.values(users).filter(u => u.role === 'consultor' && u.isActive !== false).length;
+        const empresaCount = Object.values(companies).filter(c => c.isActive !== false).length;
+        const proyectoCount = Object.values(projects).filter(p => p.isActive !== false).length;
+        const soporteCount = Object.values(supports).filter(s => s.isActive !== false).length;
+        const moduloCount = Object.values(modules).filter(m => m.isActive !== false).length;
+        const tarifarioCount = Object.keys(tarifario).length;
+        const assignCount = Object.keys(assignments).length;
+        const projectAssignCount = Object.keys(projectAssignments).length;
+        const taskCount = Object.values(taskAssignments).filter(t => t.isActive !== false).length;
+        const pendingReports = Object.values(reports).filter(r => r.status === 'Pendiente').length;
+        const timesheets = currentData.timesheets || {};
+        const pendingTimesheets = Object.values(timesheets).filter(t => t.status === 'Pendiente').length;
+
+        // Sidebar badges
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setEl('sidebarConsultoresCount', consultorCount);
+        setEl('sidebarEmpresasCount', empresaCount);
+        setEl('sidebarProyectosCount', proyectoCount);
+        setEl('sidebarSoportesCount', soporteCount);
+        setEl('sidebarModulosCount', moduloCount);
+        setEl('sidebarTarifarioCount', tarifarioCount);
+        setEl('sidebarAssignmentsCount', assignCount);
+        setEl('sidebarProjectAssignmentsCount', projectAssignCount);
+        setEl('sidebarTaskCount', taskCount);
+        setEl('sidebarReportsCount', pendingReports);
+        setEl('sidebarTimesheetsCount', pendingTimesheets || Object.keys(timesheets).length);
+        
+        const approvedCount = Object.values(reports).filter(r => r.status === 'Aprobado').length;
+        setEl('sidebarApprovedReportsCount', approvedCount);
+
+    } catch (error) {
+        console.error('Error updateSidebarCounts:', error);
+    }
+}
+
+/**
+ * Renderiza la tabla de Timesheets Semanales para el admin
+ */
+async function renderAdminTimesheets() {
+    console.log('📊 Renderizando timesheets para admin...');
+    const tbody = document.getElementById('adminTimesheetsBody');
+    if (!tbody) {
+        console.warn('adminTimesheetsBody not found');
+        return;
+    }
+    
+    // Get filter value
+    const filterEl = document.getElementById('tsFilterStatus');
+    const filterStatus = filterEl ? filterEl.value : 'Pendiente';
+    
+    // Get timesheets from PortalDB
+    let timesheets = {};
+    if (window.PortalDB.getTimesheets) {
+        timesheets = window.PortalDB.getTimesheets() || {};
+    }
+    
+    let tsArray = Object.values(timesheets);
+    
+    // Apply filter
+    if (filterStatus !== 'all') {
+        tsArray = tsArray.filter(ts => ts.status === filterStatus);
+    }
+    
+    // Sort by weekStart descending
+    tsArray.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
+    
+    if (tsArray.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="12" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets ${filterStatus !== 'all' ? 'con estado "' + filterStatus + '"' : ''}</td></tr>`;
+        return;
+    }
+    
+    const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    
+    let html = '';
+    for (const ts of tsArray) {
+        // Get user name
+        const userName = ts.userName || ts.userId || 'Desconocido';
+        
+        // Calculate day totals from entries
+        const dayTotals = [0, 0, 0, 0, 0, 0, 0];
+        if (ts.entries && Array.isArray(ts.entries)) {
+            ts.entries.forEach(entry => {
+                DAY_KEYS.forEach((dk, i) => {
+                    dayTotals[i] += (entry.days?.[dk]?.hours || 0);
+                });
+            });
+        }
+        
+        const totalHours = ts.totalWeekHours || dayTotals.reduce((a, b) => a + b, 0);
+        
+        // Status badge
+        const statusClass = ts.status === 'Aprobado' ? 'active' : 
+                           ts.status === 'Rechazado' ? 'inactive' : '';
+        
+        // Actions
+        let actionsHtml = '';
+        if (ts.status === 'Pendiente') {
+            actionsHtml = `
+                <button class="btn btn-sm" style="background:#10b981; color:white; padding:4px 10px; border:none; border-radius:4px; cursor:pointer; margin-right:4px;" onclick="approveTimesheet('${ts.timesheetId}')" title="Aprobar">
+                    <i class="fa-solid fa-check"></i>
+                </button>
+                <button class="btn btn-sm" style="background:#ef4444; color:white; padding:4px 10px; border:none; border-radius:4px; cursor:pointer;" onclick="rejectTimesheet('${ts.timesheetId}')" title="Rechazar">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            `;
+        } else {
+            actionsHtml = `<span style="color:#9ca3af; font-size:0.85em;">${ts.status}</span>`;
+        }
+        
+        html += `
+            <tr>
+                <td><strong>${userName}</strong></td>
+                <td><small>${ts.weekStart || '—'} — ${ts.weekEnd || '—'}</small></td>
+                ${dayTotals.map(h => `<td style="text-align:center;">${h > 0 ? h.toFixed(1) : '—'}</td>`).join('')}
+                <td style="text-align:center; font-weight:600;">${totalHours > 0 ? totalHours.toFixed(1) : '0'}</td>
+                <td><span class="crud-status-badge ${statusClass}">${ts.status}</span></td>
+                <td>${actionsHtml}</td>
+            </tr>
+        `;
+    }
+    
+    tbody.innerHTML = html;
+    console.log(`✅ ${tsArray.length} timesheets renderizados`);
+}
+
+// Make renderAdminTimesheets globally accessible
+window.renderAdminTimesheets = renderAdminTimesheets;
+
+/**
+ * Approve a weekly timesheet
+ */
+async function approveTimesheet(timesheetId) {
+    if (!confirm('¿Aprobar este timesheet semanal?')) return;
+    
+    try {
+        if (window.PortalDB.updateTimesheet) {
+            const result = window.PortalDB.updateTimesheet(timesheetId, {
+                status: 'Aprobado',
+                reviewedAt: new Date().toISOString(),
+                reviewedBy: 'admin'
+            });
+            
+            if (result.success) {
+                window.NotificationUtils.success('Timesheet aprobado correctamente');
+                // Also approve related reports
+                const ts = Object.values(window.PortalDB.getTimesheets()).find(t => t.timesheetId === timesheetId);
+                if (ts && ts.generatedReportIds) {
+                    for (const reportId of ts.generatedReportIds) {
+                        try {
+                            await window.PortalDB.updateReport(reportId, { status: 'Aprobado' });
+                        } catch (e) { /* ignore individual report errors */ }
+                    }
+                }
+                await renderAdminTimesheets();
+                updateSidebarCounts();
+            } else {
+                window.NotificationUtils.error('Error: ' + (result.message || 'No se pudo aprobar'));
+            }
+        }
+    } catch (error) {
+        console.error('Error aprobando timesheet:', error);
+        window.NotificationUtils.error('Error al aprobar timesheet');
+    }
+}
+
+/**
+ * Reject a weekly timesheet
+ */
+async function rejectTimesheet(timesheetId) {
+    const reason = prompt('Motivo del rechazo (opcional):');
+    if (reason === null) return; // User cancelled
+    
+    try {
+        if (window.PortalDB.updateTimesheet) {
+            const result = window.PortalDB.updateTimesheet(timesheetId, {
+                status: 'Rechazado',
+                rejectionReason: reason || '',
+                reviewedAt: new Date().toISOString(),
+                reviewedBy: 'admin'
+            });
+            
+            if (result.success) {
+                window.NotificationUtils.success('Timesheet rechazado');
+                await renderAdminTimesheets();
+                updateSidebarCounts();
+            } else {
+                window.NotificationUtils.error('Error: ' + (result.message || 'No se pudo rechazar'));
+            }
+        }
+    } catch (error) {
+        console.error('Error rechazando timesheet:', error);
+        window.NotificationUtils.error('Error al rechazar timesheet');
+    }
+}
+
+window.approveTimesheet = approveTimesheet;
+window.rejectTimesheet = rejectTimesheet;
+
+/**
+ * Renderiza el Panel General (dashboard)
+ */
+function renderPanelGeneral() {
+    console.log('📊 Renderizando Panel General...');
+    try {
+        const users = currentData.users || {};
+        const companies = currentData.companies || {};
+        const projects = currentData.projects || {};
+        const supports = currentData.supports || {};
+        const modules = currentData.modules || {};
+        const assignments = currentData.assignments || {};
+        const reports = currentData.reports || {};
+        const tarifario = currentData.tarifario || {};
+        const taskAssignments = currentData.taskAssignments || {};
+
+        const consultorCount = Object.values(users).filter(u => u.role === 'consultor' && u.isActive !== false).length;
+        const empresaCount = Object.values(companies).filter(c => c.isActive !== false).length;
+        const proyectoCount = Object.values(projects).filter(p => p.isActive !== false).length;
+        const soporteCount = Object.values(supports).filter(s => s.isActive !== false).length;
+        const moduloCount = Object.values(modules).filter(m => m.isActive !== false).length;
+        const pendingReports = Object.values(reports).filter(r => r.status === 'Pendiente').length;
+        const approvedReports = Object.values(reports).filter(r => r.status === 'Aprobado').length;
+        const assignCount = Object.keys(assignments).length;
+        const tarifarioCount = Object.keys(tarifario).length;
+        const taskCount = Object.values(taskAssignments).filter(t => t.isActive !== false).length;
+
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setEl('statConsultores', consultorCount);
+        setEl('statEmpresas', empresaCount);
+        setEl('statProyectos', proyectoCount);
+        setEl('statReportesPendientes', pendingReports);
+        setEl('statSoportes', soporteCount);
+        setEl('statModulos', moduloCount);
+        setEl('statAsignaciones', assignCount);
+        setEl('statTarifario', tarifarioCount);
+        setEl('statReportesAprobados', approvedReports);
+        setEl('statTareas', taskCount);
+        
+        console.log('✅ Panel General renderizado');
+    } catch (error) {
+        console.error('❌ Error renderPanelGeneral:', error);
+    }
+}
+
+/**
+ * Renderiza lista de consultores
+ */
+function renderConsultoresList() {
+    console.log('👥 Renderizando lista de consultores...');
+    const tbody = document.getElementById('consultoresTableBody');
+    if (!tbody) return;
+
+    const users = currentData.users || {};
+    const consultores = Object.values(users).filter(u => u.role === 'consultor');
+
+    if (consultores.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-users"></i> No hay consultores registrados. Cree uno con "+ Nuevo Consultor".</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = consultores.map(u => `
+        <tr data-searchable="${(u.name || '').toLowerCase()} ${(u.email || '').toLowerCase()} ${(u.id || u.userId || '')}">
+            <td><strong>${u.id || u.userId || '—'}</strong></td>
+            <td>${u.name || 'Sin nombre'}</td>
+            <td>${u.email || '—'}</td>
+            <td class="crud-password-cell">${u.password || '—'}</td>
+            <td><span class="crud-status-badge ${u.isActive !== false ? 'active' : 'inactive'}">${u.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>
+            <td>
+                <div class="crud-actions">
+                    <button class="crud-action-btn edit" title="Editar" onclick="editUser('${u.id || u.userId}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteUserConfirm('${u.id || u.userId}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Renderiza lista de empresas
+ */
+function renderEmpresasList() {
+    console.log('🏢 Renderizando lista de empresas...');
+    const tbody = document.getElementById('empresasTableBody');
+    if (!tbody) return;
+
+    const companies = Object.values(currentData.companies || {});
+
+    if (companies.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-building"></i> No hay empresas registradas.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = companies.map(c => `
+        <tr data-searchable="${(c.name || '').toLowerCase()} ${(c.description || '').toLowerCase()}">
+            <td><strong>${c.id || c.companyId || '—'}</strong></td>
+            <td>${c.name || 'Sin nombre'}</td>
+            <td>${c.description || '—'}</td>
+            <td><span class="crud-status-badge ${c.isActive !== false ? 'active' : 'inactive'}">${c.isActive !== false ? '● Activa' : '● Inactiva'}</span></td>
+            <td>
+                <div class="crud-actions">
+                    <button class="crud-action-btn edit" title="Editar" onclick="editCompany('${c.id || c.companyId}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteCompanyConfirm('${c.id || c.companyId}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Renderiza lista de proyectos
+ */
+function renderProyectosList() {
+    console.log('📁 Renderizando lista de proyectos...');
+    const tbody = document.getElementById('proyectosTableBody');
+    if (!tbody) return;
+
+    const projects = Object.values(currentData.projects || {});
+
+    if (projects.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-folder-open"></i> No hay proyectos registrados.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = projects.map(p => `
+        <tr data-searchable="${(p.name || '').toLowerCase()} ${(p.description || '').toLowerCase()}">
+            <td><strong>${p.id || p.projectId || '—'}</strong></td>
+            <td>${p.name || 'Sin nombre'}</td>
+            <td>${p.description || '—'}</td>
+            <td><span class="crud-status-badge ${p.isActive !== false ? 'active' : 'inactive'}">${p.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>
+            <td>
+                <div class="crud-actions">
+                    <button class="crud-action-btn edit" title="Editar" onclick="editProject('${p.id || p.projectId}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteProjectConfirm('${p.id || p.projectId}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Renderiza lista de soportes
+ */
+function renderSoportesList() {
+    console.log('🛠️ Renderizando lista de soportes...');
+    const tbody = document.getElementById('soportesTableBody');
+    if (!tbody) return;
+
+    const supports = Object.values(currentData.supports || {});
+
+    if (supports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-headset"></i> No hay soportes registrados.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = supports.map(s => `
+        <tr data-searchable="${(s.name || '').toLowerCase()} ${(s.description || '').toLowerCase()}">
+            <td><strong>${s.id || s.supportId || '—'}</strong></td>
+            <td>${s.name || 'Sin nombre'}</td>
+            <td>${s.description || '—'}</td>
+            <td><span class="crud-status-badge ${s.isActive !== false ? 'active' : 'inactive'}">${s.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>
+            <td>
+                <div class="crud-actions">
+                    <button class="crud-action-btn edit" title="Editar" onclick="editSupport('${s.id || s.supportId}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteSupportConfirm('${s.id || s.supportId}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Renderiza lista de módulos
+ */
+function renderModulosList() {
+    console.log('🧩 Renderizando lista de módulos...');
+    const tbody = document.getElementById('modulosTableBody');
+    if (!tbody) return;
+
+    const modules = Object.values(currentData.modules || {});
+
+    if (modules.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-puzzle-piece"></i> No hay módulos registrados.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = modules.map(m => `
+        <tr data-searchable="${(m.name || '').toLowerCase()} ${(m.description || '').toLowerCase()}">
+            <td><strong>${m.id || m.moduleId || '—'}</strong></td>
+            <td>${m.name || 'Sin nombre'}</td>
+            <td>${m.description || '—'}</td>
+            <td><span class="crud-status-badge ${m.isActive !== false ? 'active' : 'inactive'}">${m.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>
+            <td>
+                <div class="crud-actions">
+                    <button class="crud-action-btn edit" title="Editar" onclick="editModule('${m.id || m.moduleId}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteModuleConfirm('${m.id || m.moduleId}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Renderiza tarifario global
+ */
+function renderTarifarioGlobalList() {
+    console.log('💰 Renderizando tarifario global...');
+    const tbody = document.getElementById('tarifarioTableBody');
+    if (!tbody) return;
+
+    const tarifario = currentData.tarifario || {};
+    const entries = Object.values(tarifario);
+
+    if (entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-cell"><i class="fa-solid fa-dollar-sign"></i> No hay entradas en el tarifario. Se crean automáticamente al crear asignaciones con tarifas.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = entries.map(t => {
+        const margen = (t.costoCliente || 0) - (t.costoConsultor || 0);
+        const margenClass = margen >= 0 ? 'crud-margen-positive' : 'crud-margen-negative';
+        const tipoLabel = t.tipo === 'project' ? `<i class="fa-solid fa-folder-open"></i> ${t.projectName || 'Proyecto'}` :
+                          t.tipo === 'task' ? `<i class="fa-solid fa-tasks"></i> ${t.descripcionTarea || 'Tarea'}` :
+                          `<i class="fa-solid fa-headset"></i> ${t.supportName || 'Soporte'}`;
+
+        return `
+            <tr data-searchable="${(t.consultorNombre || '').toLowerCase()} ${(t.companyName || '').toLowerCase()} ${(t.supportName || '').toLowerCase()} ${(t.projectName || '').toLowerCase()} ${(t.moduleName || '').toLowerCase()}">
+                <td>${t.consultorNombre || '—'}</td>
+                <td>${t.companyName || '—'}</td>
+                <td>${tipoLabel}</td>
+                <td>${t.moduleName || '—'}</td>
+                <td>$${(t.costoConsultor || 0).toFixed(2)}</td>
+                <td>$${(t.costoCliente || 0).toFixed(2)}</td>
+                <td><span class="${margenClass}">$${margen.toFixed(2)}</span></td>
+                <td><span class="crud-status-badge ${t.isActive !== false ? 'active' : 'inactive'}">${t.isActive !== false ? '● Activa' : '● Inactiva'}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * Filtra las filas de una tabla CRUD por texto de búsqueda
+ */
+function filterCrudTable(sectionName) {
+    const searchInputId = 'search' + sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
+    const input = document.getElementById(searchInputId);
+    if (!input) return;
+
+    const query = input.value.toLowerCase().trim();
+    const tableBodyId = sectionName + 'TableBody';
+    const tbody = document.getElementById(tableBodyId);
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr[data-searchable]');
+    rows.forEach(row => {
+        const text = row.getAttribute('data-searchable') || '';
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+
+
+/**
+ * Helper para abrir el modal de confirmación
+ */
+function openConfirmModal(title, message, onConfirm) {
+    const modal = document.getElementById('confirmEntityModal');
+    if (!modal) {
+        if (confirm(message)) onConfirm();
+        return;
+    }
+    document.getElementById('confirmEntityTitle').textContent = title;
+    document.getElementById('confirmEntityMessage').textContent = message;
+    
+    const btn = document.getElementById('confirmEntityBtn');
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    newBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        onConfirm();
+    });
+    
+    modal.style.display = 'flex';
+}
+
+/**
+ * Helper para abrir el modal de información 
+ */
+function openInfoModal(title, message) {
+    const modal = document.getElementById('infoEntityModal');
+    if (!modal) {
+        alert(message);
+        return;
+    }
+    document.getElementById('infoEntityTitle').textContent = title;
+    document.getElementById('infoEntityMessage').textContent = message;
+    modal.style.display = 'flex';
+}
+
+// Global listeners for closing confirm and info modals
+document.addEventListener('DOMContentLoaded', () => {
+    // Confirm Modal
+    const closeConfirmBtn = document.getElementById('closeConfirmEntityModal');
+    if (closeConfirmBtn) {
+        closeConfirmBtn.addEventListener('click', () => {
+            document.getElementById('confirmEntityModal').style.display = 'none';
+        });
+    }
+    // Info Modal
+    const closeInfoBtn = document.getElementById('closeInfoEntityModal');
+    if (closeInfoBtn) {
+        closeInfoBtn.addEventListener('click', () => {
+            document.getElementById('infoEntityModal').style.display = 'none';
+        });
+    }
+    
+    window.addEventListener('click', (e) => {
+        if (e.target.id === 'confirmEntityModal') {
+            e.target.style.display = 'none';
+        }
+        if (e.target.id === 'infoEntityModal') {
+            e.target.style.display = 'none';
+        }
+    });
+});
+
+/**
+ * Helper: Confirmar eliminación de empresa
+ */
+function deleteCompanyConfirm(companyId) {
+    openConfirmModal('Eliminar Empresa', '¿Está seguro de eliminar esta empresa? Se eliminarán también las asignaciones relacionadas.', () => {
+        const result = window.PortalDB.deleteCompany(companyId);
+        if (result.success) {
+            window.NotificationUtils.success('Empresa eliminada correctamente');
+            loadAllData();
+        } else {
+            window.NotificationUtils.error(result.message || 'Error al eliminar');
+        }
+    });
+}
+
+function deleteProjectConfirm(projectId) {
+    openConfirmModal('Eliminar Proyecto', '¿Está seguro de eliminar este proyecto?', () => {
+        const result = window.PortalDB.deleteProject(projectId);
+        if (result.success) {
+            window.NotificationUtils.success('Proyecto eliminado correctamente');
+            loadAllData();
+        } else {
+            window.NotificationUtils.error(result.message || 'Error al eliminar');
+        }
+    });
+}
+
+function deleteSupportConfirm(supportId) {
+    openConfirmModal('Eliminar Soporte', '¿Está seguro de eliminar este soporte?', () => {
+        const result = window.PortalDB.deleteSupport(supportId);
+        if (result.success) {
+            window.NotificationUtils.success('Soporte eliminado correctamente');
+            loadAllData();
+        } else {
+            window.NotificationUtils.error(result.message || 'Error al eliminar');
+        }
+    });
+}
+
+function deleteModuleConfirm(moduleId) {
+    openConfirmModal('Eliminar Módulo', '¿Está seguro de eliminar este módulo?', () => {
+        const result = window.PortalDB.deleteModule(moduleId);
+        if (result.success) {
+            window.NotificationUtils.success('Módulo eliminado correctamente');
+            loadAllData();
+        } else {
+            window.NotificationUtils.error(result.message || 'Error al eliminar');
+        }
+    });
+}
+
+function deleteUserConfirm(userId) {
+    if (userId === 'admin') {
+        window.NotificationUtils.error('No se puede eliminar el administrador');
+        return;
+    }
+    openConfirmModal('Desactivar Consultor', '¿Está seguro de desactivar este consultor?', () => {
+        const result = window.PortalDB.deleteUser(userId);
+        if (result.success) {
+            window.NotificationUtils.success('Consultor desactivado correctamente');
+            loadAllData();
+        } else {
+            window.NotificationUtils.error(result.message || 'Error al eliminar');
+        }
+    });
+}
+
+/**
+ * Helper para abrir el modal de edición genérico
+ */
+function openEditModal(title, currentValue, onSave) {
+    const modal = document.getElementById('editEntityModal');
+    if (!modal) {
+        // Fallback si no está el modal en el DOM
+        const val = prompt(title, currentValue);
+        if (val && val.trim()) onSave(val.trim());
+        return;
+    }
+    
+    document.getElementById('editEntityTitle').textContent = title;
+    const input = document.getElementById('editEntityName');
+    input.value = currentValue;
+    modal.style.display = 'flex';
+    input.focus();
+    
+    // Clonar botón y form para limpiar event listeners pasados
+    const btn = document.getElementById('saveEntityEditBtn');
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    const form = document.getElementById('editEntityForm');
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+    
+    const saveHandler = (e) => {
+        if (e) e.preventDefault();
+        const newVal = document.getElementById('editEntityName').value;
+        if (newVal && newVal.trim()) {
+            modal.style.display = 'none';
+            onSave(newVal.trim());
+        } else {
+            window.NotificationUtils.error('El valor no puede estar vacío');
+        }
+    };
+    
+    document.getElementById('saveEntityEditBtn').addEventListener('click', saveHandler);
+    document.getElementById('editEntityForm').addEventListener('submit', saveHandler);
+}
+
+// Global listeners for closing modal
+document.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('closeEditEntityModal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            document.getElementById('editEntityModal').style.display = 'none';
+        });
+    }
+    
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('editEntityModal');
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+});
+
+/**
+ * Edit helpers for empresas, proyectos, soportes, módulos
+ */
+function editCompany(companyId) {
+    const company = currentData.companies[companyId];
+    if (!company) return;
+    openEditModal('Editar Empresa', company.name, (newName) => {
+        const result = window.PortalDB.updateCompany(companyId, { name: newName });
+        if (result.success) {
+            window.NotificationUtils.success('Empresa actualizada');
+            loadAllData();
+        }
+    });
+}
+
+function editProject(projectId) {
+    const project = currentData.projects[projectId];
+    if (!project) return;
+    openEditModal('Editar Proyecto', project.name, (newName) => {
+        const result = window.PortalDB.updateProject(projectId, { name: newName });
+        if (result.success) {
+            window.NotificationUtils.success('Proyecto actualizado');
+            loadAllData();
+        }
+    });
+}
+
+function editSupport(supportId) {
+    const support = currentData.supports[supportId];
+    if (!support) return;
+    openEditModal('Editar Soporte', support.name, (newName) => {
+        const result = window.PortalDB.updateSupport(supportId, { name: newName });
+        if (result.success) {
+            window.NotificationUtils.success('Soporte actualizado');
+            loadAllData();
+        }
+    });
+}
+
+function editModule(moduleId) {
+    const module = currentData.modules[moduleId];
+    if (!module) return;
+    openEditModal('Editar Módulo', module.name, (newName) => {
+        const result = window.PortalDB.updateModule(moduleId, { name: newName });
+        if (result.success) {
+            window.NotificationUtils.success('Módulo actualizado');
+            loadAllData();
+        }
+    });
+}

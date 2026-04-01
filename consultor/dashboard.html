@@ -317,48 +317,150 @@
     <main class="main-content" id="mainContent">
         <div class="container">
             <div class="content-wrapper">
-                <!-- Sidebar Simplificado -->
+                <!-- Sidebar -->
                 <div class="sidebar consultor-sidebar">
-                    <h2 class="sidebar-title"><i class="fa-solid fa-folder-open"></i> Mis Asignaciones</h2>
+                    <h2 class="sidebar-title"><i class="fa-solid fa-clock"></i> Timesheet</h2>
                     <div class="sidebar-menu">
-                        <div class="menu-item active">
-                            <span class="menu-text">Asignaciones Activas</span>
+                        <div class="menu-item active" data-view="timesheet" onclick="switchConsultorView('timesheet')">
+                            <i class="fa-solid fa-table-columns"></i>
+                            <span class="menu-text">Captura Semanal</span>
                             <span class="menu-badge" id="assignmentsCount">0</span>
                         </div>
+                        <div class="menu-item" data-view="historial" onclick="switchConsultorView('historial')">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span class="menu-text">Historial</span>
+                        </div>
+                    </div>
+                    <!-- Info del consultor -->
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name" id="sidebarUserName"></div>
+                        <div class="sidebar-user-id" id="sidebarUserId"></div>
+                        <span class="crud-status-badge active">● Activo</span>
                     </div>
                 </div>
 
                 <!-- Panel Principal -->
                 <div class="main-panel consultor-main">
-                    <!-- Sección de Asignaciones -->
-                    <div class="content-section active">
-                        <h2 class="section-title"><i class="fa-solid fa-bullseye"></i> Mis Asignaciones y Reportes</h2>
-
-                        <!-- Información del Usuario -->
-                        <div class="user-info-card">
-                            <h3><i class="fa-solid fa-user"></i> Información del Consultor</h3>
-                            <div class="user-details">
-                                <p><strong>Nombre:</strong> <span id="userNameDisplay">Cargando...</span></p>
-                                <p><strong>ID:</strong> <span id="userIdDisplay">Cargando...</span></p>
-                                <p><strong>Estado:</strong> <span class="custom-badge badge-success"><i class="fa-solid fa-check"></i> Activo</span></p>
+                    <!-- === VISTA: TIMESHEET SEMANAL === -->
+                    <div id="timesheetView" class="consultor-view active">
+                        <!-- Week Navigator -->
+                        <div class="week-navigator">
+                            <button class="week-nav-btn" onclick="navigateWeek(-1)" title="Semana anterior">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <div class="week-info">
+                                <span class="week-label"><i class="fa-solid fa-calendar-week"></i> Semana</span>
+                                <span class="week-range" id="weekRangeDisplay">Cargando...</span>
+                            </div>
+                            <button class="week-nav-btn" onclick="navigateWeek(1)" title="Semana siguiente" id="weekNextBtn">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                            <div class="week-status-indicator" id="weekStatusBadge">
+                                <span class="week-status-text">Borrador</span>
                             </div>
                         </div>
 
-                        <!-- Lista de Asignaciones -->
-                        <div id="assignmentsList" class="assignments-container">
-                            <div class="empty-state">
-                                <div class="empty-state-icon"><i class="fa-solid fa-bullseye"></i></div>
-                                <div class="empty-state-title">No hay asignaciones</div>
-                                <div class="empty-state-desc">Las asignaciones del administrador aparecerán aquí</div>
+                        <!-- Timesheet Grid -->
+                        <div class="timesheet-grid-container">
+                            <table class="timesheet-grid" id="timesheetTable">
+                                <thead>
+                                    <tr>
+                                        <th class="ts-assignment-col">Asignación</th>
+                                        <th class="ts-day-col" data-day="mon">Lun</th>
+                                        <th class="ts-day-col" data-day="tue">Mar</th>
+                                        <th class="ts-day-col" data-day="wed">Mié</th>
+                                        <th class="ts-day-col" data-day="thu">Jue</th>
+                                        <th class="ts-day-col" data-day="fri">Vie</th>
+                                        <th class="ts-day-col ts-weekend" data-day="sat">Sáb</th>
+                                        <th class="ts-day-col ts-weekend" data-day="sun">Dom</th>
+                                        <th class="ts-total-col">Total</th>
+                                    </tr>
+                                    <tr class="ts-dates-row" id="tsDateHeaders">
+                                        <td></td>
+                                        <td id="dateMon">--</td>
+                                        <td id="dateTue">--</td>
+                                        <td id="dateWed">--</td>
+                                        <td id="dateThu">--</td>
+                                        <td id="dateFri">--</td>
+                                        <td id="dateSat">--</td>
+                                        <td id="dateSun">--</td>
+                                        <td></td>
+                                    </tr>
+                                </thead>
+                                <tbody id="timesheetBody">
+                                    <!-- Rows generated by JS -->
+                                </tbody>
+                                <tfoot>
+                                    <tr class="ts-totals-row">
+                                        <td class="ts-totals-label"><strong><i class="fa-solid fa-calculator"></i> Total Diario</strong></td>
+                                        <td id="totalMon">0</td>
+                                        <td id="totalTue">0</td>
+                                        <td id="totalWed">0</td>
+                                        <td id="totalThu">0</td>
+                                        <td id="totalFri">0</td>
+                                        <td id="totalSat">0</td>
+                                        <td id="totalSun">0</td>
+                                        <td id="totalWeek" class="ts-grand-total">0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="timesheetEmptyState" class="timesheet-empty" style="display:none;">
+                            <div class="empty-state-icon"><i class="fa-solid fa-table-columns"></i></div>
+                            <div class="empty-state-title">Sin asignaciones activas</div>
+                            <div class="empty-state-desc">Cuando el administrador te asigne proyectos o soportes, aparecerán aquí como filas en tu timesheet semanal.</div>
+                        </div>
+
+                        <!-- Actions Bar -->
+                        <div class="timesheet-actions" id="timesheetActions">
+                            <div class="ts-actions-left">
+                                <span class="ts-autosave-status" id="autosaveStatus">
+                                    <i class="fa-solid fa-cloud-check"></i> Guardado automático
+                                </span>
+                            </div>
+                            <div class="ts-actions-right">
+                                <button class="btn btn-secondary" onclick="clearWeekDraft()" id="btnClearDraft">
+                                    <i class="fa-solid fa-eraser"></i> Limpiar
+                                </button>
+                                <button class="btn btn-primary ts-submit-btn" onclick="submitWeeklyTimesheet()" id="btnSubmitWeek">
+                                    <i class="fa-solid fa-paper-plane"></i> Enviar Semana
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Sección de Reportes Rechazados -->
-                        <div id="rejectedReportsSection" class="dashboard-section" style="margin-top: 30px;">
-                            <div id="rejectedReportsContainer" class="assignments-container">
-                                <!-- Las tarjetas se cargarán dinámicamente vía JavaScript -->
-                            </div>
+                        <!-- Rejected Timesheets Alert -->
+                        <div id="rejectedTimesheetsAlert" style="display:none;" class="ts-rejected-alert">
+                            <h3><i class="fa-solid fa-exclamation-triangle"></i> Timesheets Rechazados</h3>
+                            <div id="rejectedTimesheetsList"></div>
                         </div>
+                    </div>
+
+                    <!-- === VISTA: HISTORIAL === -->
+                    <div id="historialView" class="consultor-view" style="display:none;">
+                        <h2 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Timesheets</h2>
+                        <div id="historialTableContainer">
+                            <table class="crud-table">
+                                <thead>
+                                    <tr>
+                                        <th>Semana</th>
+                                        <th>Total Hrs</th>
+                                        <th>Estado</th>
+                                        <th>Enviado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historialBody">
+                                    <tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets anteriores</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Legacy: Rejected Reports Section (kept for backwards compatibility) -->
+                    <div id="rejectedReportsSection" class="dashboard-section" style="display:none;">
+                        <div id="rejectedReportsContainer" class="assignments-container"></div>
                     </div>
                 </div>
             </div>

@@ -347,29 +347,39 @@
                 <!-- Sidebar de Navegación -->
                 <div class="admin-sidebar">
                     <div class="sidebar-section">
-                        <h3 class="sidebar-section-title">Gestión General</h3>
+                        <h3 class="sidebar-section-title">Administración</h3>
                         <div class="sidebar-menu">
-                            <div class="sidebar-menu-item active" data-section="usuarios">
-                                <span class="menu-text">Usuarios</span>
-                                <span class="menu-badge" id="sidebarUsersCount">0</span>
+                            <div class="sidebar-menu-item active" data-section="panel-general">
+                                <span class="menu-icon"><i class="fa-solid fa-gauge-high"></i></span>
+                                <span class="menu-text">Panel General</span>
+                            </div>
+                            <div class="sidebar-menu-item" data-section="consultores">
+                                <span class="menu-icon"><i class="fa-solid fa-users"></i></span>
+                                <span class="menu-text">Consultores</span>
+                                <span class="menu-badge" id="sidebarConsultoresCount">0</span>
                             </div>
                             <div class="sidebar-menu-item" data-section="empresas">
+                                <span class="menu-icon"><i class="fa-solid fa-building"></i></span>
                                 <span class="menu-text">Empresas</span>
-                                <span class="menu-badge" id="sidebarCompaniesCount">0</span>
+                                <span class="menu-badge" id="sidebarEmpresasCount">0</span>
                             </div>
                             <div class="sidebar-menu-item" data-section="proyectos">
+                                <span class="menu-icon"><i class="fa-solid fa-folder-open"></i></span>
                                 <span class="menu-text">Proyectos</span>
-                                <span class="menu-badge" id="sidebarProjectsCount">0</span>
+                                <span class="menu-badge" id="sidebarProyectosCount">0</span>
                             </div>
                             <div class="sidebar-menu-item" data-section="soportes">
+                                <span class="menu-icon"><i class="fa-solid fa-headset"></i></span>
                                 <span class="menu-text">Soportes</span>
-                                <span class="menu-badge" id="sidebarSupportsCount">0</span>
+                                <span class="menu-badge" id="sidebarSoportesCount">0</span>
                             </div>
                             <div class="sidebar-menu-item" data-section="modulos">
+                                <span class="menu-icon"><i class="fa-solid fa-puzzle-piece"></i></span>
                                 <span class="menu-text">Módulos</span>
-                                <span class="menu-badge" id="sidebarModulesCount">0</span>
+                                <span class="menu-badge" id="sidebarModulosCount">0</span>
                             </div>
                             <div class="sidebar-menu-item" data-section="tarifario">
+                                <span class="menu-icon"><i class="fa-solid fa-dollar-sign"></i></span>
                                 <span class="menu-text">Tarifario</span>
                                 <span class="menu-badge" id="sidebarTarifarioCount">0</span>
                             </div>
@@ -409,6 +419,11 @@
                     <div class="sidebar-section">
                         <h3 class="sidebar-section-title">Reportes</h3>
                         <div class="sidebar-menu">
+                            <div class="sidebar-menu-item" data-section="timesheets-semanales">
+                                <span class="menu-icon"> <i class="fa-solid fa-table-columns"></i> </span>
+                                <span class="menu-text">Timesheets Semanales</span>
+                                <span class="menu-badge" id="sidebarTimesheetsCount">0</span>
+                            </div>
                             <div class="sidebar-menu-item" data-section="reportes-pendientes">
                                 <span class="menu-icon"> <i class="fa-solid fa-chart-bar"></i> </span>
                                 <span class="menu-text">Reportes Pendientes</span>
@@ -450,78 +465,323 @@
                         <div id="calendarModuleRoot"></div>
                     </div>
 
-                    <!-- Sección de Usuarios -->
-                    <div id="usuarios-section" class="content-section active">
+                    <!-- SECCIÓN: TIMESHEETS SEMANALES -->
+                    <div id="timesheets-semanales-section" class="content-section">
                         <div class="section-header">
-                            <h2 class="section-title">Gestión de Usuarios</h2>
-                            <button class="add-btn" onclick="openUserModal()">+ Nuevo Usuario</button>
+                            <h2 class="section-title"><i class="fa-solid fa-table-columns"></i> Timesheets Semanales</h2>
+                            <div class="section-actions">
+                                <select id="tsFilterStatus" onchange="renderAdminTimesheets()" class="crud-search" style="width:auto; min-width:160px;">
+                                    <option value="Pendiente">Pendientes</option>
+                                    <option value="all">Todos</option>
+                                    <option value="Aprobado">Aprobados</option>
+                                    <option value="Rechazado">Rechazados</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="items-list" id="usersList">
-                            <div class="empty-state">
-                                <div class="empty-state-icon"> <i class="fa-solid fa-user"></i> </div>
-                                <div class="empty-state-title">No hay usuarios</div>
-                                <div class="empty-state-desc">Cree el primer usuario consultor</div>
+                        <div class="admin-ts-table-container">
+                            <table class="crud-table" id="adminTimesheetsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Consultor</th>
+                                        <th>Semana</th>
+                                        <th>Lun</th>
+                                        <th>Mar</th>
+                                        <th>Mié</th>
+                                        <th>Jue</th>
+                                        <th>Vie</th>
+                                        <th>Sáb</th>
+                                        <th>Dom</th>
+                                        <th>Total</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminTimesheetsBody">
+                                    <tr><td colspan="12" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN: PANEL GENERAL (Dashboard Resumen) -->
+                    <div id="panel-general-section" class="content-section active">
+                        <div class="section-header">
+                            <h2 class="section-title"><i class="fa-solid fa-gauge-high"></i> Panel General</h2>
+                        </div>
+
+                        <!-- Stats Cards -->
+                        <div class="stats-grid" id="panelStatsGrid">
+                            <div class="stat-card stat-card--consultores" onclick="showSection('consultores')">
+                                <div class="stat-card-icon"><i class="fa-solid fa-users"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statConsultores">0</span>
+                                    <span class="stat-card-label">Consultores</span>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-card--empresas" onclick="showSection('empresas')">
+                                <div class="stat-card-icon"><i class="fa-solid fa-building"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statEmpresas">0</span>
+                                    <span class="stat-card-label">Empresas</span>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-card--proyectos" onclick="showSection('proyectos')">
+                                <div class="stat-card-icon"><i class="fa-solid fa-folder-open"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statProyectos">0</span>
+                                    <span class="stat-card-label">Proyectos</span>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-card--reportes" onclick="showSection('reportes-pendientes')">
+                                <div class="stat-card-icon"><i class="fa-solid fa-clock"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statReportesPendientes">0</span>
+                                    <span class="stat-card-label">Reportes Pendientes</span>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-card--soportes" onclick="showSection('soportes')">
+                                <div class="stat-card-icon"><i class="fa-solid fa-headset"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statSoportes">0</span>
+                                    <span class="stat-card-label">Soportes</span>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-card--modulos" onclick="showSection('modulos')">
+                                <div class="stat-card-icon"><i class="fa-solid fa-puzzle-piece"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statModulos">0</span>
+                                    <span class="stat-card-label">Módulos</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions + Recent Activity -->
+                        <div class="panel-bottom-grid">
+                            <div class="panel-card">
+                                <h3><i class="fa-solid fa-bolt"></i> Acciones Rápidas</h3>
+                                <div class="quick-actions-grid">
+                                    <button class="quick-action-btn" onclick="openUserModal()">
+                                        <i class="fa-solid fa-user-plus"></i>
+                                        <span>Nuevo Consultor</span>
+                                    </button>
+                                    <button class="quick-action-btn" onclick="openCompanyModal()">
+                                        <i class="fa-solid fa-building-circle-arrow-right"></i>
+                                        <span>Nueva Empresa</span>
+                                    </button>
+                                    <button class="quick-action-btn" onclick="openProjectModal()">
+                                        <i class="fa-solid fa-folder-plus"></i>
+                                        <span>Nuevo Proyecto</span>
+                                    </button>
+                                    <button class="quick-action-btn" onclick="showSection('crear-asignacion')">
+                                        <i class="fa-solid fa-link"></i>
+                                        <span>Crear Asignación</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="panel-card">
+                                <h3><i class="fa-solid fa-clock-rotate-left"></i> Resumen del Sistema</h3>
+                                <div id="systemSummary" class="system-summary">
+                                    <div class="summary-row">
+                                        <span><i class="fa-solid fa-link"></i> Asignaciones activas</span>
+                                        <span class="summary-value" id="statAsignaciones">0</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span><i class="fa-solid fa-dollar-sign"></i> Entradas en Tarifario</span>
+                                        <span class="summary-value" id="statTarifario">0</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span><i class="fa-solid fa-check-circle"></i> Reportes Aprobados</span>
+                                        <span class="summary-value" id="statReportesAprobados">0</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span><i class="fa-solid fa-tasks"></i> Tareas Activas</span>
+                                        <span class="summary-value" id="statTareas">0</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Sección de Empresas -->
+                    <!-- SECCIÓN: CONSULTORES -->
+                    <div id="consultores-section" class="content-section">
+                        <div class="section-header">
+                            <h2 class="section-title"><i class="fa-solid fa-users"></i> Gestión de Consultores</h2>
+                            <button class="add-btn" onclick="openUserModal()"><i class="fa-solid fa-plus"></i> Nuevo Consultor</button>
+                        </div>
+                        <div class="crud-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchConsultores" placeholder="Buscar consultores..." oninput="filterCrudTable('consultores')">
+                            </div>
+                        </div>
+                        <div class="crud-table-container">
+                            <table class="crud-table" id="consultoresTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Email</th>
+                                        <th>Contraseña</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="consultoresTableBody">
+                                    <tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-users"></i> Cargando consultores...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN: EMPRESAS -->
                     <div id="empresas-section" class="content-section">
                         <div class="section-header">
-                            <h2 class="section-title">Gestión de Empresas</h2>
-                            <button class="add-btn" onclick="openCompanyModal()">+ Nueva Empresa</button>
+                            <h2 class="section-title"><i class="fa-solid fa-building"></i> Gestión de Empresas</h2>
+                            <button class="add-btn" onclick="openCompanyModal()"><i class="fa-solid fa-plus"></i> Nueva Empresa</button>
                         </div>
-                        <div class="items-list" id="companiesList">
-                            <div class="empty-state">
-                                <div class="empty-state-icon"> <i class="fa-solid fa-building"></i> </div>
-                                <div class="empty-state-title">No hay empresas</div>
-                                <div class="empty-state-desc">Registre la primera empresa cliente</div>
+                        <div class="crud-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchEmpresas" placeholder="Buscar empresas..." oninput="filterCrudTable('empresas')">
                             </div>
+                        </div>
+                        <div class="crud-table-container">
+                            <table class="crud-table" id="empresasTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Descripción</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="empresasTableBody">
+                                    <tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-building"></i> Cargando empresas...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    <!-- Sección de Proyectos -->
+                    <!-- SECCIÓN: PROYECTOS -->
                     <div id="proyectos-section" class="content-section">
                         <div class="section-header">
-                            <h2 class="section-title">Gestión de Proyectos</h2>
-                            <button class="add-btn" onclick="openProjectModal()">+ Nuevo Proyecto</button>
+                            <h2 class="section-title"><i class="fa-solid fa-folder-open"></i> Gestión de Proyectos</h2>
+                            <button class="add-btn" onclick="openProjectModal()"><i class="fa-solid fa-plus"></i> Nuevo Proyecto</button>
                         </div>
-                        <div class="items-list" id="projectsList">
-                            <div class="empty-state">
-                                <div class="empty-state-icon"> <i class="fa-solid fa-folder-open"></i> </div>
-                                <div class="empty-state-title">No hay proyectos</div>
-                                <div class="empty-state-desc">Cree el primer proyecto</div>
+                        <div class="crud-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchProyectos" placeholder="Buscar proyectos..." oninput="filterCrudTable('proyectos')">
                             </div>
+                        </div>
+                        <div class="crud-table-container">
+                            <table class="crud-table" id="proyectosTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Descripción</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="proyectosTableBody">
+                                    <tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-folder-open"></i> Cargando proyectos...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    <!-- Sección de Soportes -->
+                    <!-- SECCIÓN: SOPORTES -->
                     <div id="soportes-section" class="content-section">
                         <div class="section-header">
-                            <h2 class="section-title">Gestión de Soportes</h2>
-                            <button class="add-btn" onclick="openSupportModal()">+ Nuevo Soporte</button>
+                            <h2 class="section-title"><i class="fa-solid fa-headset"></i> Gestión de Soportes</h2>
+                            <button class="add-btn" onclick="openSupportModal()"><i class="fa-solid fa-plus"></i> Nuevo Soporte</button>
                         </div>
-                        <div class="items-list" id="supportsList">
-                            <div class="empty-state">
-                                <div class="empty-state-icon"> <i class="fa-solid fa-headset"></i> </div>
-                                <div class="empty-state-title">No hay soportes</div>
-                                <div class="empty-state-desc">Cree el primer soporte</div>
+                        <div class="crud-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchSoportes" placeholder="Buscar soportes..." oninput="filterCrudTable('soportes')">
                             </div>
+                        </div>
+                        <div class="crud-table-container">
+                            <table class="crud-table" id="soportesTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Descripción</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="soportesTableBody">
+                                    <tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-headset"></i> Cargando soportes...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    <!-- Sección de Módulos -->
+                    <!-- SECCIÓN: MÓDULOS -->
                     <div id="modulos-section" class="content-section">
                         <div class="section-header">
-                            <h2 class="section-title">Gestión de Módulos</h2>
-                            <button class="add-btn" onclick="openModuleModal()">+ Nuevo Módulo</button>
+                            <h2 class="section-title"><i class="fa-solid fa-puzzle-piece"></i> Gestión de Módulos</h2>
+                            <button class="add-btn" onclick="openModuleModal()"><i class="fa-solid fa-plus"></i> Nuevo Módulo</button>
                         </div>
-                        <div class="items-list" id="modulesList">
-                            <div class="empty-state">
-                                <div class="empty-state-icon"> <i class="fa-solid fa-puzzle-piece"></i> </div>
-                                <div class="empty-state-title">No hay módulos</div>
-                                <div class="empty-state-desc">Cree el primer módulo</div>
+                        <div class="crud-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchModulos" placeholder="Buscar módulos..." oninput="filterCrudTable('modulos')">
                             </div>
+                        </div>
+                        <div class="crud-table-container">
+                            <table class="crud-table" id="modulosTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Descripción</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modulosTableBody">
+                                    <tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-puzzle-piece"></i> Cargando módulos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN: TARIFARIO -->
+                    <div id="tarifario-section" class="content-section">
+                        <div class="section-header">
+                            <h2 class="section-title"><i class="fa-solid fa-dollar-sign"></i> Tarifario Global</h2>
+                        </div>
+                        <div class="crud-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchTarifario" placeholder="Buscar en tarifario..." oninput="filterCrudTable('tarifario')">
+                            </div>
+                        </div>
+                        <div class="crud-table-container">
+                            <table class="crud-table" id="tarifarioTable">
+                                <thead>
+                                    <tr>
+                                        <th>Consultor</th>
+                                        <th>Empresa</th>
+                                        <th>Soporte / Proyecto</th>
+                                        <th>Módulo</th>
+                                        <th>Tarifa Consultor</th>
+                                        <th>Tarifa Cliente</th>
+                                        <th>Margen</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tarifarioTableBody">
+                                    <tr><td colspan="8" class="empty-cell"><i class="fa-solid fa-dollar-sign"></i> Cargando tarifario...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -1550,6 +1810,70 @@
         </div>
     </div>
 
+    <!-- Modal de Edición Genérico -->
+    <div id="editEntityModal" class="modal" style="display: none;">
+        <div class="modal-content admin-modal">
+            <span class="close-modal" id="closeEditEntityModal">&times;</span>
+            <div class="modal-header">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <h2 id="editEntityTitle">Editar Registro</h2>
+            </div>
+            <div class="modal-body">
+                <form id="editEntityForm">
+                    <input type="hidden" id="editEntityId">
+                    <input type="hidden" id="editEntityType">
+                    <div class="form-group">
+                        <label for="editEntityName">Nombre / Valor</label>
+                        <input type="text" id="editEntityName" required autocomplete="off">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('editEntityModal').style.display='none'">Cancelar</button>
+                <button type="button" class="btn btn-primary btn-save" id="saveEntityEditBtn">
+                    <i class="fa-solid fa-save"></i> Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Genérico (Sustituye a window.confirm) -->
+    <div id="confirmEntityModal" class="modal" style="display: none;">
+        <div class="modal-content admin-modal confirm-modal">
+            <span class="close-modal" id="closeConfirmEntityModal">&times;</span>
+            <div class="modal-header header-warning">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <h2 id="confirmEntityTitle">Confirmar Acción</h2>
+            </div>
+            <div class="modal-body">
+                <p id="confirmEntityMessage" style="font-size: 1.05rem; color: #334155; text-align: center; margin: 10px 0; white-space: pre-wrap;"></p>
+            </div>
+            <div class="modal-footer" style="justify-content: center;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('confirmEntityModal').style.display='none'">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmEntityBtn">
+                    Aceptar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Información (Sustituye a window.alert) -->
+    <div id="infoEntityModal" class="modal" style="display: none;">
+        <div class="modal-content admin-modal info-modal">
+            <span class="close-modal" id="closeInfoEntityModal">&times;</span>
+            <div class="modal-header header-info">
+                <i class="fa-solid fa-circle-info"></i>
+                <h2 id="infoEntityTitle">Información</h2>
+            </div>
+            <div class="modal-body">
+                <div id="infoEntityMessage" style="font-size: 0.95rem; color: #475569; white-space: pre-wrap; font-family: monospace; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('infoEntityModal').style.display='none'">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="../js/databaseMongoDB.js?v=3"></script>
     <script src="../js/modules/toastSystem.js?v=3"></script>
@@ -1568,6 +1892,19 @@
     <script src="../js/supportBot.js?v=3"></script>
     <script src="../js/modules/calendarModule.js?v=3"></script>
     <script src="../js/chatWidget.js?v=3"></script>
+
+    <!-- Compatibilidad con funciones legadas (Contenedores Fantasma) -->
+    <div style="display: none !important;" aria-hidden="true">
+        <div id="usersList"></div>
+        <div id="companiesList"></div>
+        <div id="projectsList"></div>
+        <div id="supportsList"></div>
+        <div id="modulesList"></div>
+        <table>
+            <tbody id="tarifarioTableBody"></tbody>
+        </table>
+        <span id="tarifarioCount"></span>
+    </div>
 
 </body>
 </html>

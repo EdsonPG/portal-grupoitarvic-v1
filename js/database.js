@@ -1858,7 +1858,80 @@ configurarTarifasAsignacion(assignmentId, tarifas) {
         console.error('❌ Error al configurar tarifas:', error);
         return { success: false, message: error.message };
     }
-}
+
+    // === GESTIÓN DE TARIFARIO ===
+    getTarifario() {
+        return this.getData('tarifario') || {};
+    }
+
+    // === GESTIÓN DE TIMESHEETS SEMANALES ===
+    getTimesheets() {
+        return this.getData('timesheets') || {};
+    }
+
+    getTimesheetsByUser(userId) {
+        const timesheets = this.getTimesheets();
+        return Object.values(timesheets).filter(ts => ts.userId === userId);
+    }
+
+    getTimesheetByWeek(userId, weekStart) {
+        const timesheets = this.getTimesheets();
+        return Object.values(timesheets).find(ts => 
+            ts.userId === userId && ts.weekStart === weekStart
+        ) || null;
+    }
+
+    createTimesheet(tsData) {
+        const timesheets = this.getTimesheets();
+        const timesheetId = `ts_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
+        const newTimesheet = {
+            timesheetId,
+            userId: tsData.userId,
+            userName: tsData.userName || '',
+            weekStart: tsData.weekStart,
+            weekEnd: tsData.weekEnd,
+            entries: tsData.entries || [],
+            totalWeekHours: tsData.totalWeekHours || 0,
+            status: tsData.status || 'Borrador',
+            generatedReportIds: [],
+            submittedAt: null,
+            reviewedAt: null,
+            reviewedBy: null,
+            rejectionReason: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        timesheets[timesheetId] = newTimesheet;
+        this.setData('timesheets', timesheets);
+        return { success: true, timesheet: newTimesheet };
+    }
+
+    updateTimesheet(timesheetId, updateData) {
+        const timesheets = this.getTimesheets();
+        if (!timesheets[timesheetId]) {
+            return { success: false, message: 'Timesheet no encontrado' };
+        }
+
+        timesheets[timesheetId] = {
+            ...timesheets[timesheetId],
+            ...updateData,
+            updatedAt: new Date().toISOString()
+        };
+        this.setData('timesheets', timesheets);
+        return { success: true, timesheet: timesheets[timesheetId] };
+    }
+
+    deleteTimesheet(timesheetId) {
+        const timesheets = this.getTimesheets();
+        if (!timesheets[timesheetId]) {
+            return { success: false, message: 'Timesheet no encontrado' };
+        }
+        delete timesheets[timesheetId];
+        this.setData('timesheets', timesheets);
+        return { success: true };
+    }
 
 }
 

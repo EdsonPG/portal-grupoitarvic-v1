@@ -2017,6 +2017,81 @@ async getTarifario() {
             return { success: false, message: 'Error de conexión' };
         }
     }
+
+    // === GESTIÓN DE TIMESHEETS SEMANALES (localStorage temporal) ===
+    getTimesheets() {
+        try {
+            const data = localStorage.getItem('arvic_timesheets');
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            console.error('Error reading timesheets:', e);
+            return {};
+        }
+    }
+
+    getTimesheetsByUser(userId) {
+        const timesheets = this.getTimesheets();
+        return Object.values(timesheets).filter(ts => ts.userId === userId);
+    }
+
+    getTimesheetByWeek(userId, weekStart) {
+        const timesheets = this.getTimesheets();
+        return Object.values(timesheets).find(ts => 
+            ts.userId === userId && ts.weekStart === weekStart
+        ) || null;
+    }
+
+    createTimesheet(tsData) {
+        const timesheets = this.getTimesheets();
+        const timesheetId = `ts_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
+        const newTimesheet = {
+            timesheetId,
+            userId: tsData.userId,
+            userName: tsData.userName || '',
+            weekStart: tsData.weekStart,
+            weekEnd: tsData.weekEnd,
+            entries: tsData.entries || [],
+            totalWeekHours: tsData.totalWeekHours || 0,
+            status: tsData.status || 'Borrador',
+            generatedReportIds: tsData.generatedReportIds || [],
+            submittedAt: null,
+            reviewedAt: null,
+            reviewedBy: null,
+            rejectionReason: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        timesheets[timesheetId] = newTimesheet;
+        localStorage.setItem('arvic_timesheets', JSON.stringify(timesheets));
+        return { success: true, timesheet: newTimesheet };
+    }
+
+    updateTimesheet(timesheetId, updateData) {
+        const timesheets = this.getTimesheets();
+        if (!timesheets[timesheetId]) {
+            return { success: false, message: 'Timesheet no encontrado' };
+        }
+
+        timesheets[timesheetId] = {
+            ...timesheets[timesheetId],
+            ...updateData,
+            updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem('arvic_timesheets', JSON.stringify(timesheets));
+        return { success: true, timesheet: timesheets[timesheetId] };
+    }
+
+    deleteTimesheet(timesheetId) {
+        const timesheets = this.getTimesheets();
+        if (!timesheets[timesheetId]) {
+            return { success: false, message: 'Timesheet no encontrado' };
+        }
+        delete timesheets[timesheetId];
+        localStorage.setItem('arvic_timesheets', JSON.stringify(timesheets));
+        return { success: true };
+    }
 }
 
 // Crear instancia global de la base de datos

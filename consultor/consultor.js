@@ -388,25 +388,13 @@ function setupConsultorPanel() {
     try {
         // Actualizar información del usuario
         const userNameElement = document.getElementById('consultorUserName');
-        const userNameDisplay = document.getElementById('userNameDisplay');
-        const userIdDisplay = document.getElementById('userIdDisplay');
-        
-        if (userNameElement) {
-            userNameElement.textContent = currentUser.name;
-        }
-        if (userNameDisplay) {
-            userNameDisplay.textContent = currentUser.name;
-        }
-        if (userIdDisplay) {
-            userIdDisplay.textContent = currentUser.userId;
-        }
-        
-        // Configurar fecha actual en el modal
-        const reportDateElement = document.getElementById('reportDate');
-        if (reportDateElement) {
-            const today = new Date().toISOString().split('T')[0];
-            reportDateElement.value = today;
-        }
+        if (userNameElement) userNameElement.textContent = currentUser.name;
+
+        // Sidebar user info
+        const sidebarUserName = document.getElementById('sidebarUserName');
+        const sidebarUserId = document.getElementById('sidebarUserId');
+        if (sidebarUserName) sidebarUserName.textContent = currentUser.name;
+        if (sidebarUserId) sidebarUserId.textContent = 'ID: ' + currentUser.userId;
         
         if (window.NotificationUtils) {
             window.NotificationUtils.success(`¡Bienvenido ${currentUser.name}!`, 3000);
@@ -1948,6 +1936,7 @@ window.openEditRejectedReportModal = openEditRejectedReportModal;
 window.quickResubmitReport = quickResubmitReport;
 window.cleanupEditingMode = cleanupEditingMode;
 
+
 // === FUNCIONES EXPORTADAS GLOBALMENTE ===
 window.openCreateReportModal = openCreateReportModal;
 window.viewAssignmentReports = viewAssignmentReports;
@@ -1965,6 +1954,794 @@ window.normalizeReport = normalizeReport;
 window.normalizeReports = normalizeReports;
 
 console.log('✅ Funciones del consultor exportadas globalmente');
+
+// ==============================================
+// TIMESHEET SEMANAL — SISTEMA DE CUADRÍCULA
+// ==============================================
+
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+let currentWeekStart = null; // Date object for Monday of current week
+let timesheetDraft = {}; // { assignmentId: { mon: {hours,detail}, tue: ... } }
+let activeDetailPopover = null;
+
+/**
+ * Get Monday of the week containing the given date
+ */
+function getMonday(d) {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(date.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+}
+
+/**
+ * Get the Sunday (end) of a week given its Monday
+ */
+function getSunday(monday) {
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    return sunday;
+}
+
+/**
+ * Format date as "dd MMM"
+ */
+function formatShortDate(date) {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return date.getDate() + ' ' + months[date.getMonth()];
+}
+
+/**
+ * Format date as YYYY-MM-DD
+ */
+function toISODate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+/**
+ * Get day index (0=Mon, 6=Sun) for today relative to current week
+ */
+function getTodayDayIndex() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (!currentWeekStart) return -1;
+    const diff = Math.floor((today - currentWeekStart) / 86400000);
+    if (diff < 0 || diff > 6) return -1;
+    return diff;
+}
+
+/**
+ * Check if a day index is editable
+ * Rules: future days are locked, today and past days of current week are editable
+ */
+function isDayEditable(dayIndex) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const cellDate = new Date(currentWeekStart);
+    cellDate.setDate(cellDate.getDate() + dayIndex);
+    return cellDate <= today;
+}
+
+/**
+ * Initialize the timesheet grid for the current week
+ */
+function initTimesheetGrid() {
+    if (!currentWeekStart) {
+        currentWeekStart = getMonday(new Date());
+    }
+    renderTimesheetGrid();
+}
+
+/**
+ * Navigate between weeks
+ */
+function navigateWeek(direction) {
+    if (!currentWeekStart) currentWeekStart = getMonday(new Date());
+    
+    // Don't allow navigating to future weeks
+    const nextMonday = new Date(currentWeekStart);
+    nextMonday.setDate(nextMonday.getDate() + (direction * 7));
+    
+    const thisMonday = getMonday(new Date());
+    if (direction > 0 && nextMonday > thisMonday) return;
+    
+    // Save current draft before navigating
+    saveTimesheetDraft();
+    
+    currentWeekStart = nextMonday;
+    renderTimesheetGrid();
+}
+
+/**
+ * Main render function for the timesheet grid
+ */
+async function renderTimesheetGrid() {
+    console.log('📊 Renderizando timesheet semanal...');
+    
+    if (!currentWeekStart) currentWeekStart = getMonday(new Date());
+    
+    const sunday = getSunday(currentWeekStart);
+    const weekStartStr = toISODate(currentWeekStart);
+    const thisMonday = getMonday(new Date());
+    
+    // Update week navigator display
+    const weekRange = document.getElementById('weekRangeDisplay');
+    if (weekRange) {
+        weekRange.textContent = `${formatShortDate(currentWeekStart)} — ${formatShortDate(sunday)} ${sunday.getFullYear()}`;
+    }
+    
+    // Disable next button if we're on current week
+    const nextBtn = document.getElementById('weekNextBtn');
+    if (nextBtn) {
+        nextBtn.disabled = currentWeekStart >= thisMonday;
+    }
+    
+    // Update date headers
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(currentWeekStart);
+        date.setDate(date.getDate() + i);
+        const el = document.getElementById('date' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]);
+        if (el) el.textContent = formatShortDate(date);
+    }
+    
+    // Check if there's an existing timesheet for this week
+    const existingTs = window.PortalDB.getTimesheetByWeek(currentUser.userId, weekStartStr);
+    const weekStatus = existingTs ? existingTs.status : 'Borrador';
+    const isReadOnly = weekStatus === 'Pendiente' || weekStatus === 'Aprobado';
+    
+    // Update status badge
+    const statusBadge = document.getElementById('weekStatusBadge');
+    if (statusBadge) {
+        statusBadge.setAttribute('data-status', weekStatus);
+        statusBadge.querySelector('.week-status-text').textContent = weekStatus;
+    }
+    
+    // Load draft data from existing timesheet or localStorage
+    loadTimesheetDraft(weekStartStr, existingTs);
+    
+    // Build table body
+    const tbody = document.getElementById('timesheetBody');
+    if (!tbody) return;
+    
+    if (userAssignments.length === 0) {
+        tbody.innerHTML = '';
+        document.getElementById('timesheetTable').style.display = 'none';
+        document.getElementById('timesheetEmptyState').style.display = 'block';
+        document.getElementById('timesheetActions').style.display = 'none';
+        return;
+    }
+    
+    document.getElementById('timesheetTable').style.display = '';
+    document.getElementById('timesheetEmptyState').style.display = 'none';
+    document.getElementById('timesheetActions').style.display = '';
+    
+    let html = '';
+    const todayIdx = getTodayDayIndex();
+    
+    for (const assignment of userAssignments) {
+        const aId = assignment.assignmentId || assignment.projectAssignmentId || assignment.taskAssignmentId;
+        const aType = assignment.assignmentType;
+        
+        // Get display info
+        const company = await window.PortalDB.getCompany(assignment.companyId);
+        let entityName = '';
+        let icon = 'fa-headset';
+        
+        if (aType === 'support') {
+            const support = await window.PortalDB.getSupport(assignment.supportId);
+            entityName = support?.name || 'Soporte';
+            icon = 'fa-headset';
+        } else if (aType === 'project') {
+            const project = await window.PortalDB.getProject(assignment.projectId);
+            entityName = project?.name || 'Proyecto';
+            icon = 'fa-folder-open';
+        } else if (aType === 'task') {
+            entityName = assignment.descripcion || 'Tarea';
+            icon = 'fa-tasks';
+        }
+        
+        const draft = timesheetDraft[aId] || {};
+        let rowTotal = 0;
+        
+        let dayCells = '';
+        for (let i = 0; i < 7; i++) {
+            const dayKey = DAY_KEYS[i];
+            const hours = draft[dayKey]?.hours || 0;
+            const detail = draft[dayKey]?.detail || '';
+            rowTotal += hours;
+            
+            const editable = isDayEditable(i) && !isReadOnly;
+            const isToday = i === todayIdx;
+            const hasValue = hours > 0;
+            
+            let inputClass = 'ts-hour-input';
+            if (hasValue) inputClass += ' has-value';
+            if (isToday) inputClass += ' today';
+            if (!editable) inputClass += ' locked';
+            
+            dayCells += `
+                <td class="ts-day-cell">
+                    <input type="number" 
+                        class="${inputClass}" 
+                        value="${hours || ''}" 
+                        min="0" max="24" step="0.5"
+                        data-assignment="${aId}" 
+                        data-day="${dayKey}"
+                        ${!editable ? 'disabled' : ''}
+                        onchange="onHourChange(this)"
+                        onfocus="onHourFocus(this)"
+                        title="${detail ? 'Detalle: ' + detail : (editable ? 'Clic para ingresar horas' : 'Día bloqueado')}"
+                    >
+                    <span class="ts-detail-indicator ${detail ? 'visible' : ''}" data-assignment="${aId}" data-day="${dayKey}"></span>
+                </td>
+            `;
+        }
+        
+        html += `
+            <tr data-assignment-id="${aId}">
+                <td class="ts-assignment-cell">
+                    <div class="ts-assignment-label">
+                        <div class="ts-assignment-icon ${aType}">
+                            <i class="fa-solid ${icon}"></i>
+                        </div>
+                        <div>
+                            <div class="ts-assignment-name">${entityName}</div>
+                            <div class="ts-assignment-company">${company?.name || ''} <span class="ts-type-badge ${aType}">${aType === 'support' ? 'Soporte' : aType === 'project' ? 'Proyecto' : 'Tarea'}</span></div>
+                        </div>
+                    </div>
+                </td>
+                ${dayCells}
+                <td class="ts-row-total" id="rowTotal_${aId}">${rowTotal > 0 ? rowTotal.toFixed(1) : '0'}</td>
+            </tr>
+        `;
+    }
+    
+    tbody.innerHTML = html;
+    updateTimesheetTotals();
+    
+    // Update buttons state
+    const submitBtn = document.getElementById('btnSubmitWeek');
+    const clearBtn = document.getElementById('btnClearDraft');
+    if (submitBtn) {
+        submitBtn.disabled = isReadOnly;
+        if (isReadOnly) {
+            submitBtn.innerHTML = weekStatus === 'Pendiente' 
+                ? '<i class="fa-solid fa-clock"></i> Enviado — Pendiente'
+                : weekStatus === 'Aprobado'
+                    ? '<i class="fa-solid fa-check-circle"></i> Aprobado'
+                    : '<i class="fa-solid fa-paper-plane"></i> Enviar Semana';
+        } else {
+            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar Semana';
+        }
+    }
+    if (clearBtn) clearBtn.disabled = isReadOnly;
+    
+    // Check for rejected timesheets
+    checkRejectedTimesheets();
+}
+
+/**
+ * Handle hour input change — save draft and prompt for detail
+ */
+function onHourChange(input) {
+    const aId = input.dataset.assignment;
+    const dayKey = input.dataset.day;
+    let hours = parseFloat(input.value) || 0;
+    
+    if (hours < 0) hours = 0;
+    if (hours > 24) hours = 24;
+    input.value = hours || '';
+    
+    // Initialize draft structure
+    if (!timesheetDraft[aId]) timesheetDraft[aId] = {};
+    if (!timesheetDraft[aId][dayKey]) timesheetDraft[aId][dayKey] = { hours: 0, detail: '' };
+    
+    timesheetDraft[aId][dayKey].hours = hours;
+    
+    // Update classes
+    input.classList.toggle('has-value', hours > 0);
+    
+    // Update row total
+    updateRowTotal(aId);
+    updateTimesheetTotals();
+    saveTimesheetDraft();
+    
+    // If hours > 0 and no detail yet, prompt for detail
+    if (hours > 0 && !timesheetDraft[aId][dayKey].detail) {
+        showDetailPopover(input, aId, dayKey);
+    }
+}
+
+/**
+ * Handle hour input focus — show detail popover if there are hours
+ */
+function onHourFocus(input) {
+    // Close any existing popover
+    closeDetailPopover();
+}
+
+/**
+ * Show detail popover for entering work description
+ */
+function showDetailPopover(anchor, aId, dayKey) {
+    closeDetailPopover();
+    
+    const currentDetail = timesheetDraft[aId]?.[dayKey]?.detail || '';
+    const dayNames = { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes', sat: 'Sábado', sun: 'Domingo' };
+    
+    const popover = document.createElement('div');
+    popover.className = 'ts-detail-popover';
+    popover.innerHTML = `
+        <label style="font-weight:600; font-size:0.85em; color:#374151; margin-bottom:6px; display:block;">
+            <i class="fa-solid fa-pen"></i> Detalle — ${dayNames[dayKey]}
+        </label>
+        <textarea id="detailTextarea" placeholder="¿Qué trabajaste hoy? Ej: Configuración de módulo FI...">${currentDetail}</textarea>
+        <div class="ts-detail-actions">
+            <button class="btn btn-secondary" style="padding:6px 14px; font-size:0.82em;" onclick="closeDetailPopover()">
+                Cerrar
+            </button>
+            <button class="btn btn-primary" style="padding:6px 14px; font-size:0.82em;" onclick="saveDetail('${aId}','${dayKey}')">
+                <i class="fa-solid fa-check"></i> Guardar
+            </button>
+        </div>
+    `;
+    
+    const cell = anchor.closest('.ts-day-cell');
+    cell.style.position = 'relative';
+    cell.appendChild(popover);
+    activeDetailPopover = popover;
+    
+    setTimeout(() => {
+        const textarea = popover.querySelector('textarea');
+        if (textarea) textarea.focus();
+    }, 100);
+}
+
+function closeDetailPopover() {
+    if (activeDetailPopover) {
+        activeDetailPopover.remove();
+        activeDetailPopover = null;
+    }
+}
+
+function saveDetail(aId, dayKey) {
+    const textarea = document.getElementById('detailTextarea');
+    if (!textarea) return;
+    
+    if (!timesheetDraft[aId]) timesheetDraft[aId] = {};
+    if (!timesheetDraft[aId][dayKey]) timesheetDraft[aId][dayKey] = { hours: 0, detail: '' };
+    
+    timesheetDraft[aId][dayKey].detail = textarea.value.trim();
+    
+    // Update indicator
+    const indicator = document.querySelector(`.ts-detail-indicator[data-assignment="${aId}"][data-day="${dayKey}"]`);
+    if (indicator) indicator.classList.toggle('visible', textarea.value.trim().length > 0);
+    
+    // Update title attribute of the input
+    const input = document.querySelector(`input[data-assignment="${aId}"][data-day="${dayKey}"]`);
+    if (input) input.title = textarea.value.trim() ? 'Detalle: ' + textarea.value.trim() : 'Clic para ingresar horas';
+    
+    closeDetailPopover();
+    saveTimesheetDraft();
+    
+    if (window.NotificationUtils) {
+        window.NotificationUtils.success('Detalle guardado', 1500);
+    }
+}
+
+/**
+ * Update row total for assignment
+ */
+function updateRowTotal(aId) {
+    const draft = timesheetDraft[aId] || {};
+    let total = 0;
+    DAY_KEYS.forEach(dk => { total += (draft[dk]?.hours || 0); });
+    
+    const el = document.getElementById('rowTotal_' + aId);
+    if (el) el.textContent = total > 0 ? total.toFixed(1) : '0';
+}
+
+/**
+ * Update all column totals and grand total
+ */
+function updateTimesheetTotals() {
+    let grandTotal = 0;
+    
+    DAY_KEYS.forEach((dk, i) => {
+        let dayTotal = 0;
+        Object.keys(timesheetDraft).forEach(aId => {
+            dayTotal += (timesheetDraft[aId]?.[dk]?.hours || 0);
+        });
+        
+        const el = document.getElementById('total' + ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]);
+        if (el) el.textContent = dayTotal > 0 ? dayTotal.toFixed(1) : '0';
+        
+        grandTotal += dayTotal;
+    });
+    
+    const el = document.getElementById('totalWeek');
+    if (el) el.textContent = grandTotal > 0 ? grandTotal.toFixed(1) : '0';
+}
+
+/**
+ * Save draft to localStorage
+ */
+function saveTimesheetDraft() {
+    if (!currentUser || !currentWeekStart) return;
+    const key = `ts_draft_${currentUser.userId}_${toISODate(currentWeekStart)}`;
+    localStorage.setItem(key, JSON.stringify(timesheetDraft));
+    
+    const status = document.getElementById('autosaveStatus');
+    if (status) {
+        status.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Guardado ' + new Date().toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+    }
+}
+
+/**
+ * Load draft from localStorage or existing timesheet
+ */
+function loadTimesheetDraft(weekStartStr, existingTs) {
+    timesheetDraft = {};
+    
+    if (existingTs && existingTs.entries) {
+        // Load from existing submitted timesheet
+        existingTs.entries.forEach(entry => {
+            timesheetDraft[entry.assignmentId] = { ...entry.days };
+        });
+    } else {
+        // Load from localStorage draft
+        const key = `ts_draft_${currentUser.userId}_${weekStartStr}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            try { timesheetDraft = JSON.parse(saved); } catch(e) { timesheetDraft = {}; }
+        }
+    }
+}
+
+/**
+ * Clear the current week's draft
+ */
+function clearWeekDraft() {
+    if (!confirm('¿Limpiar todas las horas de esta semana?')) return;
+    
+    timesheetDraft = {};
+    const key = `ts_draft_${currentUser.userId}_${toISODate(currentWeekStart)}`;
+    localStorage.removeItem(key);
+    renderTimesheetGrid();
+    
+    if (window.NotificationUtils) {
+        window.NotificationUtils.info('Borrador limpiado', 2000);
+    }
+}
+
+/**
+ * Submit the weekly timesheet — generates individual reports for compatibility
+ */
+async function submitWeeklyTimesheet() {
+    if (!currentUser || !currentWeekStart) return;
+    
+    const weekStartStr = toISODate(currentWeekStart);
+    const sundayStr = toISODate(getSunday(currentWeekStart));
+    
+    // Check if already submitted
+    const existing = window.PortalDB.getTimesheetByWeek(currentUser.userId, weekStartStr);
+    if (existing && (existing.status === 'Pendiente' || existing.status === 'Aprobado')) {
+        if (window.NotificationUtils) {
+            window.NotificationUtils.error('Esta semana ya fue enviada y está ' + existing.status.toLowerCase());
+        }
+        return;
+    }
+    
+    // Validate: at least some hours entered
+    let totalHours = 0;
+    let entries = [];
+    let hasDetail = true;
+    
+    for (const aId of Object.keys(timesheetDraft)) {
+        const draft = timesheetDraft[aId];
+        let entryTotal = 0;
+        const days = {};
+        
+        DAY_KEYS.forEach(dk => {
+            const h = draft[dk]?.hours || 0;
+            const d = draft[dk]?.detail || '';
+            days[dk] = { hours: h, detail: d };
+            entryTotal += h;
+            if (h > 0 && !d) hasDetail = false;
+        });
+        
+        if (entryTotal > 0) {
+            const assignment = userAssignments.find(a => {
+                return (a.assignmentId === aId || a.projectAssignmentId === aId || a.taskAssignmentId === aId);
+            });
+            
+            // Build label
+            let label = aId;
+            if (assignment) {
+                const company = await window.PortalDB.getCompany(assignment.companyId);
+                if (assignment.assignmentType === 'support') {
+                    const support = await window.PortalDB.getSupport(assignment.supportId);
+                    label = (support?.name || 'Soporte') + ' — ' + (company?.name || '');
+                } else if (assignment.assignmentType === 'project') {
+                    const project = await window.PortalDB.getProject(assignment.projectId);
+                    label = (project?.name || 'Proyecto') + ' — ' + (company?.name || '');
+                } else {
+                    label = (assignment.descripcion || 'Tarea') + ' — ' + (company?.name || '');
+                }
+            }
+            
+            entries.push({
+                assignmentId: aId,
+                assignmentType: assignment?.assignmentType || 'support',
+                assignmentLabel: label,
+                days,
+                totalHours: entryTotal
+            });
+            totalHours += entryTotal;
+        }
+    }
+    
+    if (totalHours === 0) {
+        if (window.NotificationUtils) {
+            window.NotificationUtils.error('Debes ingresar al menos una hora antes de enviar');
+        }
+        return;
+    }
+    
+    if (!hasDetail) {
+        if (!confirm('Algunos días tienen horas sin detalle. ¿Deseas enviar de todas formas?')) return;
+    }
+    
+    if (!confirm(`¿Enviar timesheet de la semana ${formatShortDate(currentWeekStart)} — ${formatShortDate(getSunday(currentWeekStart))}?\n\nTotal: ${totalHours.toFixed(1)} horas en ${entries.length} asignación(es)`)) {
+        return;
+    }
+    
+    try {
+        // Generate individual reports for backwards compatibility
+        const generatedReportIds = [];
+        
+        for (const entry of entries) {
+            for (let i = 0; i < 7; i++) {
+                const dk = DAY_KEYS[i];
+                const dayData = entry.days[dk];
+                if (dayData.hours > 0) {
+                    const cellDate = new Date(currentWeekStart);
+                    cellDate.setDate(cellDate.getDate() + i);
+                    
+                    const assignment = userAssignments.find(a => 
+                        (a.assignmentId === entry.assignmentId || 
+                         a.projectAssignmentId === entry.assignmentId || 
+                         a.taskAssignmentId === entry.assignmentId)
+                    );
+                    
+                    if (assignment) {
+                        const reportData = {
+                            userId: currentUser.userId,
+                            assignmentId: entry.assignmentId,
+                            assignmentType: entry.assignmentType,
+                            title: `Timesheet ${DAY_LABELS[i]} ${formatShortDate(cellDate)} — ${entry.assignmentLabel}`,
+                            description: dayData.detail || `Horas registradas: ${dayData.hours}h`,
+                            hours: dayData.hours,
+                            reportDate: toISODate(cellDate)
+                        };
+                        
+                        const result = await window.PortalDB.createReport(reportData);
+                        if (result.success && result.report) {
+                            generatedReportIds.push(result.report.id || result.report.reportId);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Create or update timesheet record
+        if (existing) {
+            window.PortalDB.updateTimesheet(existing.timesheetId, {
+                entries,
+                totalWeekHours: totalHours,
+                status: 'Pendiente',
+                generatedReportIds,
+                submittedAt: new Date().toISOString()
+            });
+        } else {
+            window.PortalDB.createTimesheet({
+                userId: currentUser.userId,
+                userName: currentUser.name,
+                weekStart: weekStartStr,
+                weekEnd: sundayStr,
+                entries,
+                totalWeekHours: totalHours,
+                status: 'Pendiente',
+                generatedReportIds
+            });
+            // Update the created timesheet with generatedReportIds
+            const ts = window.PortalDB.getTimesheetByWeek(currentUser.userId, weekStartStr);
+            if (ts) {
+                window.PortalDB.updateTimesheet(ts.timesheetId, {
+                    generatedReportIds,
+                    submittedAt: new Date().toISOString()
+                });
+            }
+        }
+        
+        // Clean localStorage draft
+        const key = `ts_draft_${currentUser.userId}_${weekStartStr}`;
+        localStorage.removeItem(key);
+        
+        // Send notification to admin
+        if (typeof sendNotification === 'function') {
+            await sendNotification('admin', 'report_created', 
+                'Nuevo Timesheet Semanal',
+                `${currentUser.name} envió su timesheet de la semana ${formatShortDate(currentWeekStart)} — ${formatShortDate(getSunday(currentWeekStart))} (${totalHours.toFixed(1)} hrs)`
+            );
+        }
+        
+        if (window.NotificationUtils) {
+            window.NotificationUtils.success(`¡Timesheet enviado! ${totalHours.toFixed(1)} hrs en ${entries.length} asignación(es)`, 4000);
+        }
+        
+        renderTimesheetGrid();
+        
+    } catch (error) {
+        console.error('Error enviando timesheet:', error);
+        if (window.NotificationUtils) {
+            window.NotificationUtils.error('Error al enviar: ' + error.message);
+        }
+    }
+}
+
+/**
+ * Check for rejected timesheets and show alert
+ */
+function checkRejectedTimesheets() {
+    if (!currentUser) return;
+    
+    const allTs = window.PortalDB.getTimesheetsByUser(currentUser.userId);
+    const rejected = allTs.filter(ts => ts.status === 'Rechazado');
+    
+    const alert = document.getElementById('rejectedTimesheetsAlert');
+    const list = document.getElementById('rejectedTimesheetsList');
+    
+    if (rejected.length === 0) {
+        if (alert) alert.style.display = 'none';
+        return;
+    }
+    
+    if (alert) alert.style.display = 'block';
+    if (list) {
+        list.innerHTML = rejected.map(ts => `
+            <div style="background:white; padding:12px; border-radius:8px; margin-bottom:8px; border:1px solid #fecaca;">
+                <strong>Semana: ${ts.weekStart} — ${ts.weekEnd}</strong> | 
+                ${ts.totalWeekHours.toFixed(1)} hrs |
+                <span style="color:#ef4444">Rechazado</span>
+                ${ts.rejectionReason ? `<br><small style="color:#6b7280">Motivo: ${ts.rejectionReason}</small>` : ''}
+                <br>
+                <button class="btn btn-secondary" style="margin-top:6px; padding:4px 12px; font-size:0.82em;" onclick="reopenRejectedTimesheet('${ts.timesheetId}')">
+                    <i class="fa-solid fa-pen"></i> Corregir y Reenviar
+                </button>
+            </div>
+        `).join('');
+    }
+}
+
+/**
+ * Reopen a rejected timesheet for editing
+ */
+function reopenRejectedTimesheet(timesheetId) {
+    const ts = Object.values(window.PortalDB.getTimesheets()).find(t => t.timesheetId === timesheetId);
+    if (!ts) return;
+    
+    // Navigate to that week
+    currentWeekStart = new Date(ts.weekStart + 'T00:00:00');
+    
+    // Update status to Borrador so it can be re-edited
+    window.PortalDB.updateTimesheet(timesheetId, { status: 'Borrador' });
+    
+    renderTimesheetGrid();
+    
+    if (window.NotificationUtils) {
+        window.NotificationUtils.info('Timesheet reabierto para corrección. Edita y vuelve a enviar.');
+    }
+}
+
+/**
+ * Switch between timesheet and historial views
+ */
+function switchConsultorView(viewName) {
+    // Update sidebar active state
+    document.querySelectorAll('.consultor-sidebar .menu-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.view === viewName);
+    });
+    
+    // Toggle views
+    document.querySelectorAll('.consultor-view').forEach(v => {
+        v.classList.remove('active');
+        v.style.display = 'none';
+    });
+    
+    const targetView = document.getElementById(viewName + 'View');
+    if (targetView) {
+        targetView.classList.add('active');
+        targetView.style.display = 'block';
+    }
+    
+    if (viewName === 'historial') {
+        renderHistorial();
+    }
+}
+
+/**
+ * Render historial table
+ */
+function renderHistorial() {
+    const tbody = document.getElementById('historialBody');
+    if (!tbody || !currentUser) return;
+    
+    const allTs = window.PortalDB.getTimesheetsByUser(currentUser.userId);
+    
+    if (allTs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets anteriores</td></tr>';
+        return;
+    }
+    
+    // Sort by weekStart desc
+    allTs.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
+    
+    tbody.innerHTML = allTs.map(ts => {
+        const statusClass = ts.status === 'Aprobado' ? 'active' : ts.status === 'Rechazado' ? 'inactive' : '';
+        return `
+            <tr>
+                <td><strong>${ts.weekStart}</strong> — ${ts.weekEnd}</td>
+                <td><strong>${ts.totalWeekHours.toFixed(1)}</strong> hrs</td>
+                <td><span class="crud-status-badge ${statusClass}">${ts.status}</span></td>
+                <td>${ts.submittedAt ? new Date(ts.submittedAt).toLocaleDateString('es-MX') : '—'}</td>
+                <td>
+                    <button class="btn btn-secondary" style="padding:4px 10px; font-size:0.82em;" onclick="viewTimesheetWeek('${ts.weekStart}')">
+                        <i class="fa-solid fa-eye"></i> Ver
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * Navigate to a specific week from historial
+ */
+function viewTimesheetWeek(weekStartStr) {
+    currentWeekStart = new Date(weekStartStr + 'T00:00:00');
+    switchConsultorView('timesheet');
+    renderTimesheetGrid();
+}
+
+// === OVERRIDE: loadUserAssignments should also render the grid ===
+const _originalLoadUserAssignments = loadUserAssignments;
+loadUserAssignments = async function() {
+    await _originalLoadUserAssignments.call(this);
+    // After assignments are loaded, render the timesheet grid
+    setTimeout(() => {
+        initTimesheetGrid();
+    }, 200);
+};
+
+// Export new functions globally
+window.navigateWeek = navigateWeek;
+window.onHourChange = onHourChange;
+window.onHourFocus = onHourFocus;
+window.showDetailPopover = showDetailPopover;
+window.closeDetailPopover = closeDetailPopover;
+window.saveDetail = saveDetail;
+window.clearWeekDraft = clearWeekDraft;
+window.submitWeeklyTimesheet = submitWeeklyTimesheet;
+window.switchConsultorView = switchConsultorView;
+window.reopenRejectedTimesheet = reopenRejectedTimesheet;
+window.viewTimesheetWeek = viewTimesheetWeek;
 
 // Función para actualizar el avatar del header con la foto del usuario
 function updateHeaderAvatar(photoUrl) {
