@@ -24,6 +24,10 @@ router.get('/:id', async (req, res) => {
 
 // POST crear proyecto
 router.post('/', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     const data = req.body;
     if (!data.projectId) {  
@@ -39,6 +43,10 @@ router.post('/', async (req, res) => {
 
 // PUT actualizar proyecto
 router.put('/:id', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     const project = await Project.findOneAndUpdate(
       { projectId: req.params.id }, 
@@ -54,6 +62,10 @@ router.put('/:id', async (req, res) => {
 
 // DELETE eliminar proyecto
 router.delete('/:id', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     const project = await Project.findOneAndDelete({ projectId: req.params.id }); 
     if (!project) return res.status(404).json({ success: false, message: 'Proyecto no encontrado' });

@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 // Configurar dotenv para buscar el .env en la raíz del proyecto
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const User = require('./models/User');
+const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
 
@@ -37,6 +38,26 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Sanitizar operadores NoSQL para evitar inyecciones de queries
+function sanitizeNoSQL(obj) {
+  if (obj && typeof obj === 'object') {
+    for (const key in obj) {
+      if (key.startsWith('$')) {
+        delete obj[key];
+      } else if (typeof obj[key] === 'object') {
+        sanitizeNoSQL(obj[key]);
+      }
+    }
+  }
+}
+
+app.use((req, res, next) => {
+  sanitizeNoSQL(req.body);
+  sanitizeNoSQL(req.query);
+  sanitizeNoSQL(req.params);
+  next();
+});
+
 // 👇 NUEVO: Servir archivos estáticos (CSS, JS, imágenes)
 app.use('/css', express.static(path.join(__dirname, '..', 'css')));
 app.use('/js', express.static(path.join(__dirname, '..', 'js')));
@@ -44,50 +65,47 @@ app.use('/images', express.static(path.join(__dirname, '..', 'images')));
 app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
 app.use('/consultor', express.static(path.join(__dirname, '..', 'consultor')));
 
+const bcrypt = require('bcryptjs');
+
+// Función para migrar contraseñas de texto plano a encriptado bcrypt
+async function migratePlaintextPasswords() {
+  try {
+    console.log('🔄 Iniciando verificación de seguridad de contraseñas...');
+    const users = await User.find({});
+    let migratedCount = 0;
+
+    for (const user of users) {
+      // Si la contraseña no está encriptada con bcrypt (no empieza con $2a$ o $2b$)
+      if (user.password && !user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
+        console.log(`🔑 Encriptando contraseña en texto plano para el usuario: ${user.name} (${user.userId})`);
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(user.password, salt);
+        
+        // Actualizar directamente en la base de datos para evitar activar triggers de guardado
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { password: hashedPassword, updatedAt: new Date() } }
+        );
+        migratedCount++;
+      }
+    }
+    if (migratedCount > 0) {
+      console.log(`✅ Migración finalizada: ${migratedCount} contraseñas fueron encriptadas de forma segura.`);
+    } else {
+      console.log('✅ Verificación completada: Todas las contraseñas ya se encuentran encriptadas.');
+    }
+  } catch (error) {
+    console.error('❌ Error durante la migración de contraseñas:', error);
+  }
+}
+
 // Conectar a MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('✅ MongoDB conectado'))
+.then(() => {
+  console.log('✅ MongoDB conectado');
+  migratePlaintextPasswords();
+})
 .catch(err => console.error('❌ Error de conexión MongoDB:', err));
-
-// 👇 AGREGA ESTE ENDPOINT TEMPORAL en api/index.js
-app.post('/api/setup/reset-admin-password', async (req, res) => {
-  try {
-    const { newPassword } = req.body;
-    
-    if (!newPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Se requiere nueva contraseña' 
-      });
-    }
-
-    // Buscar el usuario admin
-    const adminUser = await User.findOne({ id: 'admin' });
-    
-    if (!adminUser) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Usuario admin no encontrado' 
-      });
-    }
-
-    // Actualizar contraseña (se hasheará automáticamente)
-    adminUser.password = newPassword;
-    await adminUser.save();
-
-    res.json({ 
-      success: true, 
-      message: 'Contraseña actualizada exitosamente',
-      newPassword: newPassword // Solo para referencia, eliminar en producción
-    });
-  } catch (error) {
-    console.error('Error reseteando contraseña:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error actualizando contraseña' 
-    });
-  }
-});
 
 // Importar rutas
 const authRoutes = require('./routes/auth');
@@ -109,22 +127,22 @@ const videoRoutes = require('./routes/video');        // ✅ VIDEO/VOICE CALLS
 const { sendSSEToUser, broadcastSSE: broadcastSSEChat } = chatRoutes;
 
 // Usar rutas
-app.use('/api/auth', authRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/companies', companiesRoutes);
-app.use('/api/projects', projectsRoutes);
-app.use('/api/supports', supportsRoutes);
-app.use('/api/modules', modulesRoutes);
-app.use('/api/assignments', assignmentsRoutes); // Maneja /assignments, /assignments/projects, /assignments/tasks
-app.use('/api/projectAssignments', projectAssignmentsRoutes);  // ✅ NUEVO
-app.use('/api/taskAssignments', taskAssignmentsRoutes);  // ✅ NUEVO
-app.use('/api/reports', reportsRoutes);
-app.use('/api/generatedReports', generatedReportsRoutes);
-app.use('/api/tarifario', tarifarioRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api/chat', chatRoutes); // ✅ NUEVO
-app.use('/api/calendar', calendarRoutes); // ✅ CALENDARIO
-app.use('/api/video', videoRoutes); // ✅ VIDEO/VOICE CALLS
+app.use('/api/auth', authRoutes); // Público para Login y Recuperación
+app.use('/api/users', authenticateToken, usersRoutes);
+app.use('/api/companies', authenticateToken, companiesRoutes);
+app.use('/api/projects', authenticateToken, projectsRoutes);
+app.use('/api/supports', authenticateToken, supportsRoutes);
+app.use('/api/modules', authenticateToken, modulesRoutes);
+app.use('/api/assignments', authenticateToken, assignmentsRoutes); // Maneja /assignments, /assignments/projects, /assignments/tasks
+app.use('/api/projectAssignments', authenticateToken, projectAssignmentsRoutes);  // ✅ NUEVO
+app.use('/api/taskAssignments', authenticateToken, taskAssignmentsRoutes);  // ✅ NUEVO
+app.use('/api/reports', authenticateToken, reportsRoutes);
+app.use('/api/generatedReports', authenticateToken, generatedReportsRoutes);
+app.use('/api/tarifario', authenticateToken, tarifarioRoutes);
+app.use('/api/notifications', authenticateToken, notificationsRoutes);
+app.use('/api/chat', authenticateToken, chatRoutes); // ✅ NUEVO
+app.use('/api/calendar', authenticateToken, calendarRoutes); // ✅ CALENDARIO
+app.use('/api/video', authenticateToken, videoRoutes); // ✅ VIDEO/VOICE CALLS
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {

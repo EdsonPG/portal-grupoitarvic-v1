@@ -22,6 +22,10 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     const data = req.body;
     
@@ -38,6 +42,10 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     const company = await Company.findOneAndUpdate(
       { companyId: req.params.id },
@@ -56,6 +64,10 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     const company = await Company.findOneAndDelete({ companyId: req.params.id });
     if (!company) return res.status(404).json({ success: false, message: 'Empresa no encontrada' });

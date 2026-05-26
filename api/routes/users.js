@@ -61,6 +61,11 @@ router.get('/:id', async (req, res) => {
 
 // POST crear usuario
 router.post('/', async (req, res) => {
+  // Solo admin puede crear usuarios
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     const userData = req.body;
     
@@ -121,6 +126,17 @@ router.post('/', async (req, res) => {
 
 // PUT actualizar usuario
 router.put('/:id', async (req, res) => {
+  // Solo admin puede modificar otros usuarios, los consultores solo pueden modificarse a sí mismos
+  if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: No tienes permisos para modificar este usuario' });
+  }
+
+  // Si no es admin, no permitir escalar privilegios o cambiar estado activo
+  if (req.user.role !== 'admin') {
+    delete req.body.role;
+    delete req.body.isActive;
+  }
+
   try {
     const updates = req.body;
     
@@ -194,6 +210,11 @@ router.put('/:id', async (req, res) => {
 
 // DELETE eliminar usuario
 router.delete('/:id', async (req, res) => {
+  // Solo admin puede borrar usuarios
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     console.log('🗑️ Eliminando usuario:', req.params.id);
     
@@ -220,6 +241,10 @@ router.delete('/:id', async (req, res) => {
 
 // PUT actualizar foto de perfil
 router.put('/:id/profile-photo', async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: No tienes permisos para modificar este usuario' });
+  }
+
   try {
     const { profilePhoto } = req.body;
     
@@ -252,6 +277,10 @@ router.put('/:id/profile-photo', async (req, res) => {
 
 // DELETE eliminar foto de perfil
 router.delete('/:id/profile-photo', async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: No tienes permisos para modificar este usuario' });
+  }
+
   try {
     const user = await User.findOneAndUpdate(
       { userId: req.params.id },
@@ -273,6 +302,10 @@ router.delete('/:id/profile-photo', async (req, res) => {
 
 // PUT cambiar contraseña
 router.put('/:id/change-password', async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: No tienes permisos para modificar este usuario' });
+  }
+
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -297,8 +330,9 @@ router.put('/:id/change-password', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     }
 
-    // Verificar contraseña actual (sin bcrypt)
-    if (user.password !== currentPassword) {
+    // Verificar contraseña actual con bcrypt
+    const isCurrentValid = await user.comparePassword(currentPassword);
+    if (!isCurrentValid) {
       return res.status(401).json({ success: false, message: 'La contraseña actual es incorrecta' });
     }
 
