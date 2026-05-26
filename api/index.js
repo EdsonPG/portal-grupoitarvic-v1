@@ -100,6 +100,7 @@ const assignmentsRoutes = require('./routes/assignments');
 const projectAssignmentsRoutes = require('./routes/projectAssignments');
 const taskAssignmentsRoutes = require('./routes/taskAssignments');  // ✅ NUEVO
 const reportsRoutes = require('./routes/reports');
+const generatedReportsRoutes = require('./routes/generatedReports');
 const tarifarioRoutes = require('./routes/tarifario');
 const notificationsRoutes = require('./routes/notifications');
 const chatRoutes = require('./routes/chat');  // ✅ NUEVO
@@ -118,6 +119,7 @@ app.use('/api/assignments', assignmentsRoutes); // Maneja /assignments, /assignm
 app.use('/api/projectAssignments', projectAssignmentsRoutes);  // ✅ NUEVO
 app.use('/api/taskAssignments', taskAssignmentsRoutes);  // ✅ NUEVO
 app.use('/api/reports', reportsRoutes);
+app.use('/api/generatedReports', generatedReportsRoutes);
 app.use('/api/tarifario', tarifarioRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/chat', chatRoutes); // ✅ NUEVO

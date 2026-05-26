@@ -2498,6 +2498,62 @@ async function submitWeeklyTimesheet() {
         if (!confirm('Algunos días tienen horas sin detalle. ¿Deseas enviar de todas formas?')) return;
     }
     
+    // ──────────────────────────────────────────────
+    // VALIDACIÓN DE LÍMITE DE HORAS PARA PROYECTOS
+    // ──────────────────────────────────────────────
+    const dbProjects = window.PortalDB.getProjects();
+    const allTimesheets = window.PortalDB.getTimesheets();
+    const portalData = window.PortalDB.getData();
+    
+    for (const entry of entries) {
+        if (entry.assignmentType === 'project') {
+            const assignment = userAssignments.find(a => 
+                a.assignmentId === entry.assignmentId || 
+                a.projectAssignmentId === entry.assignmentId || 
+                a.taskAssignmentId === entry.assignmentId
+            );
+            
+            if (assignment && assignment.projectId) {
+                const project = dbProjects[assignment.projectId];
+                if (project && project.maxHours && project.maxHours > 0) {
+                    // Calcular horas consumidas a nivel proyecto
+                    let consumedSoFar = 0;
+                    Object.values(allTimesheets).forEach(ts => {
+                        // Omitir el actual si estamos re-enviando, y omitir rechazados
+                        if (ts.timesheetId === existing?.timesheetId) return; 
+                        if (ts.status === 'Rechazado') return;
+                        
+                        if (ts.entries) {
+                            ts.entries.forEach(e => {
+                                const tsAssignment = Object.values(portalData.projectAssignments || {}).find(pa => 
+                                    (pa.projectAssignmentId === e.assignmentId || pa.id === e.assignmentId)
+                                );
+                                if (tsAssignment && tsAssignment.projectId === project.projectId) {
+                                    consumedSoFar += e.totalHours || 0;
+                                }
+                            });
+                        }
+                    });
+                    
+                    const projectedTotal = consumedSoFar + entry.totalHours;
+                    
+                    if (projectedTotal > project.maxHours) {
+                        if (window.NotificationUtils) {
+                            window.NotificationUtils.error(`No se puede enviar. El proyecto '${project.name}' excederá su límite. Límite: ${project.maxHours}h. Previamente Consumidas: ${consumedSoFar}h. Intento: +${entry.totalHours}h.`);
+                        } else {
+                            alert(`Error: Límite de horas excedido en proyecto ${project.name}`);
+                        }
+                        return; // ABORTAR ENVÍO
+                    } else if (projectedTotal >= project.maxHours * 0.8) {
+                        if (window.NotificationUtils) {
+                            window.NotificationUtils.warning(`Advertencia: El proyecto '${project.name}' está al ${(projectedTotal / project.maxHours * 100).toFixed(1)}% de su capacidad total (${projectedTotal} / ${project.maxHours}h).`, 6000);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     if (!confirm(`¿Enviar timesheet de la semana ${formatShortDate(currentWeekStart)} — ${formatShortDate(getSunday(currentWeekStart))}?\n\nTotal: ${totalHours.toFixed(1)} horas en ${entries.length} asignación(es)`)) {
         return;
     }
@@ -2686,7 +2742,7 @@ function renderHistorial() {
     const allTs = window.PortalDB.getTimesheetsByUser(currentUser.userId);
     
     if (allTs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets anteriores</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets anteriores</td></tr>';
         return;
     }
     
@@ -2704,6 +2760,11 @@ function renderHistorial() {
                 <td>
                     <button class="btn btn-secondary" style="padding:4px 10px; font-size:0.82em;" onclick="viewTimesheetWeek('${ts.weekStart}')">
                         <i class="fa-solid fa-eye"></i> Ver
+                    </button>
+                </td>
+                <td>
+                    <button class="btn" style="padding:4px 10px; font-size:0.82em; background:#1B3A5C; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="openActivityReport('${ts.timesheetId}')" title="Generar Reporte de Actividades">
+                        <i class="fa-solid fa-file-lines"></i> Reporte
                     </button>
                 </td>
             </tr>

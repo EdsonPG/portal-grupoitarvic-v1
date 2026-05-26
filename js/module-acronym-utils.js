@@ -38,9 +38,11 @@ function convertModuleToAcronym(moduleName) {
             return !wordsToIgnore.includes(word.toLowerCase());
         })
         .map(word => {
-            // Tomar la primera letra de cada palabra y convertirla a mayúscula
-            return word.charAt(0).toUpperCase();
+            // Limpiar caracteres no alfanuméricos (paréntesis, puntos, etc.)
+            const cleaned = word.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]/g, '');
+            return cleaned.charAt(0).toUpperCase();
         })
+        .filter(char => char.length > 0)
         .join('');
     
     // Si después de filtrar no quedaron letras, usar la primera letra del nombre original

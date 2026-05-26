@@ -1266,54 +1266,116 @@ class PortalDatabase {
         }
     }
 
-        // === GESTIÓN DE REPORTES EXCEL GENERADOS (STUB - NO IMPLEMENTADO EN BACKEND) ===
+        // === GESTIÓN DE REPORTES EXCEL GENERADOS (PERSISTENCIA EN MONGODB) ===
     /**
-     * Obtener reportes generados (STUB)
-     * @returns {Object} Objeto vacío por ahora
-     * @note Esta funcionalidad no está implementada en el backend de MongoDB
+     * Obtener reportes generados
+     * @returns {Object} Historial de reportes generados
      */
-    getGeneratedReports() {
-        // Stub silencioso - funcionalidad no migrada a MongoDB aún
-        return {};
+    async getGeneratedReports() {
+        try {
+            const response = await fetch(`${this.API_URL}/generatedReports`, {
+                headers: this.getHeaders()
+            });
+            const data = await response.json();
+            if (data.success) {
+                const reportsObj = {};
+                data.data.forEach(report => {
+                    reportsObj[report.reportId] = {
+                        ...report,
+                        id: report.reportId || report._id
+                    };
+                });
+                return reportsObj;
+            }
+            return {};
+        } catch (e) {
+            console.error('❌ Error leyendo reportes generados de MongoDB:', e);
+            return {};
+        }
     }
 
     /**
-     * Guardar reporte generado (STUB)
-     * @returns {Object} Success false con mensaje
-     * @note Esta funcionalidad no está implementada en el backend de MongoDB
+     * Guardar reporte generado
+     * @returns {Object} Resultado de la operación
      */
     async saveGeneratedReport(reportData) {
-        console.warn('⚠️ saveGeneratedReport() es un stub. Esta funcionalidad no está migrada a MongoDB.');
-        return { 
-            success: false, 
-            message: 'Funcionalidad no disponible - requiere implementación en MongoDB' 
-        };
+        try {
+            const reportId = `excel_${Date.now()}`;
+            const payload = {
+                reportId: reportId,
+                fileName: reportData.fileName,
+                reportType: reportData.reportType,
+                generatedBy: reportData.generatedBy || 'Hector Perez',
+                dateRange: reportData.dateRange,
+                recordCount: reportData.recordCount || 0,
+                totalHours: reportData.totalHours || 0,
+                totalAmount: reportData.totalAmount || 0,
+                downloadCount: 0
+            };
+            
+            const response = await fetch(`${this.API_URL}/generatedReports`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('✅ Reporte guardado en MongoDB:', reportId);
+                return { 
+                    success: true, 
+                    report: {
+                        ...data.data,
+                        id: data.data.reportId || data.data._id
+                    } 
+                };
+            }
+            return { success: false, message: data.message };
+        } catch (e) {
+            console.error('❌ Error guardando reporte generado en MongoDB:', e);
+            return { success: false, message: 'Error de conexión' };
+        }
     }
 
     /**
-     * Incrementar contador de descargas (STUB)
-     * @returns {Object} Success false con mensaje
-     * @note Esta funcionalidad no está implementada en el backend de MongoDB
+     * Incrementar contador de descargas
+     * @returns {Object} Resultado de la operación
      */
     async incrementDownloadCount(reportId) {
-        console.warn('⚠️ incrementDownloadCount() es un stub.');
-        return { 
-            success: false, 
-            message: 'Funcionalidad no disponible' 
-        };
+        try {
+            const response = await fetch(`${this.API_URL}/generatedReports/${reportId}`, {
+                method: 'PUT',
+                headers: this.getHeaders()
+            });
+            const data = await response.json();
+            return data.success ? { success: true } : { success: false, message: data.message };
+        } catch (e) {
+            console.error('❌ Error incrementando descargas en MongoDB:', e);
+            return { success: false, message: 'Error de conexión' };
+        }
     }
 
     /**
-     * Eliminar reporte generado (STUB)
-     * @returns {Object} Success false con mensaje
-     * @note Esta funcionalidad no está implementada en el backend de MongoDB
+     * Eliminar reporte generado
+     * @returns {Object} Resultado de la operación
      */
     async deleteGeneratedReport(reportId) {
-        console.warn('⚠️ deleteGeneratedReport() es un stub.');
-        return { 
-            success: false, 
-            message: 'Funcionalidad no disponible' 
-        };
+        try {
+            const response = await fetch(`${this.API_URL}/generatedReports/${reportId}`, {
+                method: 'DELETE',
+                headers: this.getHeaders()
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('✅ Reporte eliminado de MongoDB:', reportId);
+                return { success: true, message: 'Reporte eliminado del historial' };
+            }
+            return { success: false, message: data.message };
+        } catch (e) {
+            console.error('❌ Error eliminando reporte de MongoDB:', e);
+            return { success: false, message: 'Error de conexión' };
+        }
     }
 
     // === GESTIÓN DE TARIFARIO ===

@@ -1,3 +1,23 @@
+// Asegurar convertModuleToAcronym para evitar errores si no se carga el script o se carga fuera de orden
+if (typeof window.convertModuleToAcronym !== 'function') {
+    window.convertModuleToAcronym = function(moduleName) {
+        if (!moduleName || moduleName === 'N/A') return 'N/A';
+        // Limpiar y separar por espacios
+        const words = moduleName.trim().split(/\s+/).filter(word => word.length > 0);
+        // Excluir conectores
+        const wordsToIgnore = ['a', 'de', 'del', 'la', 'el', 'los', 'las', 'y', 'o', 'u', 'en', 'con', 'sin', 'por', 'para', 'al'];
+        const acronym = words
+            .filter(word => !wordsToIgnore.includes(word.toLowerCase()))
+            .map(word => {
+                const cleaned = word.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]/g, '');
+                return cleaned.charAt(0).toUpperCase();
+            })
+            .filter(char => char.length > 0)
+            .join('');
+        return acronym.length > 0 ? acronym : moduleName.charAt(0).toUpperCase();
+    };
+}
+
 // === PANEL DE AYUDA ===
 function toggleHelpPanel() {
     const panel = document.getElementById('helpPanel');
@@ -340,6 +360,17 @@ const ARVIC_REPORTS = {
         structure: ['ID EMPRESA', 'CONSULTOR', 'ORIGEN', 'MÓDULO', 'TIEMPO', 'TARIFA', 'TOTAL'],  // ✅ MODIFICADO
         editableFields: ['TIEMPO', 'TARIFA'],  // ✅ MODIFICADO
         excelTitle: 'Proyecto: [Nombre]'
+    },
+    'reporte-actividades': {
+        name: 'Reporte de Actividades',
+        icon: '<i class="fa-solid fa-file-lines"></i>',
+        description: 'Reporte semanal de actividades con formato corporativo (2 hojas: Reporte + Detalle)',
+        audience: '<i class="fa-solid fa-users"></i> Consultores y Administradores',
+        filters: ['consultant', 'timesheetWeek'],
+        structure: ['CLIENTE', 'MÓDULO', 'TICKET', 'FECHA', 'ACTIVIDAD', 'DIAS', 'HORAS', 'LIDER'],
+        editableFields: [],
+        excelTitle: 'REPORTE DE ACTIVIDADES',
+        specialFormat: 'activity-report'
     }
 };
 
@@ -609,32 +640,67 @@ function updateStats() {
 async function updateSidebarCounts() {
     await loadCurrentData();
     
-    const assignments = Object.values(currentData.assignments).filter(a => a.isActive !== false);
-    const projectAssignments = Object.values(currentData.projectAssignments || {}).filter(a => a.isActive !== false);
-    const taskAssignments = Object.values(currentData.taskAssignments || {}).filter(t => t.isActive !== false);
-    const totalAssignments = assignments.length + projectAssignments.length + taskAssignments.length;
+    try {
+        const users = currentData.users || {};
+        const companies = currentData.companies || {};
+        const projects = currentData.projects || {};
+        const supports = currentData.supports || {};
+        const modules = currentData.modules || {};
+        const assignments = currentData.assignments || {};
+        const reports = currentData.reports || {};
+        const tarifario = currentData.tarifario || {};
+        const projectAssignments = currentData.projectAssignments || {};
+        const taskAssignments = currentData.taskAssignments || {};
 
-    const reports = Object.values(currentData.reports || {});
-    const pendingReports = reports.filter(r => r.status === 'Pendiente');
-    const approvedReports = reports.filter(r => r.status === 'Aprobado');
-    
-    // Elementos que aún existen en el sidebar
-    const sidebarElements = {
-        'sidebarAssignmentsCount': totalAssignments,
-        'sidebarProjectAssignmentsCount': projectAssignments.length,
-        'sidebarTaskCount': taskAssignments.length,
-        'sidebarReportsCount': pendingReports.length,
-        'sidebarApprovedReportsCount': approvedReports.length
-    };
+        // Contar consultores activos (excluyendo admin)
+        const consultorCount = Object.values(users).filter(u => u.role === 'consultor' && u.isActive !== false).length;
+        const empresaCount = Object.values(companies).filter(c => c.isActive !== false).length;
+        const proyectoCount = Object.values(projects).filter(p => p.isActive !== false).length;
+        const soporteCount = Object.values(supports).filter(s => s.isActive !== false).length;
+        const moduloCount = Object.values(modules).filter(m => m.isActive !== false).length;
+        const tarifarioCount = Object.keys(tarifario).length;
+        const assignCount = Object.keys(assignments).length;
+        const projectAssignCount = Object.keys(projectAssignments).length;
+        const taskCount = Object.values(taskAssignments).filter(t => t.isActive !== false).length;
+        const pendingReports = Object.values(reports).filter(r => r.status === 'Pendiente').length;
+        const timesheets = currentData.timesheets || {};
+        const pendingTimesheets = Object.values(timesheets).filter(t => t.status === 'Pendiente').length;
 
-    Object.entries(sidebarElements).forEach(([elementId, count]) => {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = count;
+        // Obtener contadores del historial de reportes generados desde MongoDB
+        let generatedReportsCount = 0;
+        try {
+            const generatedReports = await window.PortalDB.getGeneratedReports();
+            generatedReportsCount = Object.values(generatedReports || {}).length;
+        } catch (e) {
+            console.error('Error al actualizar contador del historial de reportes:', e);
         }
-    });
 
-    console.log('Contadores de sidebar actualizados');
+        // Sidebar badges
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setEl('sidebarConsultoresCount', consultorCount);
+        setEl('sidebarEmpresasCount', empresaCount);
+        setEl('sidebarProyectosCount', proyectoCount);
+        setEl('sidebarSoportesCount', soporteCount);
+        setEl('sidebarModulosCount', moduloCount);
+        setEl('sidebarTarifarioCount', tarifarioCount);
+        setEl('sidebarAssignmentsCount', assignCount);
+        setEl('sidebarProjectAssignmentsCount', projectAssignCount);
+        setEl('sidebarTaskCount', taskCount);
+        setEl('sidebarReportsCount', pendingReports);
+        setEl('sidebarTimesheetsCount', pendingTimesheets || Object.keys(timesheets).length);
+        
+        const approvedCount = Object.values(reports).filter(r => r.status === 'Aprobado').length;
+        setEl('sidebarApprovedReportsCount', approvedCount);
+        setEl('sidebarGeneratedReportsCount', generatedReportsCount);
+
+        console.log('Contadores de sidebar actualizados (unificado):', {
+            consultorCount, empresaCount, proyectoCount, soporteCount, moduloCount,
+            tarifarioCount, assignCount, projectAssignCount, taskCount, pendingReports,
+            pendingTimesheets, approvedCount, generatedReportsCount
+        });
+    } catch (error) {
+        console.error('Error updateSidebarCounts:', error);
+    }
 }
 
 async function updateSupportsList() {
@@ -1093,13 +1159,37 @@ async function updateProjectsList() {
     }
 
     container.innerHTML = '';
-    projects.forEach(project => {
+    for (const project of projects) {
         const projectDiv = document.createElement('div');
         projectDiv.className = 'item hover-lift';
 
         const assignedConsultors = Object.values(currentData.projectAssignments || {}).filter(a =>
             a.projectId === project.projectId && a.isActive !== false
         );
+
+        // Calculate consumed hours for this project
+        const hoursInfo = getProjectHoursConsumed(project.projectId);
+        const maxH = project.maxHours || 0;
+        const pct = maxH > 0 ? Math.round((hoursInfo.total / maxH) * 100) : 0;
+        const barClass = pct >= 100 ? 'exceeded' : pct >= 90 ? 'danger' : pct >= 70 ? 'warning' : '';
+
+        let hoursHTML = '';
+        if (maxH > 0) {
+            hoursHTML = `
+                <div style="padding:8px 20px; margin:0 -20px; border-top:1px solid #e5e7eb; background:#f0fdf4;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <small style="font-weight:600; color:#374151; font-size:0.8rem;">
+                            <i class="fa-solid fa-clock" style="color:${pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981'}"></i>
+                            ${hoursInfo.total.toFixed(1)} / ${maxH} hrs (${pct}%)
+                        </small>
+                        <small style="color:#6b7280; font-size:0.72rem;">${hoursInfo.consultors} consultor(es)</small>
+                    </div>
+                    <div class="project-hours-bar ${barClass}" style="height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden;">
+                        <div style="height:100%; width:${Math.min(pct,100)}%; border-radius:3px; transition:width 0.3s;
+                            background:${pct >= 100 ? '#ef4444' : pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981'};"></div>
+                    </div>
+                </div>`;
+        }
 
         projectDiv.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 0; width: 100%;">
@@ -1113,6 +1203,7 @@ async function updateProjectsList() {
                             : assignedConsultors.length === 1
                             ? `<span class="custom-badge badge-success">EN CURSO</span><span class="custom-badge badge-primary">1</span>`
                             : `<span class="custom-badge badge-warning">SIN ASIGNAR</span>`}
+                        ${maxH > 0 ? `<span class="custom-badge" style="background:${pct >= 90 ? '#fef2f2' : '#f0fdf4'}; color:${pct >= 90 ? '#ef4444' : '#059669'}; font-size:0.7rem;">${maxH}h límite</span>` : ''}
                     </div>
                     <div style="display: flex; gap: 8px;">
                         <button class="btn btn-sm btn-primary" onclick="editProject('${project.projectId}')" title="Editar proyecto">
@@ -1123,6 +1214,8 @@ async function updateProjectsList() {
                         </button>
                     </div>
                 </div>
+
+                ${hoursHTML}
 
                 <div style="display: flex; justify-content: space-between; align-items: center;
                             padding: 12px 20px; margin: 0 -20px 0 -20px;
@@ -1147,8 +1240,65 @@ async function updateProjectsList() {
             </div>
         `;
         container.appendChild(projectDiv);
-    });
+    }
 }
+
+/**
+ * Calculate total hours consumed for a project across all consultors and timesheets
+ */
+function getProjectHoursConsumed(projectId) {
+    let total = 0;
+    const consultorSet = new Set();
+    const timesheets = window.PortalDB.getTimesheets();
+    const projectAssignments = Object.values(currentData.projectAssignments || {}).filter(a =>
+        a.projectId === projectId && a.isActive !== false
+    );
+    const paIds = new Set(projectAssignments.map(a => a.projectAssignmentId || a.id));
+
+    Object.values(timesheets).forEach(ts => {
+        if (!ts.entries) return;
+        ts.entries.forEach(entry => {
+            if (paIds.has(entry.assignmentId)) {
+                total += entry.totalHours || 0;
+                if (ts.userId) consultorSet.add(ts.userId);
+            }
+        });
+    });
+    return { total, consultors: consultorSet.size };
+}
+
+/**
+ * Get a detailed breakdown of hours consumed by each consultor in a project
+ */
+function getProjectHoursBreakdown(projectId) {
+    const breakdown = {};
+    const timesheets = window.PortalDB.getTimesheets();
+    const users = window.PortalDB.getUsers();
+    const projectAssignments = Object.values(currentData.projectAssignments || {}).filter(a =>
+        a.projectId === projectId && a.isActive !== false
+    );
+    const paIds = new Set(projectAssignments.map(a => a.projectAssignmentId || a.id));
+
+    Object.values(timesheets).forEach(ts => {
+        if (!ts.entries) return;
+        ts.entries.forEach(entry => {
+            if (paIds.has(entry.assignmentId)) {
+                const uid = ts.userId;
+                if (!breakdown[uid]) {
+                    const usr = users[uid];
+                    breakdown[uid] = {
+                        name: usr ? usr.name : 'Desconocido',
+                        hours: 0
+                    };
+                }
+                breakdown[uid].hours += entry.totalHours || 0;
+            }
+        });
+    });
+
+    return Object.values(breakdown);
+}
+
 
 function updateTasksList() {
     const container = document.getElementById('tasksList');
@@ -2807,9 +2957,65 @@ function setupSidebarNavigation() {
         }
     });
 
-        document.addEventListener('click', function(e) {
+    document.addEventListener('click', function(e) {
         if (e.target.closest('[data-section="generar-reporte"]')) {
             setTimeout(ensureReportSelectorInitialized, 100);
+        }
+    });
+
+    // Iniciar funcionalidad de redimensionamiento del sidebar
+    const sidebar = document.querySelector('.admin-sidebar');
+    if (sidebar && !sidebar.querySelector('.sidebar-resizer')) {
+        const resizer = document.createElement('div');
+        resizer.className = 'sidebar-resizer';
+        resizer.id = 'sidebarResizer';
+        sidebar.appendChild(resizer);
+        setupSidebarResize(sidebar, resizer);
+    }
+
+    // Agregar funcionalidad de colapso a las secciones del sidebar
+    document.querySelectorAll('.sidebar-section').forEach(section => {
+        const title = section.querySelector('.sidebar-section-title');
+        const menu = section.querySelector('.sidebar-menu');
+        
+        if (title && menu) {
+            title.style.cursor = 'pointer';
+            
+            // Agregar flecha (chevron) si no existe ya
+            let chevron = title.querySelector('.section-toggle-icon');
+            if (!chevron) {
+                chevron = document.createElement('i');
+                chevron.className = 'fa-solid fa-chevron-down section-toggle-icon';
+                chevron.style.marginLeft = 'auto';
+                chevron.style.transition = 'transform 0.3s ease';
+                title.appendChild(chevron);
+            }
+            
+            // Determinar si contiene el item activo actualmente
+            const hasActiveItem = section.querySelector('.sidebar-menu-item.active') || 
+                                  section.querySelector('.sidebar-menu-item[data-section="' + currentSection + '"]');
+            
+            // UX: Por defecto, colapsar todas excepto la de "Administración" (que contiene panel-general)
+            // o la sección que tenga el item activo.
+            const isAdministration = title.textContent.trim().includes('Administración');
+            
+            if (hasActiveItem || isAdministration) {
+                section.classList.remove('collapsed');
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                section.classList.add('collapsed');
+                chevron.style.transform = 'rotate(-90deg)';
+            }
+            
+            // Toggle click listener
+            title.addEventListener('click', (e) => {
+                const isCollapsed = section.classList.toggle('collapsed');
+                if (isCollapsed) {
+                    chevron.style.transform = 'rotate(-90deg)';
+                } else {
+                    chevron.style.transform = 'rotate(0deg)';
+                }
+            });
         }
     });
 }
@@ -2894,6 +3100,16 @@ function updateActiveSidebarItem(activeSection) {
         item.classList.remove('active');
         if (item.getAttribute('data-section') === activeSection) {
             item.classList.add('active');
+            
+            // Auto-expandir la sección que contiene el item activo
+            const section = item.closest('.sidebar-section');
+            if (section && section.classList.contains('collapsed')) {
+                section.classList.remove('collapsed');
+                const chevron = section.querySelector('.section-toggle-icon');
+                if (chevron) {
+                    chevron.style.transform = 'rotate(0deg)';
+                }
+            }
         }
     });
 }
@@ -3360,32 +3576,30 @@ async function handleCreateProject(event) {
     try {
         const name = document.getElementById('projectName').value.trim();
         const description = document.getElementById('projectDescription')?.value.trim() || '';
+        const maxHoursVal = document.getElementById('projectMaxHours')?.value;
         
         if (!name) {
             alert('El nombre del proyecto es requerido');
             return;
         }
 
-        // Generar projectId automáticamente
         const timestamp = Date.now().toString().slice(-4);
-        const projectId = `PRJ${timestamp}`;  // Ejemplo: PRJ1234
+        const projectId = `PRJ${timestamp}`;
         
         const projectData = {
-            projectId: projectId,  // ✅ Agregar projectId
+            projectId: projectId,
             name: name,
             description: description,
+            maxHours: maxHoursVal ? parseInt(maxHoursVal) : 0,
             isActive: true
         };
 
         console.log('📤 Creando proyecto:', projectData);
-
-        const result = await window.PortalDB.createProject(projectData);  // ✅ await
-        
+        const result = await window.PortalDB.createProject(projectData);
         console.log('📥 Resultado:', result);
 
         if (result.success) {
-            alert(`✅ Proyecto creado exitosamente!\n\nID: ${projectId}\nNombre: ${name}`);
-            
+            alert(`✅ Proyecto creado exitosamente!\n\nID: ${projectId}\nNombre: ${name}${maxHoursVal ? '\nLímite: ' + maxHoursVal + ' horas' : ''}`);
             closeModal('projectModal');
             document.getElementById('projectForm').reset();
             await loadAllData();
@@ -3624,6 +3838,32 @@ async function viewReport(reportId) {
             }
         }
         
+                // Generar desglose por día si existe
+        let breakdownHtml = '';
+        if (report.days) {
+            const daysArr = [
+                { key: 'mon', label: 'Lun' },
+                { key: 'tue', label: 'Mar' },
+                { key: 'wed', label: 'Mié' },
+                { key: 'thu', label: 'Jue' },
+                { key: 'fri', label: 'Vie' },
+                { key: 'sat', label: 'Sáb' },
+                { key: 'sun', label: 'Dom' }
+            ];
+            breakdownHtml = `
+            <div style="margin-top:12px; margin-bottom:12px;">
+                <p style="margin:0 0 5px 0;"><strong>Desglose por Día:</strong></p>
+                <table style="width:100%; font-size:0.85em; border-collapse:collapse;">
+                    <tr style="background:#e2e8f0;">
+                        ${daysArr.map(d => `<th style="padding:4px; border:1px solid #cbd5e1; text-align:center;">${d.label}</th>`).join('')}
+                    </tr>
+                    <tr>
+                        ${daysArr.map(d => `<td style="padding:4px; border:1px solid #cbd5e1; text-align:center;">${report.days[d.key] || 0}</td>`).join('')}
+                    </tr>
+                </table>
+            </div>`;
+        }
+        
         // Mostrar modal con detalles usando SideDrawerUtils
         const drawerContent = `
             <div style="padding: 10px;">
@@ -3644,7 +3884,8 @@ async function viewReport(reportId) {
                 </div>
                 
                 <div class="detail-card" style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border-left:4px solid var(--warning-color);">
-                    <p style="margin:5px 0; font-size: 1.1em;"><strong>Horas Reportadas:</strong> <span style="font-weight:bold; color:var(--warning-color);">${report.hours} hrs</span></p>
+                    <p style="margin:5px 0; font-size: 1.1em;"><strong>Horas Totales Reportadas:</strong> <span style="font-weight:bold; color:var(--warning-color);">${report.hours} hrs</span></p>
+                    ${breakdownHtml}
                     <p style="margin:10px 0 5px 0;"><strong>Descripción / Actividades:</strong></p>
                     <div style="background:white; padding:10px; border-radius:6px; border:1px solid #e2e8f0; min-height:60px;">
                         ${report.description || 'Sin descripción'}
@@ -4241,46 +4482,8 @@ async function updateGeneratedReportsList() {  // ✅ AGREGADO: async
         }
     }
     
-    // ✅ AGREGADO: await
     const allReportsUnfiltered = Object.values(await window.PortalDB.getGeneratedReports());
     let filteredReports = allReportsUnfiltered;
-    
-    // ✅ AGREGADO: Validación cuando no hay reportes (funcionalidad no implementada)
-    if (allReportsUnfiltered.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="9" class="empty-table-message">
-                    <div class="empty-state">
-                        <div class="empty-state-icon"><i class="fa-solid fa-info-circle"></i></div>
-                        <div class="empty-state-title">Historial de Reportes No Disponible</div>
-                        <div class="empty-state-desc">
-                            Esta funcionalidad no está implementada en el backend de MongoDB.<br>
-                            Los reportes se pueden generar y descargar normalmente,<br>
-                            pero el historial de descargas no se guarda.<br><br>
-                            <strong>📊 Funcionalidades que SÍ funcionan:</strong><br>
-                            ✅ Generar reportes Excel<br>
-                            ✅ Descargar reportes<br>
-                            ✅ Vista previa de reportes<br><br>
-                            <strong>⚠️ Funcionalidad no disponible:</strong><br>
-                            ❌ Historial de reportes descargados
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        `;
-        
-        // Actualizar estadísticas a 0
-        updateGeneratedReportsStats([]);
-        
-        // Actualizar texto informativo
-        if (filterInfo) {
-            filterInfo.textContent = 'Funcionalidad no disponible';
-        }
-        
-        return;  // ✅ Salir temprano si no hay reportes
-    }
-    
-    // === RESTO DEL CÓDIGO ORIGINAL (sin cambios) ===
     
     // Filtrar por fecha
     if (timeFilter) {
@@ -4423,7 +4626,8 @@ function getReportTypeLabel(reportType) {
         'remanente': '<i class="fa-solid fa-chart-pie"></i> Remanente',
         'proyecto-general': '<i class="fa-solid fa-folder"></i> Proyecto (General)',
         'proyecto-cliente': '<i class="fa-solid fa-building"></i> Proyecto (Cliente)',
-        'proyecto-consultor': '<i class="fa-solid fa-user-tie"></i> Proyecto (Consultor)'
+        'proyecto-consultor': '<i class="fa-solid fa-user-tie"></i> Proyecto (Consultor)',
+        'reporte-actividades': '<i class="fa-solid fa-file-lines"></i> Reporte de Actividades'
     };
 
     return labels[reportType] || '<i class="fa-solid fa-file"></i> Reporte';
@@ -4471,21 +4675,21 @@ function updateGeneratedReportsStats(reports = null) {
     if (proyectoConsultorEl) proyectoConsultorEl.textContent = counts['proyecto-consultor'];
 }
 
-function refreshGeneratedReportsList() {
-    updateGeneratedReportsList();
+async function refreshGeneratedReportsList() {
+    await updateGeneratedReportsList();
     window.NotificationUtils.info('Lista actualizada');
 }
 
-function deleteGeneratedReportFromHistory(reportId) {
+async function deleteGeneratedReportFromHistory(reportId) {
     if (!confirm('¿Está seguro de eliminar este reporte del historial? Esta acción no eliminará el archivo descargado.')) {
         return;
     }
     
-    const result = window.PortalDB.deleteGeneratedReport(reportId);
+    const result = await window.PortalDB.deleteGeneratedReport(reportId);
     if (result.success) {
         window.NotificationUtils.success('Reporte eliminado del historial');
-        updateGeneratedReportsList();
-        updateSidebarCounts();
+        await updateGeneratedReportsList();
+        await updateSidebarCounts();
     } else {
         window.NotificationUtils.error('Error: ' + result.message);
     }
@@ -4505,24 +4709,221 @@ function initializeReportSelector() {
         return;
     }
     
-    reportGrid.innerHTML = '';
-    
-    Object.entries(ARVIC_REPORTS).forEach(([key, report]) => {
-        const reportOption = document.createElement('div');
-        reportOption.className = 'report-option';
-        reportOption.dataset.report = key;
-        reportOption.innerHTML = `
-            <div class="report-icon">${report.icon}</div>
-            <div class="report-name">${report.name}</div>
-            <div class="report-description">${report.description}</div>
-            <div class="report-audience">${report.audience}</div>
-        `;
+    // Solo re-renderizar la rejilla si está vacía
+    if (reportGrid.children.length === 0) {
+        reportGrid.innerHTML = '';
+        Object.entries(ARVIC_REPORTS).forEach(([key, report]) => {
+            const reportOption = document.createElement('div');
+            reportOption.className = 'report-option';
+            reportOption.dataset.report = key;
+            reportOption.innerHTML = `
+                <div class="report-icon">${report.icon}</div>
+                <div class="report-name">${report.name}</div>
+                <div class="report-description">${report.description}</div>
+                <div class="report-audience">${report.audience}</div>
+            `;
+            
+            reportOption.addEventListener('click', () => selectNewReportType(key));
+            reportGrid.appendChild(reportOption);
+        });
+    }
+
+    // SI YA HAY UN REPORTE SELECCIONADO EN CURSO, PRESERVAR LA VISTA Y RETORNAR
+    if (currentReportType) {
+        console.log('⚠️ Conservando vista del reporte seleccionado actualmente:', currentReportType);
         
-        reportOption.addEventListener('click', () => selectNewReportType(key));
-        reportGrid.appendChild(reportOption);
-    });
+        const selector = document.getElementById('reportSelectorContainer');
+        if (selector) selector.style.display = 'none';
+        
+        const configPanel = document.getElementById('reportConfigPanel');
+        if (configPanel) configPanel.style.display = 'block';
+        
+        const previewPanel = document.getElementById('reportPreviewPanel');
+        if (previewPanel && previewPanel.innerHTML.trim() !== '') {
+            previewPanel.style.display = 'block';
+        }
+        return;
+    }
     
-    console.log('✅ Selector de reportes inicializado con', Object.keys(ARVIC_REPORTS).length, 'reportes');
+    // Si no hay reporte seleccionado, mostrar el selector y ocultar paneles
+    const selector = document.getElementById('reportSelectorContainer');
+    if (selector) selector.style.display = 'block';
+    
+    const configPanel = document.getElementById('reportConfigPanel');
+    const previewPanel = document.getElementById('reportPreviewPanel');
+    if (configPanel) configPanel.style.display = 'none';
+    if (previewPanel) previewPanel.style.display = 'none';
+    
+    console.log('✅ Selector de reportes inicializado');
+}
+
+/**
+ * Configuración especial para Reporte de Actividades (desde Timesheets)
+ */
+function generateActivityReportConfig(configPanel, report) {
+    // Build consultor options
+    let consultorOptions = '<option value="">Seleccionar consultor...</option>';
+    if (currentData.users) {
+        Object.values(currentData.users).forEach(user => {
+            if (user.role === 'consultor' && user.isActive !== false) {
+                consultorOptions += `<option value="${user.userId}">${user.name} (${user.userId})</option>`;
+            }
+        });
+    }
+
+    configPanel.innerHTML = `
+        <div class="config-header" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; text-align: left;">
+            <button class="btn btn-secondary back-to-selector-btn" onclick="backToReportSelector()" style="padding: 8px 14px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; border: 1.5px solid #d1d5db; background: white; color: #374151; border-radius: 8px; transition: all 0.2s;">
+                <i class="fa-solid fa-arrow-left"></i> Retroceder
+            </button>
+            <div>
+                <div class="config-title" style="margin: 0; display: flex; align-items: center; gap: 8px; text-align: left;">${report.icon} ${report.name}</div>
+                <div class="config-subtitle" style="margin: 4px 0 0 0; text-align: left;">${report.description}</div>
+            </div>
+        </div>
+
+        <div class="warning-message">
+            <strong>Estructura del Reporte:</strong> ${report.structure.join(' | ')}<br>
+            <strong>Formato:</strong> 2 hojas — Hoja 1: Tabla de actividades con totales y firmas | Hoja 2: Detalle de actividades realizadas
+        </div>
+
+        <div class="config-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="arConsultantFilter">Seleccionar Consultor: <span style="color: red;">*</span></label>
+                    <select id="arConsultantFilter" required onchange="loadTimesheetWeeksForConsultor()">
+                        ${consultorOptions}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="arTimesheetWeekFilter">Semana (Timesheet): <span style="color: red;">*</span></label>
+                    <select id="arTimesheetWeekFilter" required onchange="validateActivityReportFilters()">
+                        <option value="">Seleccionar consultor primero...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="actions-row">
+                <button class="btn btn-secondary" onclick="resetActivityReportFilters()">
+                    <i class="fa-solid fa-rotate-left"></i> Limpiar
+                </button>
+                <button class="btn btn-primary" onclick="previewActivityReport()" id="arPreviewBtn" disabled>
+                    <i class="fa-solid fa-eye"></i> Vista Previa
+                </button>
+                <button class="btn btn-info" onclick="downloadActivityReportPDF()" id="arPDFBtn" disabled>
+                    <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                </button>
+            </div>
+        </div>
+    `;
+    
+    configPanel.style.display = 'block';
+}
+
+/**
+ * Cargar semanas de timesheets disponibles para el consultor seleccionado
+ */
+function loadTimesheetWeeksForConsultor() {
+    const consultorId = document.getElementById('arConsultantFilter')?.value;
+    const weekSelect = document.getElementById('arTimesheetWeekFilter');
+    
+    if (!weekSelect) return;
+    
+    weekSelect.innerHTML = '<option value="">Cargando timesheets...</option>';
+    
+    if (!consultorId) {
+        weekSelect.innerHTML = '<option value="">Seleccionar consultor primero...</option>';
+        validateActivityReportFilters();
+        return;
+    }
+    
+    try {
+        const allTimesheets = window.PortalDB.getTimesheetsByUser(consultorId);
+        
+        if (!allTimesheets || allTimesheets.length === 0) {
+            weekSelect.innerHTML = '<option value="">No hay timesheets para este consultor</option>';
+            validateActivityReportFilters();
+            return;
+        }
+        
+        // Sort by weekStart descending
+        allTimesheets.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
+        
+        weekSelect.innerHTML = '<option value="">Seleccionar semana...</option>';
+        allTimesheets.forEach(ts => {
+            const statusEmoji = ts.status === 'Aprobado' ? '✅' : ts.status === 'Rechazado' ? '❌' : '⏳';
+            const label = `${statusEmoji} ${ts.weekStart} al ${ts.weekEnd} — ${ts.totalWeekHours?.toFixed(1) || 0}h (${ts.status})`;
+            weekSelect.innerHTML += `<option value="${ts.timesheetId}">${label}</option>`;
+        });
+        
+        validateActivityReportFilters();
+    } catch (error) {
+        console.error('Error cargando timesheets:', error);
+        weekSelect.innerHTML = '<option value="">Error al cargar timesheets</option>';
+    }
+}
+
+/**
+ * Validar que los filtros requeridos estén completos
+ */
+function validateActivityReportFilters() {
+    const consultorId = document.getElementById('arConsultantFilter')?.value;
+    const timesheetId = document.getElementById('arTimesheetWeekFilter')?.value;
+    const isValid = consultorId && timesheetId;
+    
+    const previewBtn = document.getElementById('arPreviewBtn');
+    const pdfBtn = document.getElementById('arPDFBtn');
+    
+    if (previewBtn) previewBtn.disabled = !isValid;
+    if (pdfBtn) pdfBtn.disabled = !isValid;
+}
+
+/**
+ * Limpiar filtros del reporte de actividades
+ */
+function resetActivityReportFilters() {
+    const consultorSel = document.getElementById('arConsultantFilter');
+    const weekSel = document.getElementById('arTimesheetWeekFilter');
+    
+    if (consultorSel) consultorSel.value = '';
+    if (weekSel) {
+        weekSel.innerHTML = '<option value="">Seleccionar consultor primero...</option>';
+    }
+    validateActivityReportFilters();
+}
+
+/**
+ * Abrir vista previa del reporte de actividades
+ */
+async function previewActivityReport() {
+    const timesheetId = document.getElementById('arTimesheetWeekFilter')?.value;
+    if (!timesheetId) {
+        window.NotificationUtils.warning('Seleccione un consultor y una semana');
+        return;
+    }
+    
+    if (window.activityReportGen) {
+        await window.activityReportGen.openPreview(timesheetId);
+    } else {
+        window.NotificationUtils.error('El generador de reportes de actividades no está disponible');
+    }
+}
+
+/**
+ * Descargar PDF del reporte de actividades
+ */
+async function downloadActivityReportPDF() {
+    const timesheetId = document.getElementById('arTimesheetWeekFilter')?.value;
+    if (!timesheetId) {
+        window.NotificationUtils.warning('Seleccione un consultor y una semana');
+        return;
+    }
+    
+    if (window.activityReportGen) {
+        await window.activityReportGen.exportPDF(timesheetId);
+    } else {
+        window.NotificationUtils.error('El generador de reportes de actividades no está disponible');
+    }
 }
 
 /**
@@ -4530,6 +4931,16 @@ function initializeReportSelector() {
  */
 function selectNewReportType(reportType) {
     console.log('Seleccionando reporte:', reportType);
+    
+    // Ocultar selector de reportes
+    const selector = document.getElementById('reportSelectorContainer');
+    if (selector) selector.style.display = 'none';
+    
+    // Desplazarse al inicio smoothly
+    const section = document.getElementById('generar-reporte-section');
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
     
     // 1. Ocultar paneles anteriores
     const configPanel = document.getElementById('reportConfigPanel');
@@ -4542,6 +4953,7 @@ function selectNewReportType(reportType) {
     currentReportData = null;
     currentReportConfig = null;
     editablePreviewData = {};
+    window.differenceTableData = [];
     
     // 3. Actualizar selector visual
     document.querySelectorAll('.report-option').forEach(option => {
@@ -4572,6 +4984,12 @@ function generateReportConfiguration(reportType) {
     if (!configPanel || !report) return;
     
     console.log('Generando configuración para:', report.name);
+    
+    // === CASO ESPECIAL: Reporte de Actividades ===
+    if (reportType === 'reporte-actividades') {
+        generateActivityReportConfig(configPanel, report);
+        return;
+    }
     
     // Generar filtros según el tipo de reporte
     let filtersHTML = '';
@@ -4696,9 +5114,14 @@ if (report.filters.includes('project')) {
     
     // Generar HTML completo
     configPanel.innerHTML = `
-        <div class="config-header">
-            <div class="config-title">${report.icon} ${report.name}</div>
-            <div class="config-subtitle">${report.description}</div>
+        <div class="config-header" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; text-align: left;">
+            <button class="btn btn-secondary back-to-selector-btn" onclick="backToReportSelector()" style="padding: 8px 14px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; border: 1.5px solid #d1d5db; background: white; color: #374151; border-radius: 8px; transition: all 0.2s;">
+                <i class="fa-solid fa-arrow-left"></i> Retroceder
+            </button>
+            <div>
+                <div class="config-title" style="margin: 0; display: flex; align-items: center; gap: 8px; text-align: left;">${report.icon} ${report.name}</div>
+                <div class="config-subtitle" style="margin: 4px 0 0 0; text-align: left;">${report.description}</div>
+            </div>
         </div>
 
         <div class="warning-message">
@@ -4765,7 +5188,7 @@ function populateFilterDropdowns(reportType) {
         Object.values(currentData.companies).forEach(company => {
             const option = document.createElement('option');
             option.value = company.companyId;
-            option.textContent = `${company.name} (${company.companyId})`;
+            option.textContent = company.name;
             clientFilter.appendChild(option);
         });
     }
@@ -4885,7 +5308,7 @@ function updateSupportTypeFilterByClient(clientId) {
             const support = currentData.supports?.[assignment.supportId];
             if (support) {
                 uniqueSupports.add(JSON.stringify({
-                    id: support.supportId,
+                    supportId: support.supportId,
                     name: support.name
                 }));
             }
@@ -4929,7 +5352,7 @@ function updateProjectFilterByClient(clientId) {
             const project = currentData.projects?.[assignment.projectId];
             if (project) {
                 uniqueProjects.add(JSON.stringify({
-                    id: project.projectId,
+                    projectId: project.projectId,
                     name: project.name
                 }));
             }
@@ -5002,6 +5425,10 @@ function validateRequiredFilters() {
     
     if (generateBtn) {
         generateBtn.disabled = true; // Solo se habilita después de vista previa
+    }
+    const exportPDFBtn = document.getElementById('exportPDFBtn');
+    if (exportPDFBtn) {
+        exportPDFBtn.disabled = true;
     }
     
     console.log('🔍 Validación de filtros:', isValid ? '✅ Válido' : `❌ Faltan: ${missingFields.join(', ')}`);
@@ -5086,8 +5513,25 @@ function resetReportGenerator() {
     // 5. Deshabilitar botón de generar
     const generateBtn = document.getElementById('generateBtn');
     if (generateBtn) generateBtn.disabled = true;
+    const exportPDFBtn = document.getElementById('exportPDFBtn');
+    if (exportPDFBtn) exportPDFBtn.disabled = true;
     
     console.log('✅ Generador reseteado completamente');
+}
+
+/**
+ * Regresar al selector de reportes
+ */
+function backToReportSelector() {
+    resetReportGenerator();
+    const selector = document.getElementById('reportSelectorContainer');
+    if (selector) selector.style.display = 'block';
+    
+    // Smooth scroll back to selector container
+    const section = document.getElementById('generar-reporte-section');
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
 /**
@@ -5124,10 +5568,13 @@ function clearPreviewAndFilters() {
     currentReportData = null;
     currentReportConfig = null;
     editablePreviewData = {};
+    window.differenceTableData = [];
     
     // 4. Deshabilitar botón de generar
     const generateBtn = document.getElementById('generateBtn');
     if (generateBtn) generateBtn.disabled = true;
+    const exportPDFBtn = document.getElementById('exportPDFBtn');
+    if (exportPDFBtn) exportPDFBtn.disabled = true;
     
     // 5. Ocultar rango personalizado
     const customDateRange = document.getElementById('customDateRange');
@@ -5171,7 +5618,7 @@ function verifyDataBeforePreview() {
 /**
  * Generar vista previa con datos reales y tabla editable
  */
-function generateReportPreview() {
+async function generateReportPreview() {
     console.log('Generando vista previa para:', currentReportType);
     
     const report = ARVIC_REPORTS[currentReportType];
@@ -5189,13 +5636,7 @@ function generateReportPreview() {
             console.log('Recargando datos debido a verificación fallida...');
             
             // Forzar recarga de datos
-            currentData.reports = window.PortalDB.getReports() || {};
-            currentData.users = window.PortalDB.getUsers() || {};
-            currentData.companies = window.PortalDB.getCompanies() || {};
-            currentData.assignments = window.PortalDB.getAssignments() || {};
-            currentData.supports = window.PortalDB.getSupports() || {};
-            currentData.modules = window.PortalDB.getModules() || {};
-            currentData.projectAssignments = window.PortalDB.getProjectAssignments() || {};
+            await loadCurrentData(true);
             
             // Verificar nuevamente
             if (!verifyDataBeforePreview()) {
@@ -5228,6 +5669,10 @@ function generateReportPreview() {
         const generateBtn = document.getElementById('generateBtn');
         if (generateBtn) {
             generateBtn.disabled = false;
+        }
+        const exportPDFBtn = document.getElementById('exportPDFBtn');
+        if (exportPDFBtn) {
+            exportPDFBtn.disabled = false;
         }
         
         window.NotificationUtils.success(`Vista previa generada: ${currentReportData.length} registros`);
@@ -5764,13 +6209,29 @@ function getRemanenteData(reports, clientId, specificSupportId, monthKey) {
             return;
         }
         
+        const user = currentData.users[report.userId];
+        let consultantDisplayName = '';
+        if (user) {
+            const parts = user.name.trim().split(/\s+/);
+            consultantDisplayName = parts.length >= 2 ? `${parts[0]} ${parts[1]}` : parts[0];
+        }
         const module = currentData.modules[assignment.moduleId];
-        const moduleName = module?.name || 'Sin módulo';
+        const moduleAcronym = module ? window.convertModuleToAcronym(module.name) : 'N/A';
+        
+        let displayLabel = '';
+        if (module && module.name && module.name !== 'N/A') {
+            displayLabel = consultantDisplayName ? `${moduleAcronym} (${consultantDisplayName})` : moduleAcronym;
+        } else {
+            displayLabel = user ? user.name : 'Consultor';
+        }
+        
+        const groupKey = `${assignment.moduleId || 'nomodule'}_${report.userId}`;
+        const defaultTariff = assignment ? (parseFloat(assignment.tarifaCliente) || 850) : 850;
         
         // ✅ Inicializar estructura dinámica de semanas
-        if (!moduleData[moduleName]) {
-            moduleData[moduleName] = {
-                modulo: moduleName,
+        if (!moduleData[groupKey]) {
+            moduleData[groupKey] = {
+                modulo: displayLabel,
                 totalHoras: 0,
                 monthStructure: weekStructure,
                 type: 'soporte'  // Marcar como soporte
@@ -5778,9 +6239,9 @@ function getRemanenteData(reports, clientId, specificSupportId, monthKey) {
             
             // Crear semanas dinámicamente
             for (let i = 1; i <= weekStructure.totalWeeks; i++) {
-                moduleData[moduleName][`semana${i}`] = {
+                moduleData[groupKey][`semana${i}`] = {
                     tiempo: 0,
-                    tarifa: 550,
+                    tarifa: defaultTariff,
                     total: 0
                 };
             }
@@ -5795,11 +6256,11 @@ function getRemanenteData(reports, clientId, specificSupportId, monthKey) {
         
         const hours = parseFloat(report.hours || 0);
         
-        if (moduleData[moduleName][semanaKey]) {
-            moduleData[moduleName][semanaKey].tiempo += hours;
-            moduleData[moduleName][semanaKey].total = 
-                moduleData[moduleName][semanaKey].tiempo * moduleData[moduleName][semanaKey].tarifa;
-            moduleData[moduleName].totalHoras += hours;
+        if (moduleData[groupKey][semanaKey]) {
+            moduleData[groupKey][semanaKey].tiempo += hours;
+            moduleData[groupKey][semanaKey].total = 
+                moduleData[groupKey][semanaKey].tiempo * moduleData[groupKey][semanaKey].tarifa;
+            moduleData[groupKey].totalHoras += hours;
         }
     });
     
@@ -5957,7 +6418,7 @@ function getRemanenteProjectData(reports, clientId, monthKey, projectSelection) 
             projectData[projectKey].modules[moduleKey] = {
                 moduleName: module.name,
                 totalHours: 0,
-                tarifa: module.tariff || 650,
+                tarifa: projectAssignment.tarifaCliente || module.tariff || 650,
                 total: 0
             };
         }
@@ -6227,6 +6688,52 @@ if (currentReportData.proyectos) {
     }
 }
         
+        // 3. Inicializar la tabla de diferencia
+        let totalSoporteHours = 0;
+        if (currentReportData.soportes) {
+            currentReportData.soportes.forEach(soporte => {
+                totalSoporteHours += parseFloat(soporte.totalHoras || 0);
+            });
+        }
+        
+        const standardHours = 150;
+        const diffHours = Math.max(0, totalSoporteHours - standardHours);
+        
+        // Inicializar si está vacío o si se fuerza un reset (por cambio de filtros)
+        if (!window.differenceTableData || window.differenceTableData.length === 0 || window.differenceTableData._resetPending) {
+            window.differenceTableData = [
+                {
+                    factura: '',
+                    concepto: 'Funcional',
+                    tiempo: 0,
+                    tarifa: 850,
+                    total: 0
+                },
+                {
+                    factura: '',
+                    concepto: 'BASIS',
+                    tiempo: 0,
+                    tarifa: 1000,
+                    total: 0
+                },
+                {
+                    factura: '',
+                    concepto: 'ABAP',
+                    tiempo: 0,
+                    tarifa: 650,
+                    total: 0
+                },
+                {
+                    factura: '',
+                    concepto: 'CPI',
+                    tiempo: 0,
+                    tarifa: 1000,
+                    total: 0
+                }
+            ];
+            delete window.differenceTableData._resetPending;
+        }
+        
         console.log(`✅ Datos editables inicializados: ${index} elementos (soportes + proyectos)`);
         return;
     }
@@ -6445,10 +6952,30 @@ function generateRemanenteTable() {
                     <th rowspan="2">Total de Horas</th>
     `;
     
-    // Headers dinámicos para cada semana
+    // Headers dinámicos para cada semana con rangos de fechas correspondientes
+    const monthKey = document.getElementById('monthFilter')?.value;
     for (let i = 1; i <= weekStructure.totalWeeks; i++) {
         const daysInWeek = weekStructure.distribution[i - 1];
-        tableHTML += `<th colspan="4">SEMANA ${i} (${daysInWeek} días)</th>`;
+        let weekLabel = `SEMANA ${i} (${daysInWeek} días)`;
+        if (monthKey) {
+            try {
+                const [year, month] = monthKey.split('-').map(Number);
+                const MONTH_NAMES_ES = [
+                    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+                ];
+                const monthName = MONTH_NAMES_ES[month - 1];
+                let startDay = 1;
+                for (let k = 0; k < i - 1; k++) {
+                    startDay += weekStructure.distribution[k];
+                }
+                const endDay = startDay + daysInWeek - 1;
+                weekLabel = `SEMANA ${i}<br><span style="font-size:0.8em;font-weight:normal;opacity:0.9;">del ${startDay} al ${endDay} de ${monthName}</span>`;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        tableHTML += `<th colspan="4">${weekLabel}</th>`;
     }
     
     tableHTML += `
@@ -6544,9 +7071,10 @@ function generateRemanenteTable() {
  * Generar tabla remanente con sección de proyectos incluida
  */
 function generateRemanenteTableWithProjects() {
-    console.log('📊 Generando tabla remanente con proyectos incluidos');
+    console.log('📊 Generando tabla remanente con proyectos y diferencias...');
     
     let tableHTML = '';
+    let totalSoporteHours = 0;
     
     // 1. SECCIÓN DE SOPORTES (solo si hay soportes)
     if (currentReportData.soportes && currentReportData.soportes.length > 0) {
@@ -6561,6 +7089,11 @@ function generateRemanenteTableWithProjects() {
                 soporteEditableData[soporteIndex] = value;
                 soporteIndex++;
             }
+        });
+        
+        // Sumar horas de soporte
+        Object.values(soporteEditableData).forEach(sop => {
+            totalSoporteHours += parseFloat(sop.totalHoras || 0);
         });
         
         // Temporalmente usar datos de soporte para función existente
@@ -6598,6 +7131,19 @@ function generateRemanenteTableWithProjects() {
         }
     }
     
+    // 3. SECCIÓN DE DIFERENCIA DE HORAS (solo si sobrepasa 150 horas)
+    console.log('⏱️ Horas totales para validar diferencia:', totalSoporteHours);
+    if (totalSoporteHours > 150) {
+        const standardHours = 150;
+        const diffHours = Math.max(0, totalSoporteHours - standardHours);
+        const grandTotalAmount = (window.differenceTableData || []).reduce((sum, r) => sum + (r.total || 0), 0);
+        
+        console.log('📊 Generando sección de diferencia de horas:', { diffHours, grandTotalAmount });
+        tableHTML += generateDifferenceSectionHTML(diffHours, grandTotalAmount);
+    } else {
+        console.log('📊 Omitiendo diferencia de horas ya que no supera las 150 horas');
+    }
+    
     // Si no hay nada que mostrar
     if (!tableHTML.includes('<table') && !tableHTML.includes('📋') && !tableHTML.includes('📞')) {
         tableHTML = `
@@ -6610,6 +7156,247 @@ function generateRemanenteTableWithProjects() {
     
     return tableHTML;
 }
+
+/**
+ * Generar HTML de la sección de diferencia de horas
+ */
+function generateDifferenceSectionHTML(diffHours, grandTotalAmount) {
+    if (!window.differenceTableData) {
+        window.differenceTableData = [];
+    }
+    
+    let html = `
+        <div style="margin-top: 2rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; border-left: 4px solid var(--warning-color, #f59e0b);">
+            <h4 style="margin: 0 0 0.5rem 0; color: #b45309; font-size: 1.125rem;">
+                <i class="fa-solid fa-calculator"></i> DIFERENCIA DE HORAS
+            </h4>
+            <p style="margin: 0; font-size: 0.875rem; color: #6b7280;">
+                El total de horas reportadas excede el estándar de 150 horas. Especifique el desglose a continuación:
+            </p>
+        </div>
+        
+        <table class="preview-table diff-table" style="margin-top: 1rem;">
+            <thead>
+                <tr style="background: var(--gray-100);">
+                    <th style="width: 20%;">Factura/Referencia</th>
+                    <th style="width: 35%;">Concepto</th>
+                    <th style="width: 15%;">Horas/Tiempo</th>
+                    <th style="width: 15%;">Tarifa</th>
+                    <th style="width: 15%;">Total</th>
+                    <th style="width: 10%;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Fila de Diferencia calculada (Informativa/Lectura) -->
+                <tr style="background: #fffbeb; font-weight: bold;">
+                    <td>-</td>
+                    <td style="color: #b45309;">Diferencia para OC</td>
+                    <td style="color: #b45309;">${diffHours.toFixed(1)} hrs</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+                
+                <!-- Filas editables por el administrador -->
+                ${window.differenceTableData.map((row, index) => `
+                    <tr>
+                        <td class="editable-cell">
+                            <input type="text" class="editable-input" value="${row.factura || ''}" 
+                                   onchange="updateDifferenceTableCalculation(${index}, 'factura', this.value)" 
+                                   placeholder="Ej. FACTURA 2" style="width: 100%; border: none; background: transparent; text-align: center;">
+                        </td>
+                        <td class="editable-cell">
+                            <input type="text" class="editable-input" value="${row.concepto || ''}" 
+                                   onchange="updateDifferenceTableCalculation(${index}, 'concepto', this.value)" 
+                                   placeholder="Concepto" style="width: 100%; border: none; background: transparent;">
+                        </td>
+                        <td class="editable-cell">
+                            <input type="number" class="editable-input" value="${row.tiempo}" step="0.1" min="0"
+                                   onchange="updateDifferenceTableCalculation(${index}, 'tiempo', this.value)" 
+                                   style="width: 100%; border: none; background: transparent; text-align: center;">
+                        </td>
+                        <td class="editable-cell">
+                            <input type="number" class="editable-input" value="${row.tarifa}" step="50" min="0"
+                                   onchange="updateDifferenceTableCalculation(${index}, 'tarifa', this.value)" 
+                                   style="width: 100%; border: none; background: transparent; text-align: center;">
+                        </td>
+                        <td id="diff-row-total-${index}">
+                            <strong>$${(row.total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</strong>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteDifferenceRow(${index})" title="Eliminar fila" style="padding: 2px 6px;">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        
+        <!-- Fila de Totales de Diferencia -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding: 0.5rem 0;">
+            <button class="btn btn-secondary" onclick="addDifferenceRow()" style="padding: 6px 12px; font-size: 0.85rem;">
+                <i class="fa-solid fa-plus"></i> Agregar Fila de Diferencia
+            </button>
+            <div style="display: flex; align-items: center; gap: 15px; background: #e2f0d9; padding: 10px 20px; border-radius: 8px; border: 1.5px solid #a9d08e; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <span style="font-weight: bold; color: #375623; font-size: 0.95rem;">Orden de Compra Pendiente:</span>
+                <span id="diff-table-grand-total" style="font-weight: 800; color: #375623; font-size: 1.2rem;">
+                    $${grandTotalAmount.toLocaleString('es-MX', {minimumFractionDigits: 2})}
+                </span>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+/**
+ * Extraer datos modificados por el usuario desde los inputs de la tabla (Soportes y Diferencia)
+ */
+function extraerDatosRemanente() {
+    console.log('🔧 Sincronizando datos de inputs antes de re-renderizar...');
+    
+    // 1. Extraer datos de la tabla de soportes
+    const supportTable = document.querySelector('#reportPreviewPanel table:not(.projects-table):not(.diff-table)');
+    if (supportTable && window.editablePreviewData) {
+        const rows = Array.from(supportTable.querySelectorAll('tbody tr'));
+        
+        // Mapeamos los índices de editablePreviewData que corresponden a 'soporte'
+        const soporteKeys = Object.keys(window.editablePreviewData).filter(key => window.editablePreviewData[key].type === 'soporte');
+        
+        rows.forEach((rowEl, rowIndex) => {
+            const key = soporteKeys[rowIndex];
+            if (!key || !window.editablePreviewData[key]) return;
+            
+            const rowData = window.editablePreviewData[key];
+            const inputs = Array.from(rowEl.querySelectorAll('input.editable-input'));
+            
+            let inputIdx = 0;
+            const weekStructure = rowData.monthStructure;
+            
+            for (let sem = 1; sem <= weekStructure.totalWeeks; sem++) {
+                const tiempoInput = inputs[inputIdx++];
+                const tarifaInput = inputs[inputIdx++];
+                
+                if (tiempoInput && tarifaInput) {
+                    const tiempo = parseFloat(tiempoInput.value) || 0;
+                    const tarifa = parseFloat(tarifaInput.value) || 0;
+                    
+                    if (rowData[`semana${sem}`]) {
+                        rowData[`semana${sem}`].tiempo = tiempo;
+                        rowData[`semana${sem}`].tarifa = tarifa;
+                        rowData[`semana${sem}`].total = tiempo * tarifa;
+                    }
+                }
+            }
+            
+            // Recalcular totalHoras del soporte
+            let totalHoras = 0;
+            for (let sem = 1; sem <= weekStructure.totalWeeks; sem++) {
+                if (rowData[`semana${sem}`]) {
+                    totalHoras += rowData[`semana${sem}`].tiempo;
+                }
+            }
+            rowData.totalHoras = totalHoras;
+        });
+    }
+    
+    // 2. Extraer datos de la tabla de diferencia
+    const diffTable = document.querySelector('.diff-table');
+    if (diffTable && window.differenceTableData) {
+        const rows = Array.from(diffTable.querySelectorAll('tbody tr'));
+        // La primera fila es de lectura ("Diferencia para OC"), nos saltamos esa
+        const dataRows = rows.slice(1);
+        
+        dataRows.forEach((rowEl, index) => {
+            if (!window.differenceTableData[index]) return;
+            
+            const inputs = Array.from(rowEl.querySelectorAll('input.editable-input'));
+            if (inputs[0]) window.differenceTableData[index].factura = inputs[0].value;
+            if (inputs[1]) window.differenceTableData[index].concepto = inputs[1].value;
+            if (inputs[2]) window.differenceTableData[index].tiempo = parseFloat(inputs[2].value) || 0;
+            if (inputs[3]) window.differenceTableData[index].tarifa = parseFloat(inputs[3].value) || 0;
+            
+            window.differenceTableData[index].total = 
+                window.differenceTableData[index].tiempo * window.differenceTableData[index].tarifa;
+        });
+    }
+}
+
+/**
+ * Actualizar cálculos en vivo de la fila de diferencia modificada por el usuario
+ */
+function updateDifferenceTableCalculation(index, field, value) {
+    if (!window.differenceTableData || !window.differenceTableData[index]) return;
+    
+    const row = window.differenceTableData[index];
+    
+    if (field === 'factura') {
+        row.factura = value;
+    } else if (field === 'concepto') {
+        row.concepto = value;
+    } else if (field === 'tiempo') {
+        row.tiempo = parseFloat(value) || 0;
+    } else if (field === 'tarifa') {
+        row.tarifa = parseFloat(value) || 0;
+    }
+    
+    row.total = row.tiempo * row.tarifa;
+    
+    // Actualizar celda total específica
+    const totalCell = document.getElementById(`diff-row-total-${index}`);
+    if (totalCell) {
+        totalCell.innerHTML = `<strong>$${row.total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</strong>`;
+    }
+    
+    // Actualizar gran total
+    const grandTotalAmount = window.differenceTableData.reduce((sum, r) => sum + (r.total || 0), 0);
+    const grandTotalCell = document.getElementById('diff-table-grand-total');
+    if (grandTotalCell) {
+        grandTotalCell.textContent = `$${grandTotalAmount.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+    }
+}
+
+/**
+ * Agregar una nueva fila a la tabla de diferencias
+ */
+function addDifferenceRow() {
+    extraerDatosRemanente();
+    
+    if (!window.differenceTableData) {
+        window.differenceTableData = [];
+    }
+    
+    window.differenceTableData.push({
+        factura: '',
+        concepto: 'Nuevo Concepto',
+        tiempo: 0,
+        tarifa: 850,
+        total: 0
+    });
+    
+    // Re-renderizar la vista previa
+    const previewPanel = document.getElementById('reportPreviewPanel');
+    const report = ARVIC_REPORTS[currentReportType];
+    generateEditableTable(previewPanel, report);
+}
+
+/**
+ * Eliminar una fila específica de la tabla de diferencias
+ */
+function deleteDifferenceRow(index) {
+    extraerDatosRemanente();
+    
+    if (window.differenceTableData && window.differenceTableData[index]) {
+        window.differenceTableData.splice(index, 1);
+    }
+    
+    // Re-renderizar la vista previa
+    const previewPanel = document.getElementById('reportPreviewPanel');
+    const report = ARVIC_REPORTS[currentReportType];
+    generateEditableTable(previewPanel, report);
+}
+
 
 /**
  * Generar sección de proyectos para la tabla remanente
@@ -7079,6 +7866,7 @@ function generatePagoGeneralExcel() {
     
     XLSX.writeFile(wb, fileName);
     console.log('Excel generado:', fileName);
+    saveToReportHistory(fileName, 'pago-consultor-general', totalHours, totalAmount);
 }
 /**
  * Generar Excel para Pago Consultor Específico por Soporte con su/sus soporte/s
@@ -7204,6 +7992,9 @@ function generateClienteSoporteExcel() {
  */
 function generateRemanenteExcel() {
     console.log('📊 Generando Excel - Reporte Remanente con soporte específico');
+    
+    // Sincronizar inputs del usuario
+    extraerDatosRemanente();
     
     const clientName = document.getElementById('clientFilter')?.selectedOptions[0]?.text || 'Cliente';
     const supportId = document.getElementById('supportTypeFilter')?.value;
@@ -7370,6 +8161,46 @@ function generateRemanenteExcel() {
         // Totales de proyectos
         wsData.push([]);
         wsData.push(['TOTAL PROYECTOS', '', projectTotalHours, '', projectTotalAmount]);
+    }
+    
+    // === SECCIÓN DE DIFERENCIA DE HORAS (si hay y supera 150) ===
+    let totalSoporteHours = soporteData.reduce((sum, row) => sum + (row.totalHoras || 0), 0);
+    if (totalSoporteHours > 150 && window.differenceTableData && window.differenceTableData.length > 0) {
+        // Espacio entre secciones
+        wsData.push([]);
+        wsData.push([]);
+        
+        // Título de diferencia
+        wsData.push(['DIFERENCIA DE HORAS', '', '', '', '']);
+        wsData.push([]);
+        
+        // Headers de diferencia
+        wsData.push(['FACTURA', 'CONCEPTO', 'HORAS/TIEMPO', 'TARIFA', 'TOTAL']);
+        
+        // Fila Diferencia para OC
+        const diffHours = totalSoporteHours - 150;
+        wsData.push(['-', 'Diferencia para OC', diffHours, '', '']);
+        
+        // Filas del administrador
+        let grandTotalDiffAmount = 0;
+        window.differenceTableData.forEach(row => {
+            const horas = parseFloat(row.tiempo || 0);
+            const tarifa = parseFloat(row.tarifa || 0);
+            const total = parseFloat(row.total || 0);
+            
+            wsData.push([
+                row.factura || '',
+                row.concepto || '',
+                horas,
+                tarifa,
+                total
+            ]);
+            grandTotalDiffAmount += total;
+        });
+        
+        // Fila de total de diferencia
+        wsData.push([]);
+        wsData.push(['', 'Orden de Compra Pendiente', '', '', grandTotalDiffAmount]);
     }
     
     // Crear worksheet
@@ -7605,11 +8436,24 @@ function applyExcelStyling(ws, wsData, reportType) {
             // Inicializar estilo si no existe
             if (!cell.s) cell.s = {};
             
-            // Estilos para headers (fila 2 o 3 según reporte)
+            // Verificar si es la fila de Orden de Compra Pendiente (total de diferencia)
+            let isOrderCompraRow = false;
+            for (let c = range.s.c; c <= range.e.c; c++) {
+                const cAddress = XLSX.utils.encode_cell({ r: row, c: c });
+                const cCell = ws[cAddress];
+                if (cCell && (cCell.v === 'Orden de Compra Pendiente' || cCell.v === 'TOTAL PROYECTOS')) {
+                    isOrderCompraRow = true;
+                    break;
+                }
+            }
+
+            // Estilos para headers (fila 2 o 3 según reporte, o 3/4 para remanente)
             const headerRow = reportType === 'remanente' ? 4 : (reportType === 'cliente' ? 2 : 2);
-            if (row === headerRow) {
+            const isHeader = (reportType === 'remanente' && (row === 3 || row === 4)) || (reportType !== 'remanente' && row === headerRow);
+            
+            if (isHeader) {
                 cell.s = {
-                    fill: { bgColor: { rgb: "4A90E2" } },
+                    fill: { pattern: "solid", fgColor: { rgb: "1B3A5C" } },
                     font: { bold: true, color: { rgb: "FFFFFF" } },
                     alignment: { horizontal: "center", vertical: "center" },
                     border: {
@@ -7620,6 +8464,20 @@ function applyExcelStyling(ws, wsData, reportType) {
                     }
                 };
             }
+            // Estilos para la fila de Orden de Compra Pendiente (Fondo verde)
+            else if (isOrderCompraRow) {
+                cell.s = {
+                    fill: { pattern: "solid", fgColor: { rgb: "E2F0D9" } },
+                    font: { bold: true, color: { rgb: "375623" } },
+                    alignment: { horizontal: "center", vertical: "center" },
+                    border: {
+                        top: { style: "thin", color: { rgb: "A9D08E" } },
+                        bottom: { style: "thin", color: { rgb: "A9D08E" } },
+                        left: { style: "thin", color: { rgb: "A9D08E" } },
+                        right: { style: "thin", color: { rgb: "A9D08E" } }
+                    }
+                };
+            }
             // Estilos para títulos (primera fila)
             else if (row === 0) {
                 cell.s = {
@@ -7627,10 +8485,10 @@ function applyExcelStyling(ws, wsData, reportType) {
                     alignment: { horizontal: "center", vertical: "center" }
                 };
             }
-            // Estilos para fila de totales (última fila)
+            // Estilos para fila de totales (última fila, si no es Orden de Compra)
             else if (row === range.e.r) {
                 cell.s = {
-                    fill: { bgColor: { rgb: "F1F5F9" } },
+                    fill: { pattern: "solid", fgColor: { rgb: "F1F5F9" } },
                     font: { bold: true },
                     alignment: { horizontal: "center", vertical: "center" },
                     border: {
@@ -7655,12 +8513,12 @@ function applyExcelStyling(ws, wsData, reportType) {
                 
                 // Alternar colores de fila
                 if ((row - headerRow) % 2 === 0) {
-                    cell.s.fill = { bgColor: { rgb: "F9FAFB" } };
+                    cell.s.fill = { pattern: "solid", fgColor: { rgb: "F9FAFB" } };
                 }
             }
             
             // Formato de moneda para columnas de dinero
-            if (typeof cell.v === 'number' && (col === range.e.c || cellAddress.includes('TOTAL'))) {
+            if (typeof cell.v === 'number' && (col === range.e.c || cellAddress.includes('TOTAL') || isOrderCompraRow)) {
                 cell.s.numFmt = '"$"#,##0.00';
             }
         }
@@ -7695,28 +8553,39 @@ function generateFileName(reportPrefix) {
 /**
  * Guardar reporte en historial
  */
-/**
- * Guardar reporte en historial
- */
-function saveToReportHistory(fileName, reportType, totalHours, totalAmount) {
+async function saveToReportHistory(fileName, reportType, totalHours, totalAmount, recordCount = null, dateRange = null) {
     try {
+        let finalRecordCount = recordCount;
+        if (finalRecordCount === null) {
+            finalRecordCount = Object.keys(editablePreviewData || {}).length;
+        }
+
+        let finalDateRange = dateRange;
+        if (finalDateRange === null) {
+            finalDateRange = getDateRangeText();
+        }
+
         const reportData = {
             fileName: fileName,
             reportType: reportType, 
             generatedBy: 'Hector Perez',
-            dateRange: getDateRangeText(),
-            recordCount: Object.keys(editablePreviewData).length,
+            dateRange: finalDateRange,
+            recordCount: finalRecordCount,
             totalHours: totalHours,
             totalAmount: totalAmount
         };
         
-        const saveResult = window.PortalDB.saveGeneratedReport(reportData);
+        const saveResult = await window.PortalDB.saveGeneratedReport(reportData);
         
         if (saveResult.success) {
             console.log('✅ Reporte guardado en historial:', fileName);
             // Actualizar contadores del sidebar
             if (typeof updateSidebarCounts === 'function') {
-                updateSidebarCounts();
+                await updateSidebarCounts();
+            }
+            // Actualizar tabla en tiempo real
+            if (typeof updateGeneratedReportsList === 'function') {
+                await updateGeneratedReportsList();
             }
         } else {
             console.error('❌ Error guardando en historial:', saveResult.message);
@@ -7759,7 +8628,9 @@ function getDateRangeText() {
 document.addEventListener('DOMContentLoaded', function() {
     // Esperamos un poco para asegurar que todo esté cargado
     setTimeout(() => {
-        initializeReportSelector();
+        if (currentSection === 'generar-reporte') {
+            initializeReportSelector();
+        }
     }, 500);
 });
 
@@ -9630,6 +10501,7 @@ window.viewUserAssignments = viewUserAssignments;
 window.updateGeneratedReportsList = updateGeneratedReportsList;
 window.refreshGeneratedReportsList = refreshGeneratedReportsList;
 window.deleteGeneratedReportFromHistory = deleteGeneratedReportFromHistory;
+window.saveToReportHistory = saveToReportHistory;
 window.filterReportsByCategory = filterReportsByCategory;
 window.initializeReportsFilters = initializeReportsFilters;
 window.getReportCategory = getReportCategory;
@@ -10084,57 +10956,7 @@ window.openOmniCreateDrawer = function() {
 // PANEL GENERAL + CRUD SECTIONS — RENDER FUNCTIONS
 // ==============================================
 
-/**
- * Actualiza los contadores del sidebar para las nuevas secciones
- */
-function updateSidebarCounts() {
-    try {
-        const users = currentData.users || {};
-        const companies = currentData.companies || {};
-        const projects = currentData.projects || {};
-        const supports = currentData.supports || {};
-        const modules = currentData.modules || {};
-        const assignments = currentData.assignments || {};
-        const reports = currentData.reports || {};
-        const tarifario = currentData.tarifario || {};
-        const projectAssignments = currentData.projectAssignments || {};
-        const taskAssignments = currentData.taskAssignments || {};
 
-        // Contar consultores activos (excluyendo admin)
-        const consultorCount = Object.values(users).filter(u => u.role === 'consultor' && u.isActive !== false).length;
-        const empresaCount = Object.values(companies).filter(c => c.isActive !== false).length;
-        const proyectoCount = Object.values(projects).filter(p => p.isActive !== false).length;
-        const soporteCount = Object.values(supports).filter(s => s.isActive !== false).length;
-        const moduloCount = Object.values(modules).filter(m => m.isActive !== false).length;
-        const tarifarioCount = Object.keys(tarifario).length;
-        const assignCount = Object.keys(assignments).length;
-        const projectAssignCount = Object.keys(projectAssignments).length;
-        const taskCount = Object.values(taskAssignments).filter(t => t.isActive !== false).length;
-        const pendingReports = Object.values(reports).filter(r => r.status === 'Pendiente').length;
-        const timesheets = currentData.timesheets || {};
-        const pendingTimesheets = Object.values(timesheets).filter(t => t.status === 'Pendiente').length;
-
-        // Sidebar badges
-        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-        setEl('sidebarConsultoresCount', consultorCount);
-        setEl('sidebarEmpresasCount', empresaCount);
-        setEl('sidebarProyectosCount', proyectoCount);
-        setEl('sidebarSoportesCount', soporteCount);
-        setEl('sidebarModulosCount', moduloCount);
-        setEl('sidebarTarifarioCount', tarifarioCount);
-        setEl('sidebarAssignmentsCount', assignCount);
-        setEl('sidebarProjectAssignmentsCount', projectAssignCount);
-        setEl('sidebarTaskCount', taskCount);
-        setEl('sidebarReportsCount', pendingReports);
-        setEl('sidebarTimesheetsCount', pendingTimesheets || Object.keys(timesheets).length);
-        
-        const approvedCount = Object.values(reports).filter(r => r.status === 'Aprobado').length;
-        setEl('sidebarApprovedReportsCount', approvedCount);
-
-    } catch (error) {
-        console.error('Error updateSidebarCounts:', error);
-    }
-}
 
 /**
  * Renderiza la tabla de Timesheets Semanales para el admin
@@ -10168,7 +10990,7 @@ async function renderAdminTimesheets() {
     tsArray.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
     
     if (tsArray.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="12" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets ${filterStatus !== 'all' ? 'con estado "' + filterStatus + '"' : ''}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets ${filterStatus !== 'all' ? 'con estado "' + filterStatus + '"' : ''}</td></tr>`;
         return;
     }
     
@@ -10218,6 +11040,11 @@ async function renderAdminTimesheets() {
                 <td style="text-align:center; font-weight:600;">${totalHours > 0 ? totalHours.toFixed(1) : '0'}</td>
                 <td><span class="crud-status-badge ${statusClass}">${ts.status}</span></td>
                 <td>${actionsHtml}</td>
+                <td>
+                    <button class="btn" style="padding:4px 10px; font-size:0.82em; background:#1B3A5C; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="openActivityReport('${ts.timesheetId}')" title="Generar Reporte de Actividades">
+                        <i class="fa-solid fa-file-lines"></i> Reporte
+                    </button>
+                </td>
             </tr>
         `;
     }
@@ -10419,24 +11246,50 @@ function renderProyectosList() {
     const projects = Object.values(currentData.projects || {});
 
     if (projects.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-folder-open"></i> No hay proyectos registrados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-cell"><i class="fa-solid fa-folder-open"></i> No hay proyectos registrados.</td></tr>';
         return;
     }
 
-    tbody.innerHTML = projects.map(p => `
+    tbody.innerHTML = projects.map(p => {
+        const pId = p.id || p.projectId;
+        const hoursInfo = getProjectHoursConsumed(pId);
+        const maxH = p.maxHours || 0;
+        const pct = maxH > 0 ? Math.round((hoursInfo.total / maxH) * 100) : 0;
+        const barClass = pct >= 100 ? 'exceeded' : pct >= 90 ? 'danger' : pct >= 70 ? 'warning' : '';
+        
+        const hoursDisplay = maxH > 0 
+            ? `${hoursInfo.total.toFixed(1)} / ${maxH} hrs`
+            : `${hoursInfo.total.toFixed(1)} / sin límite`;
+            
+        const progressHTML = maxH > 0 
+            ? `
+            <div style="width: 100%; min-width: 100px;">
+                <div class="project-hours-bar ${barClass}" style="height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin-bottom: 4px;">
+                    <div style="height: 100%; width: ${Math.min(pct, 100)}%; border-radius: 3px; transition: width 0.3s;
+                        background: ${pct >= 100 ? '#ef4444' : pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981'};"></div>
+                </div>
+                <small style="color: #6b7280; font-size: 0.72rem; font-weight: 500;">${pct}% consumido</small>
+            </div>
+            `
+            : `<small style="color: #94a3b8;">—</small>`;
+
+        return `
         <tr data-searchable="${(p.name || '').toLowerCase()} ${(p.description || '').toLowerCase()}">
-            <td><strong>${p.id || p.projectId || '—'}</strong></td>
+            <td><strong>${pId || '—'}</strong></td>
             <td>${p.name || 'Sin nombre'}</td>
             <td>${p.description || '—'}</td>
+            <td>${hoursDisplay}</td>
+            <td>${progressHTML}</td>
             <td><span class="crud-status-badge ${p.isActive !== false ? 'active' : 'inactive'}">${p.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>
             <td>
                 <div class="crud-actions">
-                    <button class="crud-action-btn edit" title="Editar" onclick="editProject('${p.id || p.projectId}')"><i class="fa-solid fa-pen"></i></button>
-                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteProjectConfirm('${p.id || p.projectId}')"><i class="fa-solid fa-trash"></i></button>
+                    <button class="crud-action-btn edit" title="Editar" onclick="editProject('${pId}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteProjectConfirm('${pId}')"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
 /**
@@ -10799,6 +11652,55 @@ function editModule(moduleId) {
         if (result.success) {
             window.NotificationUtils.success('Módulo actualizado');
             loadAllData();
+        }
+    });
+}
+
+/**
+ * Controla el redimensionamiento del sidebar de administración arrastrando su borde derecho
+ * @param {HTMLElement} sidebar - Elemento sidebar
+ * @param {HTMLElement} resizer - Elemento resizer drag handle
+ */
+function setupSidebarResize(sidebar, resizer) {
+    let isResizing = false;
+    
+    // Cargar ancho preferido de localStorage si existe
+    const savedWidth = localStorage.getItem('adminSidebarWidth');
+    if (savedWidth) {
+        sidebar.style.width = savedWidth + 'px';
+    }
+    
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none'; // Evitar selección de textos
+        
+        // Quitar transiciones temporales durante el drag
+        sidebar.classList.add('resizing');
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const sidebarRect = sidebar.getBoundingClientRect();
+        let newWidth = e.clientX - sidebarRect.left;
+        
+        // Límites razonables para una buena UX (mínimo 220px, máximo 450px)
+        if (newWidth < 220) newWidth = 220;
+        if (newWidth > 450) newWidth = 450;
+        
+        sidebar.style.width = newWidth + 'px';
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            sidebar.classList.remove('resizing');
+            
+            // Guardar el ancho preferido en LocalStorage
+            localStorage.setItem('adminSidebarWidth', sidebar.offsetWidth);
         }
     });
 }

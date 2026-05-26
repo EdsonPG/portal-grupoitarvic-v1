@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../css/admin.css">
     <link rel="stylesheet" href="../css/arvic-pdf-styles.css">
     <link rel="stylesheet" href="../css/notifications.css">
+    <link rel="stylesheet" href="../css/activity-report.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -494,6 +495,7 @@
                                         <th>Total</th>
                                         <th>Estado</th>
                                         <th>Acciones</th>
+                                        <th>Reporte</th>
                                     </tr>
                                 </thead>
                                 <tbody id="adminTimesheetsBody">
@@ -606,13 +608,13 @@
                     <div id="consultores-section" class="content-section">
                         <div class="section-header">
                             <h2 class="section-title"><i class="fa-solid fa-users"></i> Gestión de Consultores</h2>
-                            <button class="add-btn" onclick="openUserModal()"><i class="fa-solid fa-plus"></i> Nuevo Consultor</button>
                         </div>
                         <div class="crud-toolbar">
                             <div class="search-box">
                                 <i class="fa-solid fa-search"></i>
                                 <input type="text" id="searchConsultores" placeholder="Buscar consultores..." oninput="filterCrudTable('consultores')">
                             </div>
+                            <button class="add-btn" onclick="openUserModal()"><i class="fa-solid fa-plus"></i> Nuevo Consultor</button>
                         </div>
                         <div class="crud-table-container">
                             <table class="crud-table" id="consultoresTable">
@@ -637,13 +639,13 @@
                     <div id="empresas-section" class="content-section">
                         <div class="section-header">
                             <h2 class="section-title"><i class="fa-solid fa-building"></i> Gestión de Empresas</h2>
-                            <button class="add-btn" onclick="openCompanyModal()"><i class="fa-solid fa-plus"></i> Nueva Empresa</button>
                         </div>
                         <div class="crud-toolbar">
                             <div class="search-box">
                                 <i class="fa-solid fa-search"></i>
                                 <input type="text" id="searchEmpresas" placeholder="Buscar empresas..." oninput="filterCrudTable('empresas')">
                             </div>
+                            <button class="add-btn" onclick="openCompanyModal()"><i class="fa-solid fa-plus"></i> Nueva Empresa</button>
                         </div>
                         <div class="crud-table-container">
                             <table class="crud-table" id="empresasTable">
@@ -667,13 +669,13 @@
                     <div id="proyectos-section" class="content-section">
                         <div class="section-header">
                             <h2 class="section-title"><i class="fa-solid fa-folder-open"></i> Gestión de Proyectos</h2>
-                            <button class="add-btn" onclick="openProjectModal()"><i class="fa-solid fa-plus"></i> Nuevo Proyecto</button>
                         </div>
                         <div class="crud-toolbar">
                             <div class="search-box">
                                 <i class="fa-solid fa-search"></i>
                                 <input type="text" id="searchProyectos" placeholder="Buscar proyectos..." oninput="filterCrudTable('proyectos')">
                             </div>
+                            <button class="add-btn" onclick="openProjectModal()"><i class="fa-solid fa-plus"></i> Nuevo Proyecto</button>
                         </div>
                         <div class="crud-table-container">
                             <table class="crud-table" id="proyectosTable">
@@ -682,12 +684,15 @@
                                         <th>ID</th>
                                         <th>Nombre</th>
                                         <th>Descripción</th>
+                                        <th>Horas (Consumidas/Límite)</th>
+                                        <th>Progreso</th>
                                         <th>Estado</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="proyectosTableBody">
-                                    <tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-folder-open"></i> Cargando proyectos...</td></tr>
+                                    <tr><td colspan="8" class="empty-cell"><i class="fa-solid fa-folder-open"></i> Cargando proyectos...</td></tr>
+
                                 </tbody>
                             </table>
                         </div>
@@ -697,13 +702,13 @@
                     <div id="soportes-section" class="content-section">
                         <div class="section-header">
                             <h2 class="section-title"><i class="fa-solid fa-headset"></i> Gestión de Soportes</h2>
-                            <button class="add-btn" onclick="openSupportModal()"><i class="fa-solid fa-plus"></i> Nuevo Soporte</button>
                         </div>
                         <div class="crud-toolbar">
                             <div class="search-box">
                                 <i class="fa-solid fa-search"></i>
                                 <input type="text" id="searchSoportes" placeholder="Buscar soportes..." oninput="filterCrudTable('soportes')">
                             </div>
+                            <button class="add-btn" onclick="openSupportModal()"><i class="fa-solid fa-plus"></i> Nuevo Soporte</button>
                         </div>
                         <div class="crud-table-container">
                             <table class="crud-table" id="soportesTable">
@@ -727,13 +732,13 @@
                     <div id="modulos-section" class="content-section">
                         <div class="section-header">
                             <h2 class="section-title"><i class="fa-solid fa-puzzle-piece"></i> Gestión de Módulos</h2>
-                            <button class="add-btn" onclick="openModuleModal()"><i class="fa-solid fa-plus"></i> Nuevo Módulo</button>
                         </div>
                         <div class="crud-toolbar">
                             <div class="search-box">
                                 <i class="fa-solid fa-search"></i>
                                 <input type="text" id="searchModulos" placeholder="Buscar módulos..." oninput="filterCrudTable('modulos')">
                             </div>
+                            <button class="add-btn" onclick="openModuleModal()"><i class="fa-solid fa-plus"></i> Nuevo Módulo</button>
                         </div>
                         <div class="crud-table-container">
                             <table class="crud-table" id="modulosTable">
@@ -763,6 +768,7 @@
                                 <i class="fa-solid fa-search"></i>
                                 <input type="text" id="searchTarifario" placeholder="Buscar en tarifario..." oninput="filterCrudTable('tarifario')">
                             </div>
+                            <button class="add-btn" onclick="showSection('crear-asignacion')"><i class="fa-solid fa-plus"></i> Nueva Tarifa / Asignación</button>
                         </div>
                         <div class="crud-table-container">
                             <table class="crud-table" id="tarifarioTable">
@@ -1272,7 +1278,7 @@
                                 </div>
                                 
                                 <!-- Selector de Reportes -->
-                                <div class="report-selector">
+                                <div class="report-selector" id="reportSelectorContainer">
                                     <h3> <i class="fa-solid fa-bullseye"></i> Seleccionar Tipo de Reporte</h3>
                                     <div class="report-grid" id="reportGrid">
                                         <!-- Se generará dinámicamente con JavaScript -->
@@ -1313,13 +1319,14 @@
                                 <label for="historialTypeFilter">Tipo:</label>
                                 <select id="historialTypeFilter" onchange="updateGeneratedReportsList()">
                                     <option value="all">Todos los Tipos</option>
-                                    <option value="pago-consultor-general"> <i class="fa-solid fa-money-bill"></i> Pago Consultor (General)</option>
-                                    <option value="pago-consultor-especifico"> <i class="fa-solid fa-user"></i> Pago Consultor (Específico)</option>
-                                    <option value="cliente-soporte"> <i class="fa-solid fa-headset"></i> Cliente Soporte</option>
-                                    <option value="remanente"> <i class="fa-solid fa-chart-pie"></i> Remanente</option>
-                                    <option value="proyecto-general"> <i class="fa-solid fa-folder-open"></i> Proyecto (General)</option>
-                                    <option value="proyecto-cliente"> <i class="fa-solid fa-building"></i> Proyecto (Cliente)</option>
-                                    <option value="proyecto-consultor"> <i class="fa-solid fa-user"></i> Proyecto (Consultor)</option>
+                                    <option value="pago-consultor-general"> Pago Consultor (General)</option>
+                                    <option value="pago-consultor-especifico"> Pago Consultor (Específico)</option>
+                                    <option value="cliente-soporte"> Cliente Soporte</option>
+                                    <option value="remanente"> Remanente</option>
+                                    <option value="proyecto-general"> Proyecto (General)</option>
+                                    <option value="proyecto-cliente"> Proyecto (Cliente)</option>
+                                    <option value="proyecto-consultor"> Proyecto (Consultor)</option>
+                                    <option value="reporte-actividades"> Reporte de Actividades</option>
                                 </select>
                             </div>
                             
@@ -1613,6 +1620,11 @@
                         <textarea id="projectDescription" placeholder="Descripción detallada del proyecto" rows="3"></textarea>
                     </div>
                     <div class="form-group">
+                        <label for="projectMaxHours"><i class="fa-solid fa-clock"></i> Límite de Horas</label>
+                        <input type="number" id="projectMaxHours" placeholder="Ej: 500" min="0" step="1">
+                        <small class="form-hint">Máximo de horas permitidas para este proyecto. Dejar vacío = sin límite.</small>
+                    </div>
+                    <div class="form-group">
                         <button type="submit" class="btn btn-primary">Crear Proyecto</button>
                     </div>
                 </form>
@@ -1875,23 +1887,27 @@
     </div>
 
     <!-- Scripts -->
-    <script src="../js/databaseMongoDB.js?v=3"></script>
-    <script src="../js/modules/toastSystem.js?v=3"></script>
-    <script src="../js/auth.js?v=3"></script>
-    <script src="../js/utils.js?v=3"></script>
-    <script src="../js/settings-menu.js?v=3"></script>
+    <script src="../js/databaseMongoDB.js?v=7"></script>
+    <script src="../js/modules/toastSystem.js?v=7"></script>
+    <script src="../js/auth.js?v=7"></script>
+    <script src="../js/utils.js?v=7"></script>
+    <script src="../js/settings-menu.js?v=7"></script>
     
     <!-- Scripts Módulo de Usuarios (Cargados secuencialmente) -->
-    <script src="../js/modules/users/UserRepository.js?v=3"></script>
-    <script src="../js/modules/users/UserValidator.js?v=3"></script>
-    <script src="../js/modules/users/UserService.js?v=3"></script>
-    <script src="../js/modules/users/UserModal.js?v=3"></script>
-    <script src="../js/modules/users/index.js?v=3"></script>
+    <script src="../js/modules/users/UserRepository.js?v=7"></script>
+    <script src="../js/modules/users/UserValidator.js?v=7"></script>
+    <script src="../js/modules/users/UserService.js?v=7"></script>
+    <script src="../js/modules/users/UserModal.js?v=7"></script>
+    <script src="../js/modules/users/index.js?v=7"></script>
+    <script src="../js/module-acronym-utils.js?v=7"></script>
     
-    <script src="admin.js?v=3"></script>
-    <script src="../js/supportBot.js?v=3"></script>
-    <script src="../js/modules/calendarModule.js?v=3"></script>
-    <script src="../js/chatWidget.js?v=3"></script>
+    <script src="admin.js?v=7"></script>
+    <script src="../js/supportBot.js?v=7"></script>
+    <script src="../js/modules/calendarModule.js?v=7"></script>
+    <script src="../js/activity-report-generator.js?v=7"></script>
+    <script src="../js/arvic-pdf-exporter.js?v=7"></script>
+    <script src="../js/seed-test-data.js?v=7"></script>
+    <script src="../js/chatWidget.js?v=7"></script>
 
     <!-- Compatibilidad con funciones legadas (Contenedores Fantasma) -->
     <div style="display: none !important;" aria-hidden="true">

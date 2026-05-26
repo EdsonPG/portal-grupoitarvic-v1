@@ -7,12 +7,12 @@
  * COLORES CORPORATIVOS ARVIC 
  */
 const ARVIC_COLORS = {
-    primary: '#1976D2',      // Azul principal de los headers
-    secondary: '#2196F3', 
-    light: '#E3F2FD',       // Azul muy claro para filas alternadas
-    dark: '#0D47A1',
+    primary: '#1B3A5C',      // Azul corporativo de los headers
+    secondary: '#2C5282', 
+    light: '#EBF8FF',       // Azul muy claro para filas alternadas
+    dark: '#1E3A8A',
     gray: '#666666',
-    lightGray: '#F5F5F5',   // Gris para filas alternadas
+    lightGray: '#F8FAFC',   // Gris para filas alternadas
     white: '#FFFFFF',
     black: '#000000',
     textGray: '#555555'     // Para texto general
@@ -86,8 +86,11 @@ class ARVICPDFExporter {
             metadata: metadata
         });
         
+        config.metadata = metadata; // Guardar metadata en config para acceso en saltos de página
+        
+        const orientation = config.reportType === 'remanente' ? 'portrait' : 'landscape';
         const doc = new this.jsPDF({
-            orientation: 'landscape',
+            orientation: orientation,
             unit: 'mm',
             format: 'a4'
         });
@@ -111,6 +114,49 @@ class ARVICPDFExporter {
         if (window.NotificationUtils) {
             window.NotificationUtils.success(`PDF generado exitosamente: ${fileName}`);
         }
+
+        // Guardar en el historial de reportes generados si es un reporte estándar
+        const standardTypes = [
+            'pago-consultor-general',
+            'pago-consultor-especifico',
+            'cliente-soporte',
+            'remanente',
+            'proyecto-general',
+            'proyecto-cliente',
+            'proyecto-consultor'
+        ];
+        
+        if (standardTypes.includes(config.reportType)) {
+            let totalHours = 0;
+            let totalAmount = 0;
+            
+            if (config.reportType === 'remanente') {
+                data.forEach(row => {
+                    totalHours += parseFloat(row.totalHoras || 0);
+                    const semanaKeys = Object.keys(row).filter(key => key.startsWith('semana'));
+                    semanaKeys.forEach(semanaKey => {
+                        if (row[semanaKey] && row[semanaKey].total) {
+                            totalAmount += parseFloat(row[semanaKey].total || 0);
+                        }
+                    });
+                });
+            } else {
+                totalHours = data.reduce((sum, row) => {
+                    return sum + parseFloat(row.editedTime || row.tiempo || row.hours || row.totalHours || 0);
+                }, 0);
+                
+                totalAmount = data.reduce((sum, row) => {
+                    return sum + parseFloat(row.editedTotal || row.total || 0);
+                }, 0);
+            }
+            
+            if (typeof window.saveToReportHistory === 'function') {
+                console.log(`Guardando PDF en historial: ${fileName}, tipo: ${config.reportType}, horas: ${totalHours}, monto: ${totalAmount}`);
+                window.saveToReportHistory(fileName, config.reportType, totalHours, totalAmount, data.length);
+            } else {
+                console.warn('window.saveToReportHistory no está definida');
+            }
+        }
         
         return fileName;
     }
@@ -132,7 +178,87 @@ class ARVICPDFExporter {
      */
     addCompleteHeader(doc, config, metadata) {
         const pageWidth = doc.internal.pageSize.getWidth();
+        metadata = metadata || {};
         
+        if (config.reportType === 'remanente') {
+            // === DISEÑO PORTRAIT PARA REPORTE REMANENTE ===
+            const m = 12; // Margen de 12mm en lugar de 15mm para aprovechar espacio
+            
+            // Logo (A4 Portrait format: más compacto)
+            try {
+                doc.addImage(ARVIC_LOGO_URL, 'PNG', m, 8, 40, 14.2);
+            } catch (e) {
+                console.error("Error loading logo:", e);
+                this.addSimpleLogoFallback(doc, m, 15);
+            }
+            
+            // Título a la derecha
+            const titleText = this.getTitleByReportType(config.reportType);
+            doc.setTextColor(ARVIC_COLORS.primary);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14.5); // Reducido de 16 a 14.5
+            doc.text(titleText, pageWidth - m, 17, { align: 'right' }); // y=17 en lugar de 22
+            
+            // Subtítulo empresa
+            doc.setTextColor(ARVIC_COLORS.textGray);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9); // Reducido de 10 a 9
+            doc.text('GRUPO IT ARVIC', pageWidth - m, 22.2, { align: 'right' }); // y=22.2 en lugar de 28
+            
+            // Metadata con diseño de líneas similar a Reporte de Actividades
+            const fecha = new Date().toLocaleDateString('es-MX', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+            
+            doc.setFontSize(8.5); // Reducido de 9 a 8.5
+            doc.setTextColor(0, 0, 0);
+            
+            // Fila 1 (y=33)
+            doc.setFont('helvetica', 'bold');
+            doc.text('CLIENTE:', m, 33);
+            doc.setFont('helvetica', 'normal');
+            const clienteName = metadata.cliente || 'N/A';
+            let displayCliente = clienteName;
+            if (doc.getTextWidth(displayCliente) > (pageWidth / 2 - m - 18)) {
+                while (displayCliente.length > 1 && doc.getTextWidth(displayCliente + '...') > (pageWidth / 2 - m - 18)) {
+                    displayCliente = displayCliente.slice(0, -1);
+                }
+                displayCliente += '...';
+            }
+            doc.text(displayCliente, m + 16, 33);
+            
+            doc.setFont('helvetica', 'bold');
+            doc.text('PERÍODO:', pageWidth / 2 + 3, 33);
+            doc.setFont('helvetica', 'normal');
+            doc.text(metadata.mes || 'N/A', pageWidth / 2 + 21, 33);
+            
+            // Líneas de la fila 1
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.3);
+            doc.line(m + 16, 34, pageWidth / 2 - 2, 34);
+            doc.line(pageWidth / 2 + 21, 34, pageWidth - m, 34);
+            
+            // Fila 2 (y=39)
+            doc.setFont('helvetica', 'bold');
+            doc.text('GENERADO:', m, 39);
+            doc.setFont('helvetica', 'normal');
+            doc.text(fecha, m + 20, 39);
+            
+            doc.setFont('helvetica', 'bold');
+            doc.text('EMPRESA:', pageWidth / 2 + 3, 39);
+            doc.setFont('helvetica', 'normal');
+            doc.text('GRUPO IT ARVIC', pageWidth / 2 + 21, 39);
+            
+            // Líneas de la fila 2
+            doc.line(m + 20, 40, pageWidth / 2 - 2, 40);
+            doc.line(pageWidth / 2 + 21, 40, pageWidth - m, 40);
+            
+            return;
+        }
+        
+        // === DISEÑO LANDSCAPE PARA OTROS REPORTES ===
         // === LOGO REAL DE ARVIC (lado izquierdo) ===
         this.addARVICLogo(doc, 25, 22);
         
@@ -322,7 +448,7 @@ class ARVICPDFExporter {
      * Añadir tabla de datos con mejor separación entre totales y mensaje
      */
     addDataTable(doc, data, headers, config) {
-        const startY = PDF_CONFIG.headerHeight + 1;
+        const startY = config.reportType === 'remanente' ? 46 : (PDF_CONFIG.headerHeight + 1);
         const pageWidth = doc.internal.pageSize.getWidth();
         const tableWidth = pageWidth - (PDF_CONFIG.margin * 2);
         
@@ -597,7 +723,7 @@ drawTableHeaders(doc, headers, columnWidths, y) {
         
         try {
             // Fondo azul corporativo
-            doc.setFillColor(25, 118, 210); // ARVIC_COLORS.primary
+            doc.setFillColor(27, 58, 92); // ARVIC_COLORS.primary
             doc.rect(currentX, y, width, 12, 'F');
             
             // Bordes sutiles
@@ -1008,7 +1134,8 @@ getCellValue(row, header) {
             } else {
                 // Es un soporte - tiene estructura de semanas
                 const flatRow = {
-                    totalHoras: parseFloat(row['posicion_0'] || row.totalHoras || 0)
+                    totalHoras: parseFloat(row['posicion_0'] || row.totalHoras || 0),
+                    monthStructure: row.monthStructure || (row.originalData ? row.originalData.monthStructure : null)
                 };
                 
                 // Mapear semanas (solo para soportes)
@@ -1020,7 +1147,7 @@ getCellValue(row, header) {
                     const tarifa = row[`posicion_${baseIndex + 2}`] || '$0';
                     const total = row[`posicion_${baseIndex + 3}`] || '$0.00';
                     
-                    flatRow[`modulo${semana}`] = window.convertModuleToAcronym(modulo) || modulo;
+                    flatRow[`modulo${semana}`] = modulo;
                     flatRow[`tiempo${semana}`] = tiempo === '' ? '0.0' : tiempo;
                     flatRow[`tarifa${semana}`] = tarifa === '' ? '$0' : tarifa;
                     flatRow[`total${semana}`] = total;
@@ -1046,7 +1173,7 @@ getCellValue(row, header) {
      */
     drawRemanenteDataRow(doc, rowData, headers, columnWidths, y, rowIndex) {
         let currentX = PDF_CONFIG.margin;
-        const rowHeight = 18; // Altura fija más generosa para remanente
+        const rowHeight = 14; // Aumentado ligeramente de 13 a 14 para fuente 8.5
         
         // Fondo alternado
         if (rowIndex % 2 === 0) {
@@ -1056,7 +1183,7 @@ getCellValue(row, header) {
         
         // Configurar texto
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8); // Fuente más pequeña para más datos
+        doc.setFontSize(8.5); // Aumentado a 8.5 para mejor legibilidad
         doc.setTextColor(ARVIC_COLORS.black);
         
         let headerIndex = 0;
@@ -1123,141 +1250,298 @@ getCellValue(row, header) {
      * Página 2: Total + Semanas 3-4  
      * Página 3: Total + Semana 5 + Totales
      */
+    /**
+     * DIBUJAR TABLA DE SEMANA INDIVIDUAL EN PORTRAIT
+     */
+    drawRemanenteWeekTable(doc, weekNum, weekDays, soporteData, columnWidths, y, weekStructure, monthKey, startX) {
+        let currentY = y;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
+        const margin = startX; // Usar el startX proporcionado para la alineación lado a lado
+        
+        // 1. Week Title Bar with dynamic date ranges
+        let weekTitle = `Semana ${weekNum} (${weekDays} días)`;
+        if (monthKey && weekStructure) {
+            try {
+                const [year, month] = monthKey.split('-').map(Number);
+                const MONTH_NAMES_ES = [
+                    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+                ];
+                const monthName = MONTH_NAMES_ES[month - 1];
+                
+                let startDay = 1;
+                for (let i = 0; i < weekNum - 1; i++) {
+                    startDay += weekStructure.distribution[i];
+                }
+                const endDay = startDay + weekDays - 1;
+                weekTitle = `Semana ${weekNum} (del ${startDay} al ${endDay} de ${monthName})`;
+            } catch (e) {
+                console.error("Error formatting week title:", e);
+            }
+        }
+
+        doc.setFillColor(27, 58, 92); // primary blue
+        doc.rect(margin, currentY, tableWidth, 6, 'F'); // Altura 6mm
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9); // Aumentado a 9pt
+        doc.setTextColor(255, 255, 255);
+        doc.text(weekTitle, margin + tableWidth/2, currentY + 4.2, { align: 'center' }); // Ajustado y-offset
+        currentY += 6;
+        
+        // 2. Column Headers
+        const headers = ['MÓDULO', 'TIEMPO', 'TARIFA', 'TOTAL'];
+        let currentX = margin;
+        
+        headers.forEach((header, index) => {
+            doc.setFillColor(44, 82, 130); // secondary blue
+            doc.rect(currentX, currentY, columnWidths[index], 6, 'F'); // Altura 6mm
+            doc.rect(currentX, currentY, columnWidths[index], 6);
+            
+            doc.setFontSize(8.5); // Aumentado a 8.5pt
+            doc.setTextColor(255, 255, 255);
+            doc.text(header, currentX + columnWidths[index]/2, currentY + 4.2, { align: 'center' }); // Ajustado y-offset
+            
+            currentX += columnWidths[index];
+        });
+        currentY += 6;
+        
+        // 3. Data Rows
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(8.5); // Aumentado a 8.5pt para mejor legibilidad dentro de los cuadros
+        
+        soporteData.forEach((row, rowIndex) => {
+            // Fondo alternado
+            if (rowIndex % 2 === 0) {
+                doc.setFillColor(ARVIC_COLORS.lightGray);
+                doc.rect(margin, currentY, tableWidth, 6.5, 'F'); // Altura 6.5mm
+            }
+            
+            currentX = margin;
+            
+            // MODULO (Centrado y auto-escalado si el texto es largo)
+            const modulo = row[`modulo${weekNum}`] || '-';
+            doc.rect(currentX, currentY, columnWidths[0], 6.5); // Altura 6.5mm
+            doc.setFont('helvetica', 'normal');
+            if (modulo === '-') {
+                doc.text('-', currentX + columnWidths[0]/2, currentY + 4.6, { align: 'center' });
+            } else {
+                // Ajustar fuente dinámicamente si el texto es largo para evitar que se recorte
+                const textWidth = doc.getTextWidth(modulo);
+                const maxAllowedWidth = columnWidths[0] - 2; // 2mm de margen interno
+                if (textWidth > maxAllowedWidth) {
+                    const dynamicFontSize = Math.floor(8.5 * (maxAllowedWidth / textWidth) * 10) / 10;
+                    doc.setFontSize(Math.max(6.5, dynamicFontSize)); // Mínimo 6.5pt
+                } else {
+                    doc.setFontSize(8.5);
+                }
+                doc.text(modulo, currentX + columnWidths[0]/2, currentY + 4.6, { align: 'center' });
+                doc.setFontSize(8.5); // Restaurar
+            }
+            currentX += columnWidths[0];
+            
+            // TIEMPO
+            const tiempo = row[`tiempo${weekNum}`] || '0.0';
+            doc.rect(currentX, currentY, columnWidths[1], 6.5); // Altura 6.5mm
+            const tiempoText = tiempo === '0.0' ? '-' : `${tiempo}h`;
+            const tiempoWidth = doc.getTextWidth(tiempoText);
+            if (tiempoWidth > columnWidths[1] - 2) {
+                doc.setFontSize(7.5);
+            }
+            doc.text(tiempoText, currentX + columnWidths[1]/2, currentY + 4.6, { align: 'center' });
+            doc.setFontSize(8.5);
+            currentX += columnWidths[1];
+            
+            // TARIFA
+            const tarifa = row[`tarifa${weekNum}`] || '$0';
+            doc.rect(currentX, currentY, columnWidths[2], 6.5); // Altura 6.5mm
+            const tarifaText = tarifa === '$0' ? '-' : tarifa;
+            const tarifaWidth = doc.getTextWidth(tarifaText);
+            if (tarifaWidth > columnWidths[2] - 2) {
+                doc.setFontSize(7.5);
+            }
+            doc.text(tarifaText, currentX + columnWidths[2]/2, currentY + 4.6, { align: 'center' });
+            doc.setFontSize(8.5);
+            currentX += columnWidths[2];
+            
+            // TOTAL
+            const total = row[`total${weekNum}`] || '$0.00';
+            doc.rect(currentX, currentY, columnWidths[3], 6.5); // Altura 6.5mm
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 100, 0);
+            const totalWidth = doc.getTextWidth(total);
+            if (totalWidth > columnWidths[3] - 2) {
+                doc.setFontSize(7.5);
+            }
+            doc.text(total, currentX + columnWidths[3]/2, currentY + 4.6, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(8.5);
+            
+            currentX += columnWidths[3];
+            currentY += 6.5; // Altura 6.5mm
+        });
+        
+        return currentY - y;
+    }
+
+    /**
+     * AGREGAR FOOTERS A TODAS LAS PÁGINAS AL FINAL
+     */
+    addFootersToAllPages(doc) {
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            this.addFooterWithPageNumber(doc, i, totalPages);
+        }
+    }
+
+    /**
+     * CALCULAR EL TOTAL DE HORAS DE UNA SEMANA ESPECÍFICA
+     */
+    getWeekTotalHours(soporteData, weekNum) {
+        let sum = 0;
+        soporteData.forEach(row => {
+            const tStr = row[`tiempo${weekNum}`] || '0.0';
+            const tVal = parseFloat(tStr.toString().replace(/[^\d.]/g, '')) || 0;
+            sum += tVal;
+        });
+        return sum;
+    }
+
+    /**
+     * GENERAR REPORTE REMANENTE EN PORTRAIT
+     * Organiza las semanas de forma vertical y maneja los saltos de página dinámicos.
+     */
     generateRemanenteMultiPageReport(doc, soporteData, config, startY, proyectoData = []) {
-        console.log('📄 Generando reporte en 3 páginas...');
-        console.log('🔍 DEBUG - generateRemanenteMultiPageReport iniciado');
+        console.log('📄 Generando reporte remanente vertical en Portrait A4...');
         console.log('📊 Soportes recibidos:', soporteData.length);
         console.log('📁 Proyectos recibidos:', proyectoData.length);
-        console.log('📁 Datos de proyectos:', proyectoData);
         
         const pageWidth = doc.internal.pageSize.getWidth();
-        const tableWidth = pageWidth - (PDF_CONFIG.margin * 2);
-        const bottomMargin = 50;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const bottomMargin = 20; // Reducido de 30 a 20 para aprovechar más la página
         
-        // Definición de páginas
-        const pages = [
-            { pageNum: 1, weeks: [1, 2], title: 'Semanas 1-2' },
-            { pageNum: 2, weeks: [3, 4], title: 'Semanas 3-4' },
-            { pageNum: 3, weeks: [5], title: 'Semana 5' }
-        ];
+        // Estructura de semanas
+        const weekStructure = (soporteData[0] && soporteData[0].monthStructure) || {
+            totalWeeks: 5,
+            distribution: [7, 7, 7, 7, 2]
+        };
         
-        // Generar cada página
-        pages.forEach((pageConfig, pageIndex) => {
-            if (pageIndex > 0) {
+        // 1. Obtener semanas activas
+        const activeWeeks = [];
+        for (let week = 1; week <= weekStructure.totalWeeks; week++) {
+            const weekHours = this.getWeekTotalHours(soporteData, week);
+            if (weekHours > 0) {
+                activeWeeks.push(week);
+            }
+        }
+        
+        // Ancho de tabla semanal optimizado a 89mm para caber de a dos por fila
+        const columnWidths = [
+            40, // Módulo (40mm)
+            14, // Tiempo (14mm)
+            15, // Tarifa (15mm)
+            20  // Total (20mm)
+        ]; // Suma 89mm
+        
+        const tableWidth = 89;
+        const pageLeftMargin = 12;
+        const pageRightMargin = 12;
+        const printableWidth = pageWidth - pageLeftMargin - pageRightMargin; // 186mm
+        const gap = 8; // Espacio horizontal de 8mm entre tablas
+        
+        let currentY = startY;
+        
+        // Dibujar las semanas lado a lado en pares
+        for (let i = 0; i < activeWeeks.length; i += 2) {
+            const week1 = activeWeeks[i];
+            const week2 = activeWeeks[i + 1]; // undefined si es impar
+            
+            const weekDays1 = weekStructure.distribution[week1 - 1] || 7;
+            const weekTableHeight = 6 + 6 + (soporteData.length * 6.5) + 5; // Altura de la tabla + espacio inferior
+            
+            // Verificar si cabe en la página
+            if (currentY + weekTableHeight > pageHeight - bottomMargin) {
                 doc.addPage();
                 this.addCompleteHeader(doc, config, config.metadata || {});
+                currentY = startY;
             }
             
-            console.log(`📄 Generando página ${pageConfig.pageNum}: ${pageConfig.title}`);
-            
-            // Calcular anchos de columna para esta página
-            const numWeeks = pageConfig.weeks.length;
-            const columnWidths = this.calculateRemanenteColumnWidths(tableWidth, numWeeks);
-            
-            // Generar estructura de headers
-            const headerStructure = {
-                totalWeeks: numWeeks,
-                weeks: pageConfig.weeks,
-                pageNum: pageConfig.pageNum,
-                totalPages: pages.length
-            };
-            
-            // Dibujar headers
-            const headerHeight = this.drawRemanenteHeadersMultiPage(
-                doc, 
-                headerStructure, 
-                columnWidths, 
-                startY
-            );
-            
-            // Dibujar filas de datos
-            let currentY = startY + headerHeight + 2;
-
-            soporteData.forEach((row, rowIndex) => {
-                // Verificar si necesitamos nueva página (solo si hay muchas filas)
-                if (currentY + 18 > doc.internal.pageSize.getHeight() - bottomMargin) {
-                    this.addFooter(doc);
-                    doc.addPage();
-                    this.addCompleteHeader(doc, config, config.metadata || {});
-                    currentY = startY;
-                    
-                    // Re-dibujar headers
-                    this.drawRemanenteHeadersMultiPage(
-                        doc, 
-                        headerStructure, 
-                        columnWidths, 
-                        currentY
-                    );
-                    currentY += headerHeight + 2;
-                }
+            if (week2) {
+                // Dibujar dos tablas lado a lado
+                const weekDays2 = weekStructure.distribution[week2 - 1] || 7;
                 
-                // Dibujar fila con solo las semanas de esta página
-                this.drawRemanenteDataRowMultiPage(
-                    doc, 
-                    row, 
-                    pageConfig.weeks, 
-                    columnWidths, 
-                    currentY, 
-                    rowIndex
-                );
+                // Tabla de la izquierda
+                const startX1 = pageLeftMargin;
+                this.drawRemanenteWeekTable(doc, week1, weekDays1, soporteData, columnWidths, currentY, weekStructure, config.metadata?.monthKey, startX1);
                 
-                currentY += 15;
-            });
-            
-            // Si es la última página, agregar totales
-            if (pageConfig.pageNum === pages.length) {
-                currentY += 10;
-                
-                if (currentY + 40 > doc.internal.pageSize.getHeight() - bottomMargin) {
-                    this.addFooter(doc);
-                    doc.addPage();
-                    currentY = 30;
-                }
+                // Tabla de la derecha
+                const startX2 = pageLeftMargin + tableWidth + gap; // 12 + 89 + 8 = 109mm
+                this.drawRemanenteWeekTable(doc, week2, weekDays2, soporteData, columnWidths, currentY, weekStructure, config.metadata?.monthKey, startX2);
+            } else {
+                // Dibujar una sola tabla centrada (ej. Semana 5)
+                const startX = pageLeftMargin + (printableWidth - tableWidth) / 2; // Centrado: 60.5mm
+                this.drawRemanenteWeekTable(doc, week1, weekDays1, soporteData, columnWidths, currentY, weekStructure, config.metadata?.monthKey, startX);
             }
             
-            // Agregar footer con número de página
-            this.addFooterWithPageNumber(doc, pageConfig.pageNum, pages.length);
-
-            // Si es la última página, agregar totales Y proyectos
-            if (pageConfig.pageNum === pages.length) {
-                console.log('✅ Última página detectada');
-                currentY += 10;
-                
-                if (currentY + 40 > doc.internal.pageSize.getHeight() - bottomMargin) {
-                    this.addFooter(doc);
-                    doc.addPage();
-                    currentY = 30;
-                }
-                
-                this.addRemanenteTotals(doc, soporteData, pageWidth, currentY);
-                console.log('✅ Totales de soportes dibujados');
-                
-                // Verificar proyectos
-                console.log('🔍 Verificando proyectos...');
-                console.log('proyectoData:', proyectoData);
-                console.log('proyectoData existe?', !!proyectoData);
-                console.log('proyectoData.length:', proyectoData?.length);
-                
-                if (proyectoData && proyectoData.length > 0) {
-                    console.log('✅ ENTRANDO a dibujar sección de proyectos');
-                    currentY += 50;
-                    
-                    if (currentY + 60 > doc.internal.pageSize.getHeight() - bottomMargin) {
-                        this.addFooter(doc);
-                        doc.addPage();
-                        this.addCompleteHeader(doc, config, config.metadata || {});
-                        currentY = startY;
-                    }
-                    
-                    this.drawProyectosSection(doc, proyectoData, pageWidth, currentY);
-                    console.log('✅ Sección de proyectos dibujada');
-                } else {
-                    console.log('❌ NO se dibuja sección de proyectos porque:');
-                    console.log('   - proyectoData es null/undefined?', !proyectoData);
-                    console.log('   - proyectoData está vacío?', proyectoData?.length === 0);
-                }
+            currentY += weekTableHeight;
+        }
+        
+        // 1. Totales Consolidados de Soporte
+        const totalsHeight = 15; // Reducido de 22 a 15
+        if (currentY + totalsHeight > pageHeight - bottomMargin) {
+            doc.addPage();
+            this.addCompleteHeader(doc, config, config.metadata || {});
+            currentY = startY;
+        }
+        this.addRemanenteTotals(doc, soporteData, pageWidth, currentY);
+        currentY += totalsHeight;
+        
+        // 2. Sección de Proyectos (si hay proyectos)
+        if (proyectoData && proyectoData.length > 0) {
+            currentY += 3; // Reducido de 5 a 3
+            
+            const projHeaderHeight = 9 + 6.5; // Title bar (9) + Table Header (6.5)
+            const projRowsHeight = proyectoData.length * 6.5; // Rows * 6.5mm
+            const projTotalsHeight = 7; // Totals row (7)
+            const totalProjHeight = projHeaderHeight + projRowsHeight + projTotalsHeight + 6;
+            
+            if (currentY + totalProjHeight > pageHeight - bottomMargin) {
+                doc.addPage();
+                this.addCompleteHeader(doc, config, config.metadata || {});
+                currentY = startY;
             }
+            
+            this.drawProyectosSection(doc, proyectoData, pageWidth, currentY);
+            currentY += totalProjHeight;
+        }
+        
+        // 3. Sección de Diferencia (si el total de soporte > 150 hrs)
+        let totalSoporteHours = 0;
+        soporteData.forEach(row => {
+            totalSoporteHours += parseFloat(row.totalHoras || 0);
         });
+        
+        if (totalSoporteHours > 150) {
+            currentY += 3; // Reducido de 5 a 3
+            const diffRows = window.differenceTableData || [];
+            
+            const diffHeaderHeight = 9 + 6.5; // Title bar (9) + Table Header (6.5)
+            const diffRowsHeight = (diffRows.length + 1) * 6.5; // Rows * 6.5mm
+            const diffTotalsHeight = 7; // Totals row (7)
+            const totalDiffHeight = diffHeaderHeight + diffRowsHeight + diffTotalsHeight + 6;
+            
+            if (currentY + totalDiffHeight > pageHeight - bottomMargin) {
+                doc.addPage();
+                this.addCompleteHeader(doc, config, config.metadata || {});
+                currentY = startY;
+            }
+            
+            this.drawDifferenceSection(doc, diffRows, totalSoporteHours, pageWidth, currentY);
+        }
+        
+        // 4. Agregar footers a todas las páginas al final
+        this.addFootersToAllPages(doc);
     }
 
     /**
@@ -1298,7 +1582,7 @@ getCellValue(row, header) {
         doc.setTextColor(255, 255, 255);
         
         // Columna "Total de Horas"
-        doc.setFillColor(25, 118, 210);
+        doc.setFillColor(27, 58, 92);
         doc.rect(currentX, y, totalColumnWidth, mainHeaderHeight + subHeaderHeight, 'F');
         doc.rect(currentX, y, totalColumnWidth, mainHeaderHeight + subHeaderHeight);
         doc.text('Total de Horas', currentX + totalColumnWidth/2, y + (mainHeaderHeight + subHeaderHeight)/2 + 3, { align: 'center' });
@@ -1306,7 +1590,7 @@ getCellValue(row, header) {
         
         // Headers de semanas (solo las de esta página)
         headerStructure.weeks.forEach(weekNum => {
-            doc.setFillColor(25, 118, 210);
+            doc.setFillColor(27, 58, 92);
             doc.rect(currentX, y, weekColumnWidth, mainHeaderHeight, 'F');
             doc.rect(currentX, y, weekColumnWidth, mainHeaderHeight);
             doc.text(`Semana ${weekNum}`, currentX + weekColumnWidth/2, y + mainHeaderHeight/2 + 3, { align: 'center' });
@@ -1315,7 +1599,7 @@ getCellValue(row, header) {
             let subX = currentX;
             
             ['MODULO', 'TIEMPO', 'TARIFA', 'TOTAL'].forEach(subHeader => {
-                doc.setFillColor(33, 150, 243);
+                doc.setFillColor(44, 82, 130);
                 doc.rect(subX, y + mainHeaderHeight, subColumnWidth, subHeaderHeight, 'F');
                 doc.rect(subX, y + mainHeaderHeight, subColumnWidth, subHeaderHeight);
                 
@@ -1417,22 +1701,25 @@ getCellValue(row, header) {
             }
         });
         
-        // Dibujar sección de totales
-        doc.setDrawColor(25, 118, 210);
-        doc.setLineWidth(0.5);
-        doc.line(PDF_CONFIG.margin, y, pageWidth - PDF_CONFIG.margin, y);
+        const tableWidth = 150;
+        const margin = (pageWidth - tableWidth) / 2;
         
-        y += 8;
+        // Dibujar sección de totales
+        doc.setDrawColor(27, 58, 92);
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, pageWidth - margin, y); // Alineado con la tabla de 150mm
+        
+        y += 6; // Reducido de 8 a 6
         
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
+        doc.setFontSize(11); // Reducido de 13 a 11
         doc.setTextColor(ARVIC_COLORS.primary);
         
         doc.text(`Total Horas: ${totalHoras.toFixed(1)} hrs`, 
-                pageWidth - PDF_CONFIG.margin, y, { align: 'right' });
+                pageWidth - margin, y, { align: 'right' }); // Alineado con la tabla de 150mm
         
         doc.text(`Total Monto: $${totalMonto.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, 
-                pageWidth - PDF_CONFIG.margin, y + 10, { align: 'right' });
+                pageWidth - margin, y + 7, { align: 'right' }); // Alineado con la tabla de 150mm
         
         console.log(`✅ Totales: ${totalHoras.toFixed(1)} hrs, $${totalMonto.toFixed(2)}`);
     }
@@ -1443,20 +1730,21 @@ getCellValue(row, header) {
     addFooterWithPageNumber(doc, currentPage, totalPages) {
         const pageHeight = doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.getWidth();
-        const footerY = pageHeight - 15;
+        const footerY = pageHeight - 12; // Reducido de 15 a 12
+        const margin = 12; // Margen de 12mm en lugar de 15mm
         
         // Línea divisoria
-        doc.setDrawColor(25, 118, 210);
+        doc.setDrawColor(27, 58, 92);
         doc.setLineWidth(0.5);
-        doc.line(PDF_CONFIG.margin, footerY - 5, pageWidth - PDF_CONFIG.margin, footerY - 5);
+        doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4); // Reducido de -5 a -4
         
         // Texto del footer
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
+        doc.setFontSize(8.5); // Reducido de 9 a 8.5
         doc.setTextColor(100, 100, 100);
         
         doc.text('GRUPO IT ARVIC - Sistema de Gestión Empresarial', 
-                PDF_CONFIG.margin, footerY);
+                margin, footerY);
         
         const currentDate = new Date().toLocaleDateString('es-MX', {
             year: 'numeric',
@@ -1467,12 +1755,13 @@ getCellValue(row, header) {
         });
         
         doc.text(`Documento generado automáticamente - ${currentDate}`, 
-                PDF_CONFIG.margin, footerY + 6);
+                margin, footerY + 5); // Reducido de +6 a +5
         
         // Número de página
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5); // Reducido de 9 a 8.5
         doc.text(`Página ${currentPage} de ${totalPages}`, 
-                pageWidth - PDF_CONFIG.margin, footerY, { align: 'right' });
+                pageWidth - margin, footerY, { align: 'right' });
     }
 
     /**
@@ -1480,19 +1769,6 @@ getCellValue(row, header) {
      */
     drawProyectosSection(doc, proyectoData, pageWidth, startY) {    
         console.log('🎨 EJECUTANDO drawProyectosSection');
-        console.log('📁 proyectoData recibido:', proyectoData);
-        console.log('📏 pageWidth:', pageWidth);
-        console.log('📍 startY:', startY);
-
-        proyectoData.forEach((proyecto, i) => {
-            console.log(`Proyecto ${i}:`, {
-                projectName: proyecto.projectName,
-                moduleName: proyecto.moduleName,
-                totalHours: proyecto.totalHours,
-                tarifa: proyecto.tarifa,
-                total: proyecto.total
-            });
-        });
         
         if (!proyectoData || proyectoData.length === 0) {
             console.error('❌ proyectoData está vacío en drawProyectosSection');
@@ -1502,17 +1778,17 @@ getCellValue(row, header) {
         console.log('📁 Dibujando sección de proyectos:', proyectoData.length);
         
         let currentY = startY;
-        const margin = PDF_CONFIG.margin;
-        const tableWidth = pageWidth - (margin * 2);
+        const tableWidth = 150; // Reducido el ancho a 150mm para consistencia
+        const margin = (pageWidth - tableWidth) / 2; // Centrado
         
-        // Título de sección
-        doc.setFillColor(25, 118, 210);
-        doc.rect(margin, currentY, tableWidth, 10, 'F');
+        // Título de sección (más compacto)
+        doc.setFillColor(27, 58, 92);
+        doc.rect(margin, currentY, tableWidth, 7, 'F'); // Reducido de 10 a 7
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
+        doc.setFontSize(10); // Reducido de 12 a 10
         doc.setTextColor(255, 255, 255);
-        doc.text('PROYECTOS DEL CLIENTE', margin + 5, currentY + 7);
-        currentY += 12;
+        doc.text('PROYECTOS DEL CLIENTE', margin + 4, currentY + 5); // y-offset 5
+        currentY += 9; // Reducido de 12 a 9
         
         // Headers de tabla de proyectos
         const colWidths = [
@@ -1523,41 +1799,34 @@ getCellValue(row, header) {
             tableWidth * 0.15   // Total
         ];
         
-        doc.setFillColor(33, 150, 243);
+        doc.setFillColor(44, 82, 130);
         let currentX = margin;
         
         const headers = ['Proyecto', 'Módulo', 'Total Horas', 'Tarifa', 'Total'];
         headers.forEach((header, index) => {
-            // 1. Dibujar fondo azul
-            doc.setFillColor(33, 150, 243);
-            doc.rect(currentX, currentY, colWidths[index], 10, 'F');
+            doc.setFillColor(44, 82, 130);
+            doc.rect(currentX, currentY, colWidths[index], 6.5, 'F'); // Reducido de 10 a 7
             
-            // 2. Dibujar borde
-            doc.setDrawColor(33, 150, 243);
+            doc.setDrawColor(44, 82, 130);
             doc.setLineWidth(0.5);
-            doc.rect(currentX, currentY, colWidths[index], 10);
+            doc.rect(currentX, currentY, colWidths[index], 6.5);
             
-            // 3. Configurar texto DENTRO del loop (no antes)
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9);
-            doc.setTextColor(255, 255, 255);  // Blanco
+            doc.setFontSize(8.5); // Aumentado a 8.5pt
+            doc.setTextColor(255, 255, 255);
             
-            // 4. Dibujar texto
             const textX = currentX + colWidths[index]/2;
-            const textY = currentY + 7;
+            const textY = currentY + 4.5; // Ajustado y-offset
             doc.text(header, textX, textY, { align: 'center' });
-            
-            console.log(`Header "${header}" dibujado en (${textX}, ${textY})`);
             
             currentX += colWidths[index];
         });
 
-        // 5. CRÍTICO: Resetear colores antes de continuar
-        doc.setTextColor(0, 0, 0);  // Negro para datos
-        doc.setDrawColor(200, 200, 200);  // Gris para bordes de datos
+        doc.setTextColor(0, 0, 0);
+        doc.setDrawColor(200, 200, 200);
         doc.setLineWidth(0.2);
 
-        currentY += 10;
+        currentY += 6.5; // Reducido de 10 a 7
         
         // Agrupar por proyecto
         const projectGroups = {};
@@ -1572,7 +1841,7 @@ getCellValue(row, header) {
         // Dibujar datos por proyecto
         doc.setTextColor(0, 0, 0);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
+        doc.setFontSize(8.5); // Aumentado a 8.5pt para mejor legibilidad
         
         let totalProjectHours = 0;
         let totalProjectAmount = 0;
@@ -1582,68 +1851,227 @@ getCellValue(row, header) {
                 // Fondo alternado
                 if (index % 2 === 0) {
                     doc.setFillColor(245, 245, 245);
-                    doc.rect(margin, currentY, tableWidth, 8, 'F');
+                    doc.rect(margin, currentY, tableWidth, 6.5, 'F'); // Reducido de 8 a 6.5
                 }
                 
                 currentX = margin;
                 
                 // Proyecto (solo en primera fila del grupo)
                 doc.setFont('helvetica', index === 0 ? 'bold' : 'normal');
-                doc.rect(currentX, currentY, colWidths[0], 8);
+                doc.rect(currentX, currentY, colWidths[0], 6.5); // Reducido de 8 a 6.5
                 if (index === 0) {
-                    doc.text(projectName, currentX + 2, currentY + 5.5);
+                    doc.text(projectName, currentX + 2, currentY + 4.5); // y-offset 4.5
                 }
                 currentX += colWidths[0];
                 
                 // Módulo
                 doc.setFont('helvetica', 'normal');
-                doc.rect(currentX, currentY, colWidths[1], 8);
-                doc.text(window.convertModuleToAcronym(row.moduleName) || row.moduleName, currentX + 2, currentY + 5.5);
+                doc.rect(currentX, currentY, colWidths[1], 6.5); // Reducido de 8 a 6.5
+                doc.text(window.convertModuleToAcronym(row.moduleName) || row.moduleName, currentX + 2, currentY + 4.5);
                 currentX += colWidths[1];
 
                 // Total Horas
-                doc.rect(currentX, currentY, colWidths[2], 8);
-                doc.text(`${row.totalHours.toFixed(1)} hrs`, currentX + colWidths[2]/2, currentY + 5.5, { align: 'center' });
+                doc.rect(currentX, currentY, colWidths[2], 6.5); // Reducido de 8 a 6.5
+                doc.text(`${row.totalHours.toFixed(1)} hrs`, currentX + colWidths[2]/2, currentY + 4.5, { align: 'center' });
                 currentX += colWidths[2];
 
                 // Tarifa
-                doc.rect(currentX, currentY, colWidths[3], 8);
-                doc.text(`$${row.tarifa.toLocaleString('es-MX')}`, currentX + colWidths[3]/2, currentY + 5.5, { align: 'center' });
+                doc.rect(currentX, currentY, colWidths[3], 6.5); // Reducido de 8 a 6.5
+                doc.text(`$${row.tarifa.toLocaleString('es-MX')}`, currentX + colWidths[3]/2, currentY + 4.5, { align: 'center' });
                 currentX += colWidths[3];
 
                 // Total
-                doc.rect(currentX, currentY, colWidths[4], 8);
+                doc.rect(currentX, currentY, colWidths[4], 6.5); // Reducido de 8 a 6.5
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(0, 100, 0);
-                doc.text(`$${row.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, currentX + colWidths[4]/2, currentY + 5.5, { align: 'center' });
+                doc.text(`$${row.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, currentX + colWidths[4]/2, currentY + 4.5, { align: 'center' });
                 doc.setTextColor(0, 0, 0);
                 doc.setFont('helvetica', 'normal');
                 
                 totalProjectHours += row.totalHours;
                 totalProjectAmount += row.total;
                 
-                currentY += 8;
+                currentY += 6.5; // Reducido de 8 a 6.5
             });
         });
         
         // Totales de proyectos
         currentY += 2;
         doc.setFillColor(220, 220, 220);
-        doc.rect(margin, currentY, tableWidth, 10, 'F');
-        doc.rect(margin, currentY, tableWidth, 10);
+        doc.rect(margin, currentY, tableWidth, 7, 'F'); // Reducido de 10 a 7
+        doc.rect(margin, currentY, tableWidth, 7);
         
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
+        doc.setFontSize(9); // Aumentado a 9pt
         doc.setTextColor(0, 0, 0);
         
         currentX = margin;
-        doc.text('TOTAL PROYECTOS', currentX + 5, currentY + 7);
+        doc.text('TOTAL PROYECTOS', currentX + 4, currentY + 5);
         currentX += colWidths[0] + colWidths[1];
-        doc.text(`${totalProjectHours.toFixed(1)} hrs`, currentX + colWidths[2]/2, currentY + 7, { align: 'center' });
+        doc.text(`${totalProjectHours.toFixed(1)} hrs`, currentX + colWidths[2]/2, currentY + 5, { align: 'center' });
         currentX += colWidths[2] + colWidths[3];
-        doc.text(`$${totalProjectAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, currentX + colWidths[4]/2, currentY + 7, { align: 'center' });
+        doc.text(`$${totalProjectAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, currentX + colWidths[4]/2, currentY + 5, { align: 'center' });
         
         console.log(`✅ Sección de proyectos dibujada: ${proyectoData.length} módulos, $${totalProjectAmount.toFixed(2)}`);
+    }
+
+    /**
+     * DIBUJAR SECCIÓN DE DIFERENCIA DE HORAS EN PDF
+     */
+    drawDifferenceSection(doc, diffData, totalSoporteHours, pageWidth, startY) {
+        console.log('🎨 DIBUJANDO drawDifferenceSection');
+        
+        let currentY = startY;
+        const tableWidth = 150; // Reducido el ancho a 150mm para consistencia
+        const margin = (pageWidth - tableWidth) / 2; // Centrado
+        
+        // Título de la sección (más compacto)
+        doc.setFillColor(27, 58, 92); // Azul principal
+        doc.rect(margin, currentY, tableWidth, 7, 'F'); // Reducido de 10 a 7
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10); // Reducido de 12 a 10
+        doc.setTextColor(255, 255, 255);
+        doc.text('DIFERENCIA DE HORAS', margin + 4, currentY + 5); // y-offset 5
+        currentY += 9; // Reducido de 12 a 9
+        
+        // Anchos de columnas
+        const colWidths = [
+            tableWidth * 0.20,  // Factura
+            tableWidth * 0.35,  // Concepto
+            tableWidth * 0.15,  // Horas/Tiempo
+            tableWidth * 0.15,  // Tarifa
+            tableWidth * 0.15   // Total
+        ];
+        
+        // Headers de la tabla
+        doc.setFillColor(44, 82, 130); // Azul secundario
+        let currentX = margin;
+        
+        const headers = ['Factura/Referencia', 'Concepto', 'Horas/Tiempo', 'Tarifa', 'Total'];
+        headers.forEach((header, index) => {
+            doc.setFillColor(44, 82, 130);
+            doc.rect(currentX, currentY, colWidths[index], 6.5, 'F');
+            doc.setDrawColor(44, 82, 130);
+            doc.setLineWidth(0.5);
+            doc.rect(currentX, currentY, colWidths[index], 6.5);
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5); // Aumentado a 8.5pt
+            doc.setTextColor(255, 255, 255);
+            
+            const textX = currentX + colWidths[index]/2;
+            const textY = currentY + 4.5;
+            doc.text(header, textX, textY, { align: 'center' });
+            
+            currentX += colWidths[index];
+        });
+        
+        doc.setTextColor(0, 0, 0);
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.2);
+        currentY += 6.5;
+        
+        // Fila 1: Diferencia para OC (Auto-calculada, lectura)
+        currentX = margin;
+        
+        // Factura "-"
+        doc.rect(currentX, currentY, colWidths[0], 6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5); // Aumentado a 8.5
+        doc.text('-', currentX + colWidths[0]/2, currentY + 4.5, { align: 'center' });
+        currentX += colWidths[0];
+        
+        // Concepto "Diferencia para OC"
+        doc.rect(currentX, currentY, colWidths[1], 6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(180, 83, 9); // Color marrón/naranja sutil
+        doc.text('Diferencia para OC', currentX + 2, currentY + 4.5);
+        currentX += colWidths[1];
+        
+        // Horas
+        const diffHours = totalSoporteHours - 150;
+        doc.rect(currentX, currentY, colWidths[2], 6.5);
+        doc.text(`${diffHours.toFixed(1)} hrs`, currentX + colWidths[2]/2, currentY + 4.5, { align: 'center' });
+        currentX += colWidths[2];
+        
+        // Tarifa "-"
+        doc.rect(currentX, currentY, colWidths[3], 6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text('-', currentX + colWidths[3]/2, currentY + 4.5, { align: 'center' });
+        currentX += colWidths[3];
+        
+        // Total "-"
+        doc.rect(currentX, currentY, colWidths[4], 6.5);
+        doc.text('-', currentX + colWidths[4]/2, currentY + 4.5, { align: 'center' });
+        
+        currentY += 6.5;
+        
+        // Filas editables del administrador
+        let grandTotalDiffAmount = 0;
+        
+        diffData.forEach((row, index) => {
+            if (index % 2 === 0) {
+                doc.setFillColor(245, 245, 245);
+                doc.rect(margin, currentY, tableWidth, 6.5, 'F');
+            }
+            
+            currentX = margin;
+            
+            // Factura
+            doc.rect(currentX, currentY, colWidths[0], 6.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5); // Aumentado a 8.5
+            doc.text(row.factura || '-', currentX + colWidths[0]/2, currentY + 4.5, { align: 'center' });
+            currentX += colWidths[0];
+            
+            // Concepto
+            doc.rect(currentX, currentY, colWidths[1], 6.5);
+            doc.text(row.concepto || 'Concepto', currentX + 2, currentY + 4.5);
+            currentX += colWidths[1];
+            
+            // Horas/Tiempo
+            doc.rect(currentX, currentY, colWidths[2], 6.5);
+            doc.text(`${parseFloat(row.tiempo || 0).toFixed(1)} hrs`, currentX + colWidths[2]/2, currentY + 4.5, { align: 'center' });
+            currentX += colWidths[2];
+            
+            // Tarifa
+            doc.rect(currentX, currentY, colWidths[3], 6.5);
+            doc.text(`$${parseFloat(row.tarifa || 0).toLocaleString('es-MX')}`, currentX + colWidths[3]/2, currentY + 4.5, { align: 'center' });
+            currentX += colWidths[3];
+            
+            // Total
+            doc.rect(currentX, currentY, colWidths[4], 6.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 100, 0);
+            doc.text(`$${parseFloat(row.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, currentX + colWidths[4]/2, currentY + 4.5, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+            
+            grandTotalDiffAmount += parseFloat(row.total || 0);
+            currentY += 6.5;
+        });
+        
+        // Fila final total de la diferencia (Orden de Compra Pendiente) con fondo verde
+        currentY += 2;
+        doc.setFillColor(226, 240, 217);
+        doc.rect(margin, currentY, tableWidth, 7, 'F');
+        doc.setDrawColor(169, 208, 142); // Borde verde (#a9d08e)
+        doc.rect(margin, currentY, tableWidth, 7);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9); // Aumentado a 9pt
+        doc.setTextColor(55, 86, 35); // Texto verde oscuro (#375623)
+        
+        currentX = margin;
+        doc.text('Orden de Compra Pendiente', currentX + 4, currentY + 5);
+        currentX += colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3];
+        doc.text(`$${grandTotalDiffAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, currentX + colWidths[4]/2, currentY + 5, { align: 'center' });
+        
+        // Restaurar estado gráfico
+        doc.setTextColor(0, 0, 0);
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.2);
     }
 }
 
@@ -1733,7 +2161,7 @@ ARVICPDFExporter.prototype.drawRemanenteHeaders = function(doc, headerStructure,
     const weekColumnWidth = remainingWidth / headerStructure.totalWeeks;
     
     // Headers principales
-    doc.setFillColor(25, 118, 210);
+    doc.setFillColor(27, 58, 92);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(255, 255, 255);
@@ -1746,7 +2174,7 @@ ARVICPDFExporter.prototype.drawRemanenteHeaders = function(doc, headerStructure,
     
     // Headers de semanas
     for (let semana = 1; semana <= headerStructure.totalWeeks; semana++) {
-        doc.setFillColor(25, 118, 210);
+        doc.setFillColor(27, 58, 92);
         doc.rect(currentX, y, weekColumnWidth, mainHeaderHeight, 'F');
         doc.rect(currentX, y, weekColumnWidth, mainHeaderHeight);
         doc.text(`Semana ${semana}`, currentX + weekColumnWidth/2, y + mainHeaderHeight/2 + 3, { align: 'center' });
@@ -1755,7 +2183,7 @@ ARVICPDFExporter.prototype.drawRemanenteHeaders = function(doc, headerStructure,
         let subX = currentX;
         
         ['MODULO', 'TIEMPO', 'TARIFA', 'TOTAL'].forEach(subHeader => {
-            doc.setFillColor(33, 150, 243);
+            doc.setFillColor(44, 82, 130);
             doc.rect(subX, y + mainHeaderHeight, subColumnWidth, subHeaderHeight, 'F');
             doc.rect(subX, y + mainHeaderHeight, subColumnWidth, subHeaderHeight);
             
@@ -1774,7 +2202,7 @@ ARVICPDFExporter.prototype.drawRemanenteHeaders = function(doc, headerStructure,
 // Función 4: Dibujar filas de datos para remanente
 ARVICPDFExporter.prototype.drawRemanenteDataRow = function(doc, rowData, headers, columnWidths, y, rowIndex) {
     let currentX = 20;
-    const rowHeight = 18;
+    const rowHeight = 14; // Aumentado ligeramente de 13 a 14 para fuente 8.5
     
     if (rowIndex % 2 === 0) {
         doc.setFillColor(245, 245, 245);
@@ -1782,7 +2210,7 @@ ARVICPDFExporter.prototype.drawRemanenteDataRow = function(doc, rowData, headers
     }
     
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(8.5); // Aumentado a 8.5 para mejor legibilidad
     doc.setTextColor(0, 0, 0);
     
     // Total de Horas
@@ -1800,9 +2228,9 @@ ARVICPDFExporter.prototype.drawRemanenteDataRow = function(doc, rowData, headers
         const modulo = rowData[`modulo${semana}`] || '-';
         doc.rect(currentX, y, columnWidths[columnIndex], rowHeight);
         if (modulo !== '-' && modulo !== '') {
-            doc.setFontSize(7);
+            doc.setFontSize(7.5); // Aumentado a 7.5
             doc.text(modulo, currentX + 1, y + rowHeight/2 + 2);
-            doc.setFontSize(8);
+            doc.setFontSize(8.5);
         } else {
             doc.text('-', currentX + columnWidths[columnIndex]/2, y + rowHeight/2 + 2, { align: 'center' });
         }
@@ -1844,8 +2272,13 @@ async function exportCurrentReportToPDF() {
     try {
         console.log('🚀 Iniciando exportación PDF del reporte actual...');
         
-        // Validar que hay datos para exportar - VERSIÓN CORREGIDA
         const reportType = window.currentReportType || currentReportType;
+        
+        // Sincronizar inputs antes de exportar
+        if (reportType === 'remanente' && typeof window.extraerDatosRemanente === 'function') {
+            window.extraerDatosRemanente();
+        }
+        
         const previewData = window.editablePreviewData || editablePreviewData;
 
         console.log('🔍 Verificando datos:', {
@@ -1923,7 +2356,7 @@ function prepareMetadataForPDF() {
     const monthFilter = document.getElementById('monthFilter');
     
     if (clientFilter?.selectedOptions[0] && clientFilter.selectedOptions[0].value !== '') {
-        metadata.cliente = clientFilter.selectedOptions[0].text;
+        metadata.cliente = clientFilter.selectedOptions[0].text.replace(/\s*\([^)]*\)\s*$/, '');
     }
     
     if (consultantFilter?.selectedOptions[0] && consultantFilter.selectedOptions[0].value !== '') {
@@ -1936,6 +2369,7 @@ function prepareMetadataForPDF() {
     
     if (monthFilter?.selectedOptions[0] && monthFilter.selectedOptions[0].value !== '') {
         metadata.mes = monthFilter.selectedOptions[0].text;
+        metadata.monthKey = monthFilter.value; // Guardar monthKey para cálculos de semanas
     }
     
     return metadata;

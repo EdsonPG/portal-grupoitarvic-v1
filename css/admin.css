@@ -2682,6 +2682,17 @@ body {
     text-align: center;
 }
 
+.back-to-selector-btn {
+    transition: all 0.2s ease-in-out !important;
+}
+
+.back-to-selector-btn:hover {
+    background-color: #f3f4f6 !important;
+    border-color: #9ca3af !important;
+    color: #111827 !important;
+    transform: translateX(-3px) !important;
+}
+
 .config-title {
     color: #1e40af;
     font-size: 1.25rem;
@@ -5483,4 +5494,502 @@ body.dark-mode .item div[style*="background"] {
         transform: scale(1);
     }
 }
-
+
+/* === LÍMITE DE HORAS POR PROYECTO === */
+.project-hours-bar {
+    position: relative;
+    width: 100%;
+}
+
+.project-hours-bar.warning div {
+    background: #f59e0b !important; /* Yellow */
+}
+
+.project-hours-bar.danger div {
+    background: #ef4444 !important; /* Red */
+}
+
+.project-hours-bar.exceeded div {
+    background: #ef4444 !important; /* Red */
+    animation: barPulse 1.5s infinite;
+}
+
+@keyframes barPulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* ==========================================================================
+   UPGRADE ESTÉTICO PREMIUM Y UX - SECCIONES COLAPSABLES Y KPI CARDS
+   ========================================================================== */
+
+/* 1. MEJORAS EN EL SIDEBAR Y SECCIONES COLAPSABLES */
+.admin-sidebar {
+    background: #0f172a !important; /* Forzar el tono navy para consistencia */
+    border-right: 1px solid #1e293b !important;
+    box-shadow: none !important;
+    padding: var(--spacing-lg) 0 !important;
+}
+
+.sidebar-section {
+    padding: 0 14px !important; /* Reducir espacio izquierdo/derecho (de 32px a 14px) para acercar el menú al borde */
+    margin-bottom: var(--spacing-xl) !important;
+}
+
+/* Encabezados de sección interactivos y limpios */
+.sidebar-section-title {
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
+    color: #94a3b8 !important; /* Gris claro */
+    margin-bottom: var(--spacing-md) !important;
+    padding-bottom: var(--spacing-xs) !important;
+    border-bottom: none !important; /* Quitar la línea rígida */
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    user-select: none !important;
+    margin-top: var(--spacing-sm) !important;
+}
+
+/* Flecha rotativa del colapso */
+.section-toggle-icon {
+    font-size: 0.75rem;
+    color: #64748b;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-section.collapsed .section-toggle-icon {
+    transform: rotate(-90deg);
+}
+
+/* Transición suave para colapso */
+.sidebar-section .sidebar-menu {
+    max-height: 500px;
+    opacity: 1;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.3s ease;
+}
+
+.sidebar-section.collapsed .sidebar-menu {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    pointer-events: none;
+}
+
+/* Items del menú lateral planos */
+.sidebar-menu-item {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+    margin-bottom: 2px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transform: none !important;
+}
+
+.sidebar-menu-item .menu-text {
+    color: #94a3b8 !important; /* Texto legible sobre navy */
+    font-weight: 500 !important;
+    font-size: 0.82rem !important;
+}
+
+.sidebar-menu-item .menu-icon {
+    color: #64748b !important;
+    transition: color 0.2s ease;
+}
+
+/* Hover de item lateral */
+.sidebar-menu-item:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    transform: translateX(4px) !important;
+}
+
+.sidebar-menu-item:hover .menu-text {
+    color: white !important;
+}
+
+.sidebar-menu-item:hover .menu-icon {
+    color: var(--primary-light) !important;
+}
+
+/* Active de item lateral (Gradiente Premium y sombra de color) */
+.sidebar-menu-item.active {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%) !important;
+    transform: translateX(4px) !important;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3) !important;
+}
+
+.sidebar-menu-item.active .menu-text {
+    color: white !important;
+    font-weight: 600 !important;
+}
+
+.sidebar-menu-item.active .menu-icon {
+    color: white !important;
+    opacity: 1 !important;
+}
+
+/* Badges del sidebar */
+.menu-badge {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #94a3b8 !important;
+    font-size: 0.7rem !important;
+    padding: 2px 6px !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+}
+
+.sidebar-menu-item.active .menu-badge {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+}
+
+/* Scrollbar ultra-fino para el sidebar */
+.admin-sidebar::-webkit-scrollbar {
+    width: 4px !important;
+}
+
+.admin-sidebar::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 4px !important;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* 2. TARJETAS KPI PREMIUM (Glassmorphism + Sombras de Color) */
+.stat-card {
+    border-radius: 16px !important;
+    background: white !important;
+    border: 1px solid #f1f5f9 !important;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02) !important;
+    padding: 24px 20px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Sombras ambientales de color en hover */
+.stat-card--consultores:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 12px 28px -5px rgba(59, 130, 246, 0.22) !important;
+}
+
+.stat-card--empresas:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 12px 28px -5px rgba(16, 185, 129, 0.22) !important;
+}
+
+.stat-card--proyectos:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 12px 28px -5px rgba(139, 92, 246, 0.22) !important;
+}
+
+.stat-card--reportes:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 12px 28px -5px rgba(245, 158, 11, 0.22) !important;
+}
+
+.stat-card--soportes:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 12px 28px -5px rgba(6, 182, 212, 0.22) !important;
+}
+
+.stat-card--modulos:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 12px 28px -5px rgba(236, 72, 153, 0.22) !important;
+}
+
+/* Bordes en gradiente sutiles */
+.stat-card::before {
+    width: 4px !important;
+    border-radius: 16px 0 0 16px !important;
+}
+
+.stat-card--consultores::before { background: linear-gradient(to bottom, #3b82f6, #60a5fa) !important; }
+.stat-card--empresas::before { background: linear-gradient(to bottom, #10b981, #34d399) !important; }
+.stat-card--proyectos::before { background: linear-gradient(to bottom, #8b5cf6, #a78bfa) !important; }
+.stat-card--reportes::before { background: linear-gradient(to bottom, #f59e0b, #fbbf24) !important; }
+.stat-card--soportes::before { background: linear-gradient(to bottom, #06b6d4, #22d3ee) !important; }
+.stat-card--modulos::before { background: linear-gradient(to bottom, #ec4899, #f472b6) !important; }
+
+/* Contenedores de iconos con efecto Glass */
+.stat-card-icon {
+    border-radius: 14px !important;
+    width: 48px !important;
+    height: 48px !important;
+    transition: all 0.3s ease !important;
+}
+
+.stat-card:hover .stat-card-icon {
+    transform: scale(1.1);
+}
+
+.stat-card--consultores .stat-card-icon { background: rgba(59, 130, 246, 0.1) !important; color: #2563eb !important; }
+.stat-card--empresas .stat-card-icon { background: rgba(16, 185, 129, 0.1) !important; color: #059669 !important; }
+.stat-card--proyectos .stat-card-icon { background: rgba(139, 92, 246, 0.1) !important; color: #7c3aed !important; }
+.stat-card--reportes .stat-card-icon { background: rgba(245, 158, 11, 0.1) !important; color: #d97706 !important; }
+.stat-card--soportes .stat-card-icon { background: rgba(6, 182, 212, 0.1) !important; color: #0891b2 !important; }
+.stat-card--modulos .stat-card-icon { background: rgba(236, 72, 153, 0.1) !important; color: #db2777 !important; }
+
+/* 3. POLISH AL HEADER Y NOTIFICACIONES */
+.admin-header {
+    border-bottom: 1px solid #1e293b !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+.nav-action-btn:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Animación breath pulse al badge de notificaciones */
+.notify-badge {
+    animation: notifyPulse 2s infinite ease-in-out;
+}
+
+@keyframes notifyPulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* 4. ACCIONES RÁPIDAS Y RESUMEN */
+.panel-card {
+    border-radius: 16px !important;
+    border: 1px solid #f1f5f9 !important;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.quick-action-btn {
+    border-radius: 12px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 16px !important;
+    transition: all 0.25s ease !important;
+}
+
+.quick-action-btn:hover {
+    background: #eff6ff !important;
+    border-color: #3b82f6 !important;
+    color: #1e3a8a !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 15px rgba(59, 130, 246, 0.12) !important;
+}
+
+.system-summary .summary-row {
+    background: white !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    border-radius: 0 !important;
+    padding: 14px 8px !important;
+}
+
+.system-summary .summary-row:last-child {
+    border-bottom: none !important;
+}
+
+.system-summary .summary-row span i {
+    color: #3b82f6 !important;
+    margin-right: 8px;
+}
+
+.system-summary .summary-value {
+    color: #1e3a8a !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+}
+
+/* 5. CORRECCIONES CRÍTICAS DEL MODO OSCURO (DARK MODE) ACCESIBILIDAD */
+body.dark-mode .sidebar-menu-item .menu-text {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .sidebar-menu-item:hover .menu-text {
+    color: white !important;
+}
+
+body.dark-mode .sidebar-menu-item.active .menu-text {
+    color: white !important;
+}
+
+body.dark-mode .stat-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.dark-mode .stat-card-value {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .stat-card-label {
+    color: #94a3b8 !important;
+}
+
+/* Sombras coloreadas adaptadas para modo oscuro */
+body.dark-mode .stat-card--consultores:hover { box-shadow: 0 12px 28px -5px rgba(59, 130, 246, 0.35) !important; }
+body.dark-mode .stat-card--empresas:hover { box-shadow: 0 12px 28px -5px rgba(16, 185, 129, 0.35) !important; }
+body.dark-mode .stat-card--proyectos:hover { box-shadow: 0 12px 28px -5px rgba(139, 92, 246, 0.35) !important; }
+body.dark-mode .stat-card--reportes:hover { box-shadow: 0 12px 28px -5px rgba(245, 158, 11, 0.35) !important; }
+body.dark-mode .stat-card--soportes:hover { box-shadow: 0 12px 28px -5px rgba(6, 182, 212, 0.35) !important; }
+body.dark-mode .stat-card--modulos:hover { box-shadow: 0 12px 28px -5px rgba(236, 72, 153, 0.35) !important; }
+
+/* Corregir visibilidad del texto en tarjetas y modales en modo oscuro */
+body.dark-mode .card,
+body.dark-mode .admin-card,
+body.dark-mode .dashboard-card,
+body.dark-mode .consultor-card,
+body.dark-mode .assignment-card,
+body.dark-mode .item,
+body.dark-mode .panel-card,
+body.dark-mode .report-item {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important; /* Texto claro */
+}
+
+body.dark-mode .card-title,
+body.dark-mode .panel-card h3 {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .system-summary .summary-row {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .system-summary .summary-value {
+    color: #3b82f6 !important;
+}
+
+body.dark-mode .quick-action-btn {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .quick-action-btn:hover {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode .section-header {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.dark-mode .section-title {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .crud-table th {
+    background-color: #334155 !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode .crud-table td {
+    background-color: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+/* ==========================================
+   FUNCIONALIDAD DE REDIMENSIONAR EL SIDEBAR
+   ========================================== */
+.admin-sidebar {
+    position: relative; /* Clave para posicionar el resizer */
+}
+
+/* Evitar transición de ancho en el drag para fluidez */
+.admin-sidebar.resizing {
+    transition: none !important;
+}
+
+.sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 100;
+    background: transparent;
+    transition: background 0.2s ease;
+}
+
+.sidebar-resizer:hover,
+.admin-sidebar.resizing .sidebar-resizer {
+    background: rgba(59, 130, 246, 0.4) !important; /* Resaltado azul al hacer hover o drag */
+    width: 6px;
+}
+
+/* Línea de guía interna sutil */
+.sidebar-resizer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 2px;
+    width: 1px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    pointer-events: none;
+}
+
+body.dark-mode .sidebar-resizer:hover,
+body.dark-mode .admin-sidebar.resizing .sidebar-resizer {
+    background: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Ocultar resizer en pantallas móviles o tablets */
+@media (max-width: 768px) {
+    .sidebar-resizer {
+        display: none !important;
+    }
+}
+
+/* Toolbar de tablas CRUD con alineación flexible */
+.crud-toolbar {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 16px !important;
+    margin-bottom: 20px !important;
+    width: 100% !important;
+}
+
+.crud-toolbar .search-box {
+    flex: 1 !important;
+    max-width: 360px !important;
+}
+
+.crud-toolbar .add-btn {
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+}
+
+@media (max-width: 576px) {
+    .crud-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .crud-toolbar .search-box {
+        max-width: 100% !important;
+    }
+    .crud-toolbar .add-btn {
+        margin-left: 0 !important;
+        width: 100% !important;
+        justify-content: center !important;
+    }
+}
