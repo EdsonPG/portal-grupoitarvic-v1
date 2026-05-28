@@ -418,12 +418,12 @@ function setupEventListeners() {
             reportForm.addEventListener('submit', handleCreateReport);
         }
         
-        // Auto-refresh en segundo plano cada 30 segundos
+        // Auto-refresh en segundo plano cada 10 segundos
         setInterval(() => {
             if (isInitialized && !isUserInteracting()) {
                 silentDataRefresh();
             }
-        }, 30000);
+        }, 10000);
         
     } catch (error) {
         console.error('Error en setupEventListeners:', error);
@@ -503,6 +503,18 @@ async function silentDataRefresh() {
             if (window.NotificationUtils) {
                 window.NotificationUtils.info('Tienes nuevas asignaciones disponibles', 3000);
             }
+        }
+        
+        // Sincronizar reportes y actualizar grid/historial en segundo plano si está activo
+        const currentViewEl = document.querySelector('.consultor-sidebar .menu-item.active');
+        const currentView = currentViewEl ? currentViewEl.dataset.view : 'timesheet';
+        
+        if (currentView === 'timesheet') {
+            console.log('🔄 Sincronizando timesheet semanal en segundo plano...');
+            await renderTimesheetGrid();
+        } else if (currentView === 'historial') {
+            console.log('🔄 Sincronizando historial en segundo plano...');
+            await renderHistorial();
         }
         
     } catch (error) {
