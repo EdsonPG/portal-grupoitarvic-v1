@@ -376,6 +376,12 @@ class ChatWidget {
                     data.users.forEach(u => this.updateContactUIStatus(u.userId, u.status));
                 }
                 break;
+
+            case 'timesheet_updated':
+                console.log('📡 Evento de timesheet recibido via SSE:', data);
+                const tsEvent = new CustomEvent('timesheetUpdated', { detail: data });
+                document.dispatchEvent(tsEvent);
+                break;
         }
     }
 

@@ -241,6 +241,7 @@ let currentUser = null;
 let userAssignments = [];
 let currentAssignmentId = null;
 let isInitialized = false;
+let pendingRealtimeRefresh = false;
 
 // === MANEJO DE ERRORES ===
 function showError(message) {
@@ -421,9 +422,36 @@ function setupEventListeners() {
         // Auto-refresh en segundo plano cada 10 segundos
         setInterval(() => {
             if (isInitialized && !isUserInteracting()) {
-                silentDataRefresh();
+                if (pendingRealtimeRefresh) {
+                    console.log('🔄 Ejecutando refresco en tiempo real pospuesto...');
+                    pendingRealtimeRefresh = false;
+                    silentDataRefresh();
+                } else {
+                    silentDataRefresh();
+                }
             }
         }, 10000);
+
+        // Escuchar eventos en tiempo real via SSE
+        document.addEventListener('timesheetUpdated', async (e) => {
+            const data = e.detail;
+            console.log('🔔 Evento de timesheetUpdated capturado en Consultor:', data);
+            
+            // Determinar si el cambio afecta al consultor actual
+            const isCurrentUser = currentUser && (data.userId === currentUser.userId);
+            const isMassUpdate = data.action === 'mass-update' || !data.userId;
+            
+            if (isCurrentUser || isMassUpdate) {
+                if (!isUserInteracting()) {
+                    console.log('🔄 Actualizando grid de timesheet de inmediato via SSE...');
+                    pendingRealtimeRefresh = false;
+                    await silentDataRefresh();
+                } else {
+                    console.log('⏳ Usuario interactuando, posponiendo actualización en tiempo real.');
+                    pendingRealtimeRefresh = true;
+                }
+            }
+        });
         
     } catch (error) {
         console.error('Error en setupEventListeners:', error);

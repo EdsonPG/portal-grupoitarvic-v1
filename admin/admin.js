@@ -2763,6 +2763,7 @@ let currentData = {
 };
 
 let currentSection = 'panel-general';
+let pendingAdminRealtimeRefresh = false;
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
@@ -2887,9 +2888,50 @@ function setupEventListeners() {
     // Auto-actualización silenciosa cada 30 segundos
     setInterval(async () => {
         if (!isAdminInteracting()) {
-            await silentAdminRefresh();  // ← Agregar await
+            if (pendingAdminRealtimeRefresh) {
+                console.log('🔄 Ejecutando refresco en tiempo real pospuesto para el Admin...');
+                pendingAdminRealtimeRefresh = false;
+                await silentAdminRefresh();
+                if (currentSection === 'timesheets-semanales') {
+                    await renderAdminTimesheets();
+                } else if (currentSection === 'panel-general') {
+                    renderPanelGeneral();
+                } else if (currentSection === 'reportes-pendientes') {
+                    if (typeof initializeReportsFilters === 'function') {
+                        await initializeReportsFilters();
+                    }
+                }
+            } else {
+                await silentAdminRefresh();
+            }
         }
     }, 30000);
+
+    // Escuchar eventos en tiempo real via SSE para actualizaciones de timesheet
+    document.addEventListener('timesheetUpdated', async (e) => {
+        const data = e.detail;
+        console.log('🔔 Evento de timesheetUpdated capturado en Admin:', data);
+        
+        if (!isAdminInteracting()) {
+            console.log('🔄 Actualizando datos del admin de inmediato via SSE...');
+            pendingAdminRealtimeRefresh = false;
+            await silentAdminRefresh();
+            
+            // Re-renderizar si es necesario
+            if (currentSection === 'timesheets-semanales') {
+                await renderAdminTimesheets();
+            } else if (currentSection === 'panel-general') {
+                renderPanelGeneral();
+            } else if (currentSection === 'reportes-pendientes') {
+                if (typeof initializeReportsFilters === 'function') {
+                    await initializeReportsFilters();
+                }
+            }
+        } else {
+            console.log('⏳ Admin interactuando, posponiendo actualización en tiempo real.');
+            pendingAdminRealtimeRefresh = true;
+        }
+    });
 }
 
 // Detectar si el admin está interactuando

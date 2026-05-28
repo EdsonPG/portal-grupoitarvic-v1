@@ -77,6 +77,21 @@ router.post('/', async (req, res) => {
 
     console.log('✅ Reporte creado:', report.reportId);
 
+    // Trigger SSE real-time broadcast
+    try {
+      const chatRouter = require('./chat');
+      if (chatRouter && typeof chatRouter.broadcastSSE === 'function') {
+        chatRouter.broadcastSSE('timesheet_updated', {
+          userId: report.userId,
+          reportId: report.reportId,
+          status: report.status,
+          action: 'create'
+        });
+      }
+    } catch (sseErr) {
+      console.error('Error sending SSE for create report:', sseErr);
+    }
+
     res.status(201).json({ 
       success: true, 
       message: 'Reporte creado exitosamente',
@@ -121,6 +136,20 @@ router.put('/mass-update', async (req, res) => {
 
     console.log(`✅ Reportes actualizados: ${result.modifiedCount}`);
 
+    // Trigger SSE real-time broadcast
+    try {
+      const chatRouter = require('./chat');
+      if (chatRouter && typeof chatRouter.broadcastSSE === 'function') {
+        chatRouter.broadcastSSE('timesheet_updated', {
+          reportIds,
+          status,
+          action: 'mass-update'
+        });
+      }
+    } catch (sseErr) {
+      console.error('Error sending SSE for mass update:', sseErr);
+    }
+
     res.json({
       success: true,
       message: `${result.modifiedCount} reportes actualizados exitosamente`,
@@ -160,6 +189,21 @@ router.put('/:id', async (req, res) => {
 
     console.log('✅ Reporte actualizado');
 
+    // Trigger SSE real-time broadcast
+    try {
+      const chatRouter = require('./chat');
+      if (chatRouter && typeof chatRouter.broadcastSSE === 'function') {
+        chatRouter.broadcastSSE('timesheet_updated', {
+          userId: report.userId,
+          reportId: report.reportId,
+          status: report.status,
+          action: 'update'
+        });
+      }
+    } catch (sseErr) {
+      console.error('Error sending SSE for update report:', sseErr);
+    }
+
     res.json({ 
       success: true, 
       message: 'Reporte actualizado exitosamente',
@@ -186,6 +230,20 @@ router.delete('/:id', async (req, res) => {
     }
     
     console.log('✅ Reporte eliminado');
+
+    // Trigger SSE real-time broadcast
+    try {
+      const chatRouter = require('./chat');
+      if (chatRouter && typeof chatRouter.broadcastSSE === 'function') {
+        chatRouter.broadcastSSE('timesheet_updated', {
+          userId: report.userId,
+          reportId: report.reportId,
+          action: 'delete'
+        });
+      }
+    } catch (sseErr) {
+      console.error('Error sending SSE for delete report:', sseErr);
+    }
     
     res.json({ 
       success: true, 
