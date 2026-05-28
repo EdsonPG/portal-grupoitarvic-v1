@@ -55,7 +55,7 @@ const reportSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pendiente', 'Aprobado', 'Rechazado', 'Resubmitted'],
+    enum: ['Borrador', 'Pendiente', 'Aprobado', 'Rechazado', 'Resubmitted'],
     default: 'Pendiente'
   },
   feedback: {

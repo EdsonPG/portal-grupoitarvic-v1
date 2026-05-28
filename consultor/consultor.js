@@ -2065,6 +2065,15 @@ function navigateWeek(direction) {
 async function renderTimesheetGrid() {
     console.log('📊 Renderizando timesheet semanal...');
     
+    // Sincronizar borradores y reportes desde MongoDB Atlas
+    if (window.PortalDB && window.PortalDB.getReportsByUser && currentUser) {
+        try {
+            await window.PortalDB.getReportsByUser(currentUser.userId);
+        } catch (e) {
+            console.error('Error al sincronizar reportes desde la BD:', e);
+        }
+    }
+    
     if (!currentWeekStart) currentWeekStart = getMonday(new Date());
     
     const sunday = getSunday(currentWeekStart);
@@ -2282,6 +2291,9 @@ function onHourChange(input) {
     updateTimesheetTotals();
     saveTimesheetDraft();
     
+    // Sincronizar con MongoDB en segundo plano
+    saveDraftCellToMongoDB(aId, dayKey, hours, timesheetDraft[aId][dayKey].detail || '');
+    
     // If hours > 0 and no detail yet, prompt for detail
     if (hours > 0 && (!timesheetDraft[aId][dayKey].detail || !timesheetDraft[aId][dayKey].detail.trim())) {
         showDetailPopover(input, aId, dayKey);
@@ -2396,6 +2408,9 @@ function saveDetail(aId, dayKey) {
     closeDetailPopover();
     saveTimesheetDraft();
     
+    // Sincronizar detalle con MongoDB en segundo plano
+    saveDraftCellToMongoDB(aId, dayKey, hours, val);
+    
     if (window.NotificationUtils) {
         window.NotificationUtils.success('Detalle guardado', 1500);
     }
@@ -2450,6 +2465,87 @@ function saveTimesheetDraft() {
 }
 
 /**
+ * Guardar una celda individual de borrador en MongoDB Atlas
+ */
+async function saveDraftCellToMongoDB(aId, dayKey, hours, detail) {
+    if (!currentUser || !currentWeekStart || !window.PortalDB) return;
+    
+    const dayIndex = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].indexOf(dayKey);
+    if (dayIndex === -1) return;
+    
+    const cellDate = new Date(currentWeekStart);
+    cellDate.setDate(cellDate.getDate() + dayIndex);
+    const dateStr = toISODate(cellDate);
+    
+    const reportId = `rep_draft_${currentUser.userId}_${aId}_${dateStr.replace(/-/g, '')}`;
+    
+    try {
+        const reports = await window.PortalDB.getReports();
+        const existingReport = reports[reportId];
+        
+        if (hours === 0) {
+            if (existingReport) {
+                console.log(`🗑️ Eliminando borrador en la BD: ${reportId}`);
+                await window.PortalDB.deleteReport(reportId);
+            }
+            return;
+        }
+        
+        const assignment = userAssignments.find(a => 
+            (a.assignmentId === aId || a.projectAssignmentId === aId || a.taskAssignmentId === aId)
+        );
+        
+        let label = aId;
+        if (assignment) {
+            const company = await window.PortalDB.getCompany(assignment.companyId);
+            if (assignment.assignmentType === 'support') {
+                const support = await window.PortalDB.getSupport(assignment.supportId);
+                label = (support?.name || 'Soporte') + ' — ' + (company?.name || '');
+            } else if (assignment.assignmentType === 'project') {
+                const project = await window.PortalDB.getProject(assignment.projectId);
+                label = (project?.name || 'Proyecto') + ' — ' + (company?.name || '');
+            } else {
+                label = (assignment.descripcion || 'Tarea') + ' — ' + (company?.name || '');
+            }
+        }
+        
+        const reportData = {
+            reportId,
+            userId: currentUser.userId,
+            assignmentId: aId,
+            assignmentType: assignment?.assignmentType || 'support',
+            companyId: assignment?.companyId || 'GENERAL',
+            moduleId: assignment?.moduleId || 'GENERAL',
+            title: `Timesheet ${['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][dayIndex]} ${formatShortDate(cellDate)} — ${label}`,
+            description: detail || `Horas registradas: ${hours}h`,
+            hours,
+            date: dateStr,
+            reportDate: dateStr,
+            status: 'Borrador'
+        };
+        
+        if (assignment) {
+            if (assignment.supportId) reportData.supportId = assignment.supportId;
+            if (assignment.projectId) reportData.projectId = assignment.projectId;
+        }
+        
+        if (existingReport) {
+            console.log(`📝 Actualizando borrador en la BD: ${reportId}`);
+            await window.PortalDB.updateReport(reportId, {
+                hours,
+                description: reportData.description,
+                title: reportData.title
+            });
+        } else {
+            console.log(`➕ Creando borrador en la BD: ${reportId}`);
+            await window.PortalDB.createReport(reportData);
+        }
+    } catch (e) {
+        console.error('Error guardando celda de borrador en MongoDB:', e);
+    }
+}
+
+/**
  * Load draft from localStorage or existing timesheet
  */
 function loadTimesheetDraft(weekStartStr, existingTs) {
@@ -2479,6 +2575,32 @@ function clearWeekDraft() {
     timesheetDraft = {};
     const key = `ts_draft_${currentUser.userId}_${toISODate(currentWeekStart)}`;
     localStorage.removeItem(key);
+    
+    // Eliminar reportes de borrador en MongoDB Atlas en segundo plano
+    if (window.PortalDB && currentUser && currentWeekStart) {
+        const weekStartStr = toISODate(currentWeekStart);
+        window.PortalDB.getReports().then(reports => {
+            Object.values(reports).forEach(async report => {
+                if (report.userId === currentUser.userId && report.status === 'Borrador') {
+                    const dateStr = report.reportDate || report.date;
+                    if (dateStr) {
+                        const d = new Date(dateStr.split('T')[0] + 'T00:00:00');
+                        const day = d.getDay();
+                        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                        const monday = new Date(d.setDate(diff));
+                        if (toISODate(monday) === weekStartStr) {
+                            try {
+                                await window.PortalDB.deleteReport(report.reportId);
+                            } catch (e) {
+                                console.error('Error eliminando borrador en BD:', e);
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+    
     renderTimesheetGrid();
     
     if (window.NotificationUtils) {
@@ -2630,7 +2752,31 @@ async function submitWeeklyTimesheet() {
     }
     
     try {
-        // Generate individual reports for backwards compatibility
+        // 1. Eliminar borradores temporales correspondientes a esta semana en la BD
+        for (const entry of entries) {
+            for (let i = 0; i < 7; i++) {
+                const cellDate = new Date(currentWeekStart);
+                cellDate.setDate(cellDate.getDate() + i);
+                const dateStr = toISODate(cellDate);
+                const draftReportId = `rep_draft_${currentUser.userId}_${entry.assignmentId}_${dateStr.replace(/-/g, '')}`;
+                try {
+                    await window.PortalDB.deleteReport(draftReportId);
+                } catch (e) { /* ignore if draft doesn't exist */ }
+            }
+        }
+
+        // 2. Eliminar reportes antiguos asociados a este timesheet (en caso de re-envío)
+        if (existing && existing.generatedReportIds && existing.generatedReportIds.length > 0) {
+            for (const reportId of existing.generatedReportIds) {
+                try {
+                    await window.PortalDB.deleteReport(reportId);
+                } catch (e) {
+                    console.error('Error eliminando reporte antiguo:', e);
+                }
+            }
+        }
+
+        // 3. Crear los nuevos reportes permanentes en MongoDB
         const generatedReportIds = [];
         
         for (const entry of entries) {
@@ -2640,6 +2786,7 @@ async function submitWeeklyTimesheet() {
                 if (dayData.hours > 0) {
                     const cellDate = new Date(currentWeekStart);
                     cellDate.setDate(cellDate.getDate() + i);
+                    const dateStr = toISODate(cellDate);
                     
                     const assignment = userAssignments.find(a => 
                         (a.assignmentId === entry.assignmentId || 
@@ -2648,15 +2795,25 @@ async function submitWeeklyTimesheet() {
                     );
                     
                     if (assignment) {
+                        const reportId = 'REP' + Math.random().toString(36).substring(2, 6).toUpperCase() + Date.now().toString().slice(-4);
+                        
                         const reportData = {
+                            reportId,
                             userId: currentUser.userId,
                             assignmentId: entry.assignmentId,
                             assignmentType: entry.assignmentType,
+                            companyId: assignment.companyId || 'GENERAL',
+                            moduleId: assignment.moduleId || 'GENERAL',
                             title: `Timesheet ${DAY_LABELS[i]} ${formatShortDate(cellDate)} — ${entry.assignmentLabel}`,
                             description: dayData.detail || `Horas registradas: ${dayData.hours}h`,
                             hours: dayData.hours,
-                            reportDate: toISODate(cellDate)
+                            date: dateStr,
+                            reportDate: dateStr,
+                            status: 'Pendiente'
                         };
+                        
+                        if (assignment.supportId) reportData.supportId = assignment.supportId;
+                        if (assignment.projectId) reportData.projectId = assignment.projectId;
                         
                         const result = await window.PortalDB.createReport(reportData);
                         if (result.success && result.report) {
@@ -2667,7 +2824,7 @@ async function submitWeeklyTimesheet() {
             }
         }
         
-        // Create or update timesheet record
+        // 4. Crear o actualizar el registro de timesheet en PortalDB
         if (existing) {
             window.PortalDB.updateTimesheet(existing.timesheetId, {
                 entries,
@@ -2687,7 +2844,7 @@ async function submitWeeklyTimesheet() {
                 status: 'Pendiente',
                 generatedReportIds
             });
-            // Update the created timesheet with generatedReportIds
+            
             const ts = window.PortalDB.getTimesheetByWeek(currentUser.userId, weekStartStr);
             if (ts) {
                 window.PortalDB.updateTimesheet(ts.timesheetId, {
@@ -2760,7 +2917,7 @@ function checkRejectedTimesheets() {
 /**
  * Reopen a rejected timesheet for editing
  */
-function reopenRejectedTimesheet(timesheetId) {
+async function reopenRejectedTimesheet(timesheetId) {
     const ts = Object.values(window.PortalDB.getTimesheets()).find(t => t.timesheetId === timesheetId);
     if (!ts) return;
     
@@ -2770,7 +2927,45 @@ function reopenRejectedTimesheet(timesheetId) {
     // Update status to Borrador so it can be re-edited
     window.PortalDB.updateTimesheet(timesheetId, { status: 'Borrador' });
     
-    renderTimesheetGrid();
+    // Convertir reportes rechazados a borradores en MongoDB Atlas
+    if (ts.generatedReportIds && ts.generatedReportIds.length > 0) {
+        try {
+            const reports = await window.PortalDB.getReports();
+            for (const reportId of ts.generatedReportIds) {
+                const report = reports[reportId];
+                if (report) {
+                    const dateStr = report.reportDate || report.date;
+                    const aId = report.assignmentId;
+                    const draftReportId = `rep_draft_${currentUser.userId}_${aId}_${dateStr.split('T')[0].replace(/-/g, '')}`;
+                    
+                    // Crear el borrador correspondiente en la BD
+                    await window.PortalDB.createReport({
+                        reportId: draftReportId,
+                        userId: currentUser.userId,
+                        assignmentId: aId,
+                        assignmentType: report.assignmentType,
+                        companyId: report.companyId,
+                        moduleId: report.moduleId,
+                        title: report.title,
+                        description: report.description,
+                        hours: report.hours,
+                        date: dateStr,
+                        reportDate: dateStr,
+                        status: 'Borrador',
+                        supportId: report.supportId || undefined,
+                        projectId: report.projectId || undefined
+                    });
+                    
+                    // Eliminar el reporte rechazado antiguo
+                    await window.PortalDB.deleteReport(reportId);
+                }
+            }
+        } catch (e) {
+            console.error('Error al convertir reportes rechazados a borradores:', e);
+        }
+    }
+    
+    await renderTimesheetGrid();
     
     if (window.NotificationUtils) {
         window.NotificationUtils.info('Timesheet reabierto para corrección. Edita y vuelve a enviar.');
@@ -2806,9 +3001,18 @@ function switchConsultorView(viewName) {
 /**
  * Render historial table
  */
-function renderHistorial() {
+async function renderHistorial() {
     const tbody = document.getElementById('historialBody');
     if (!tbody || !currentUser) return;
+    
+    // Sincronizar borradores y reportes desde MongoDB Atlas
+    if (window.PortalDB && window.PortalDB.getReportsByUser) {
+        try {
+            await window.PortalDB.getReportsByUser(currentUser.userId);
+        } catch (e) {
+            console.error('Error al sincronizar reportes desde la BD:', e);
+        }
+    }
     
     const allTs = window.PortalDB.getTimesheetsByUser(currentUser.userId);
     

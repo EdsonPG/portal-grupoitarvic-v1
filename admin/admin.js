@@ -10963,6 +10963,16 @@ window.openOmniCreateDrawer = function() {
  */
 async function renderAdminTimesheets() {
     console.log('📊 Renderizando timesheets para admin...');
+    
+    // Sincronizar reportes desde MongoDB Atlas para reconstruir timesheets
+    if (window.PortalDB && window.PortalDB.getReports) {
+        try {
+            await window.PortalDB.getReports();
+        } catch (e) {
+            console.error('Error al sincronizar reportes en renderAdminTimesheets:', e);
+        }
+    }
+    
     const tbody = document.getElementById('adminTimesheetsBody');
     if (!tbody) {
         console.warn('adminTimesheetsBody not found');
@@ -11111,6 +11121,22 @@ async function rejectTimesheet(timesheetId) {
             
             if (result.success) {
                 window.NotificationUtils.success('Timesheet rechazado');
+                
+                // Actualizar el estado de los reportes en MongoDB Atlas a 'Rechazado'
+                const ts = Object.values(window.PortalDB.getTimesheets()).find(t => t.timesheetId === timesheetId);
+                if (ts && ts.generatedReportIds) {
+                    for (const reportId of ts.generatedReportIds) {
+                        try {
+                            await window.PortalDB.updateReport(reportId, { 
+                                status: 'Rechazado',
+                                feedback: reason || ''
+                            });
+                        } catch (e) {
+                            console.error('Error al actualizar reporte a rechazado:', e);
+                        }
+                    }
+                }
+                
                 await renderAdminTimesheets();
                 updateSidebarCounts();
             } else {

@@ -1165,6 +1165,13 @@ class PortalDatabase {
                     };
                     reportsObj[report.reportId] = mappedReport;
                 });
+                
+                try {
+                    this.reconstructTimesheetsFromReports(result.data);
+                } catch (e) {
+                    console.error('Error reconstructing timesheets in getReports:', e);
+                }
+                
                 return reportsObj;
             }
             
@@ -1181,7 +1188,15 @@ class PortalDatabase {
                 headers: this.getHeaders()
             });
             const data = await response.json();
-            return data.success ? data.data : [];
+            if (data.success && Array.isArray(data.data)) {
+                try {
+                    this.reconstructTimesheetsFromReports(data.data);
+                } catch (e) {
+                    console.error('Error reconstructing timesheets in getReportsByUser:', e);
+                }
+                return data.data;
+            }
+            return [];
         } catch (error) {
             console.error('❌ Error obteniendo reportes del usuario:', error);
             return [];
@@ -2148,6 +2163,178 @@ async getTarifario() {
         } catch (error) {
             console.error('❌ Error creando sala de video:', error);
             return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    reconstructTimesheetsFromReports(reportsArray) {
+        if (!reportsArray || !Array.isArray(reportsArray)) return;
+
+        // Group reports by userId and weekStart
+        const groups = {};
+        
+        reportsArray.forEach(report => {
+            const userId = report.userId;
+            const dateStr = report.reportDate || report.date;
+            if (!userId || !dateStr) return;
+            
+            const baseDateStr = dateStr.split('T')[0];
+            const d = new Date(baseDateStr + 'T00:00:00');
+            if (isNaN(d.getTime())) return;
+            
+            // Calculate Monday
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(d.setDate(diff));
+            const y = monday.getFullYear();
+            const m = String(monday.getMonth() + 1).padStart(2, '0');
+            const dayNum = String(monday.getDate()).padStart(2, '0');
+            const weekStartStr = `${y}-${m}-${dayNum}`;
+            
+            const key = `${userId}_${weekStartStr}`;
+            if (!groups[key]) {
+                groups[key] = {
+                    userId,
+                    weekStart: weekStartStr,
+                    reports: []
+                };
+            }
+            groups[key].reports.push(report);
+        });
+        
+        // Load current arvic_timesheets
+        let timesheets = {};
+        try {
+            const data = localStorage.getItem('arvic_timesheets');
+            if (data) timesheets = JSON.parse(data);
+        } catch (e) {
+            console.error('Error parsing arvic_timesheets:', e);
+        }
+        
+        // Reconstruct timesheets
+        Object.values(groups).forEach(group => {
+            const { userId, weekStart, reports } = group;
+            
+            const weekStartObj = new Date(weekStart + 'T00:00:00');
+            const sunday = new Date(weekStartObj);
+            sunday.setDate(sunday.getDate() + 6);
+            const y = sunday.getFullYear();
+            const m = String(sunday.getMonth() + 1).padStart(2, '0');
+            const d = String(sunday.getDate()).padStart(2, '0');
+            const weekEndStr = `${y}-${m}-${d}`;
+            
+            const timesheetId = `ts_${userId}_${weekStart.replace(/-/g, '')}`;
+            
+            // Build entries
+            const entriesMap = {};
+            let totalWeekHours = 0;
+            const generatedReportIds = [];
+            
+            let hasPending = false;
+            let hasRejected = false;
+            let hasBorrador = false;
+            let rejectionReason = null;
+            
+            reports.forEach(report => {
+                const reportId = report.reportId || report.id || report._id;
+                generatedReportIds.push(reportId);
+                
+                const repStatus = report.status || report.estado || 'Pendiente';
+                if (repStatus === 'Pendiente' || repStatus === 'Resubmitted') {
+                    hasPending = true;
+                } else if (repStatus === 'Rechazado') {
+                    hasRejected = true;
+                    if (report.feedback) {
+                        rejectionReason = report.feedback;
+                    }
+                } else if (repStatus === 'Borrador') {
+                    hasBorrador = true;
+                }
+                
+                const hours = parseFloat(report.hours) || 0;
+                totalWeekHours += hours;
+                
+                const assignmentId = report.assignmentId;
+                if (!entriesMap[assignmentId]) {
+                    let label = report.title || assignmentId;
+                    if (label.includes(' — ')) {
+                        label = label.split(' — ')[1];
+                    }
+                    entriesMap[assignmentId] = {
+                        assignmentId,
+                        assignmentType: report.assignmentType || 'support',
+                        assignmentLabel: label,
+                        days: {
+                            mon: { hours: 0, detail: '' },
+                            tue: { hours: 0, detail: '' },
+                            wed: { hours: 0, detail: '' },
+                            thu: { hours: 0, detail: '' },
+                            fri: { hours: 0, detail: '' },
+                            sat: { hours: 0, detail: '' },
+                            sun: { hours: 0, detail: '' }
+                        },
+                        totalHours: 0
+                    };
+                }
+                
+                const repDate = new Date((report.date || report.reportDate).split('T')[0] + 'T00:00:00');
+                const dayIndex = repDate.getDay();
+                const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayIndex];
+                
+                entriesMap[assignmentId].days[dayKey].hours = hours;
+                entriesMap[assignmentId].days[dayKey].detail = report.description || '';
+                entriesMap[assignmentId].totalHours += hours;
+            });
+            
+            let status = 'Borrador';
+            if (hasRejected) {
+                status = 'Rechazado';
+            } else if (hasPending) {
+                status = 'Pendiente';
+            } else if (!hasBorrador) {
+                status = 'Aprobado';
+            }
+            
+            // Resolve userName
+            let userName = existing.userName || '';
+            if (!userName) {
+                try {
+                    const session = JSON.parse(localStorage.getItem('arvic_current_session'));
+                    if (session && session.user && session.user.userId === userId) {
+                        userName = session.user.name;
+                    }
+                } catch(e) {}
+            }
+            if (!userName && this.cache && this.cache.users && this.cache.users[userId]) {
+                userName = this.cache.users[userId].name;
+            }
+            
+            timesheets[timesheetId] = {
+                timesheetId,
+                userId,
+                userName,
+                weekStart,
+                weekEnd: weekEndStr,
+                entries: Object.values(entriesMap),
+                totalWeekHours,
+                status: existing.status === 'Borrador' ? 'Borrador' : status,
+                generatedReportIds,
+                submittedAt: existing.submittedAt || reports[0].createdAt || new Date().toISOString(),
+                reviewedAt: existing.reviewedAt || null,
+                reviewedBy: existing.reviewedBy || null,
+                rejectionReason: rejectionReason || existing.rejectionReason || null,
+                createdAt: existing.createdAt || reports[0].createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+        });
+        
+        localStorage.setItem('arvic_timesheets', JSON.stringify(timesheets));
+    }
+
+    async syncTimesheetsFromDB(userId) {
+        if (userId) {
+            await this.getReportsByUser(userId);
+        } else {
+            await this.getReports();
         }
     }
 
