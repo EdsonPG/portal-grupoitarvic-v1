@@ -1651,7 +1651,8 @@ async function updateAssignmentsList() {
         assignmentType: 'task'
     }));
     
-    const allAssignments = [...supportAssignments, ...projectAssignments, ...taskAssignments];
+    const allAssignments = [...supportAssignments, ...projectAssignments, ...taskAssignments]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     
     console.log('📊 Total asignaciones:', {
         soporte: supportAssignments.length,
@@ -1663,6 +1664,8 @@ async function updateAssignmentsList() {
     // ============================================================
     // LISTA COMPLETA
     // ============================================================
+    updateAssignmentsFilterCounts(allAssignments);
+
     if (allAssignments.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
@@ -1671,118 +1674,16 @@ async function updateAssignmentsList() {
                 <div class="empty-state-desc">Las asignaciones creadas aparecerán aquí</div>
             </div>
         `;
+        const pagination = document.getElementById('assignmentsPagination');
+        if (pagination) pagination.style.display = 'none';
     } else {
         container.innerHTML = '';
-        
+
         allAssignments.forEach(assignment => {
-            const assignmentDiv = document.createElement('div');
-            assignmentDiv.className = 'item hover-lift';
-
-            let assignmentId, displayId, consultor, company, workName, moduleName, typeLabel, typeIcon, typeBadgeClass, deleteHandler, editHandler;
-
-            if (assignment.assignmentType === 'support') {
-                assignmentId = assignment.assignmentId;
-                displayId = assignmentId ? assignmentId.slice(-6) : 'N/A';
-                const user = currentData.users[assignment.userId];
-                const support = currentData.supports[assignment.supportId];
-                const mod = currentData.modules[assignment.moduleId];
-                company = currentData.companies[assignment.companyId];
-                consultor = user;
-                workName = support?.name || 'No encontrado';
-                moduleName = mod?.name || 'No asignado';
-                typeLabel = 'SOPORTE';
-                typeIcon = 'fa-headset';
-                typeBadgeClass = 'badge-info';
-                deleteHandler = `deleteAssignment('${assignmentId}')`;
-                editHandler = null;
-
-            } else if (assignment.assignmentType === 'project') {
-                assignmentId = assignment.projectAssignmentId;
-                displayId = assignmentId ? assignmentId.slice(-6) : 'N/A';
-                const user = currentData.users[assignment.consultorId];
-                const project = currentData.projects[assignment.projectId];
-                const mod = currentData.modules[assignment.moduleId];
-                company = currentData.companies[assignment.companyId];
-                consultor = user;
-                workName = project?.name || 'No encontrado';
-                moduleName = mod?.name || 'No asignado';
-                typeLabel = 'PROYECTO';
-                typeIcon = 'fa-folder-open';
-                typeBadgeClass = 'badge-success';
-                deleteHandler = `deleteProjectAssignment('${assignmentId}')`;
-                editHandler = null;
-
-            } else if (assignment.assignmentType === 'task') {
-                assignmentId = assignment.taskAssignmentId;
-                displayId = assignmentId ? assignmentId.slice(-6) : 'N/A';
-                const user = currentData.users[assignment.consultorId];
-                const support = currentData.supports[assignment.linkedSupportId];
-                const mod = currentData.modules[assignment.moduleId];
-                company = currentData.companies[assignment.companyId];
-                consultor = user;
-                workName = assignment.descripcion ? window.TextUtils.truncate(assignment.descripcion, 40) : 'Sin descripción';
-                moduleName = mod?.name || 'No asignado';
-                typeLabel = 'TAREA';
-                typeIcon = 'fa-tasks';
-                typeBadgeClass = 'badge-warning';
-                deleteHandler = `deactivateTask('${assignmentId}')`;
-                editHandler = `editTask('${assignmentId}')`;
-            }
-
-            const margen = ((assignment.tarifaCliente || 0) - (assignment.tarifaConsultor || 0)).toFixed(2);
-
-            assignmentDiv.innerHTML = `
-                <div style="display: flex; flex-direction: column; gap: 0; width: 100%;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;
-                                padding-bottom: 16px; margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="custom-badge ${typeBadgeClass}" style="font-size:0.7rem;">
-                                <i class="fa-solid ${typeIcon}"></i> ${typeLabel}
-                            </span>
-                            <strong style="font-size: 1rem;">${workName}</strong>
-                            <span class="item-id" style="font-size:0.7rem;">${displayId}</span>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            ${editHandler ? `<button class="btn btn-sm btn-primary" onclick="${editHandler}" title="Editar"><i class="fa-solid fa-edit"></i></button>` : ''}
-                            <button class="btn btn-sm btn-danger" onclick="${deleteHandler}" title="Eliminar">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center;
-                                padding: 12px 20px; margin: 0 -20px 0 -20px;
-                                border-top: 1px solid #e5e7eb; background: #f9fafb;">
-                        <small style="color: #555; font-weight: 500; font-size: 0.8rem;">
-                            <i class="fa-solid fa-user" style="color:#3b82f6;"></i>
-                            ${consultor?.name || 'No asignado'} <span style="color:#9ca3af;">(${assignment.userId || assignment.consultorId || 'N/A'})</span>
-                        </small>
-                        <small style="color: #555; font-weight: 500; font-size: 0.8rem;">
-                            <i class="fa-solid fa-building" style="color:#6b7280;"></i> ${company?.name || 'No asignado'}
-                        </small>
-                        <small style="color: #555; font-weight: 500; font-size: 0.8rem;">
-                            <i class="fa-solid fa-puzzle-piece" style="color:#8b5cf6;"></i> ${moduleName}
-                        </small>
-                    </div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center;
-                                padding: 12px 20px; margin: 0 -20px -20px -20px;
-                                border-top: 1px solid #e5e7eb; background: #ffffff;">
-                        <small style="color: #666; font-size: 0.75rem;">
-                            <i class="fa-solid fa-user-tie" style="color:#10b981;"></i> Consultor: <strong>$${assignment.tarifaConsultor || 0}/hr</strong>
-                        </small>
-                        <small style="color: #666; font-size: 0.75rem;">
-                            <i class="fa-solid fa-building" style="color:#3b82f6;"></i> Cliente: <strong>$${assignment.tarifaCliente || 0}/hr</strong>
-                        </small>
-                        <small style="color: #666; font-size: 0.75rem;">
-                            Margen: <strong style="color:${parseFloat(margen) >= 0 ? '#10b981' : '#ef4444'};">$${margen}/hr</strong>
-                        </small>
-                    </div>
-                </div>
-            `;
-
-            container.appendChild(assignmentDiv);
+            container.appendChild(createAssignmentListCard(assignment));
         });
+        assignmentsListPage = 1;
+        applyAssignmentsListView();
     }
     
     // ============================================================
@@ -1897,6 +1798,239 @@ async function updateAssignmentsList() {
     }
     
     console.log('✅ Lista de asignaciones actualizada');
+}
+
+function resolveAssignmentListModel(assignment) {
+    let assignmentId = 'N/A';
+    let consultor = null;
+    let company = null;
+    let workName = 'No encontrado';
+    let moduleName = 'No asignado';
+    let typeLabel = 'Asignación';
+    let typeIcon = 'fa-link';
+    let typeClass = 'support';
+    let deleteHandler = '';
+    let editHandler = '';
+
+    if (assignment.assignmentType === 'support') {
+        assignmentId = assignment.assignmentId;
+        consultor = currentData.users?.[assignment.userId];
+        company = currentData.companies?.[assignment.companyId];
+        const support = currentData.supports?.[assignment.supportId];
+        const mod = currentData.modules?.[assignment.moduleId];
+        workName = support?.name || 'Soporte no encontrado';
+        moduleName = mod?.name || 'No asignado';
+        typeLabel = 'Soporte';
+        typeIcon = 'fa-headset';
+        typeClass = 'support';
+        deleteHandler = `deleteAssignment('${assignmentId}')`;
+    } else if (assignment.assignmentType === 'project') {
+        assignmentId = assignment.projectAssignmentId;
+        consultor = currentData.users?.[assignment.consultorId];
+        company = currentData.companies?.[assignment.companyId];
+        const project = currentData.projects?.[assignment.projectId];
+        const mod = currentData.modules?.[assignment.moduleId];
+        workName = project?.name || 'Proyecto no encontrado';
+        moduleName = mod?.name || 'No asignado';
+        typeLabel = 'Proyecto';
+        typeIcon = 'fa-folder-open';
+        typeClass = 'project';
+        deleteHandler = `deleteProjectAssignment('${assignmentId}')`;
+    } else if (assignment.assignmentType === 'task') {
+        assignmentId = assignment.taskAssignmentId;
+        consultor = currentData.users?.[assignment.consultorId];
+        company = currentData.companies?.[assignment.companyId];
+        const mod = currentData.modules?.[assignment.moduleId];
+        workName = assignment.descripcion ? window.TextUtils.truncate(assignment.descripcion, 72) : 'Tarea sin descripción';
+        moduleName = mod?.name || 'No asignado';
+        typeLabel = 'Tarea';
+        typeIcon = 'fa-list-check';
+        typeClass = 'task';
+        deleteHandler = `deactivateTask('${assignmentId}')`;
+        editHandler = `editTask('${assignmentId}')`;
+    }
+
+    const consultorRate = Number(assignment.tarifaConsultor || assignment.costoConsultor || 0);
+    const clientRate = Number(assignment.tarifaCliente || assignment.costoCliente || 0);
+    const margin = clientRate - consultorRate;
+    const displayId = assignmentId && assignmentId !== 'N/A' ? assignmentId.slice(-6).toUpperCase() : 'N/A';
+    const consultorId = assignment.userId || assignment.consultorId || 'N/A';
+    const searchable = normalizeAssignmentSearchText([
+        assignmentId,
+        displayId,
+        typeLabel,
+        workName,
+        consultor?.name,
+        consultorId,
+        company?.name,
+        moduleName,
+        consultorRate,
+        clientRate,
+        margin
+    ].filter(Boolean).join(' '));
+
+    return {
+        assignmentId,
+        displayId,
+        type: assignment.assignmentType,
+        typeLabel,
+        typeIcon,
+        typeClass,
+        workName,
+        consultorName: consultor?.name || 'No asignado',
+        consultorId,
+        companyName: company?.name || 'No asignado',
+        moduleName,
+        consultorRate,
+        clientRate,
+        margin,
+        deleteHandler,
+        editHandler,
+        searchable
+    };
+}
+
+function createAssignmentListCard(assignment) {
+    const model = resolveAssignmentListModel(assignment);
+    const card = document.createElement('article');
+    card.className = `assignment-list-card assignment-list-card--${model.typeClass}`;
+    card.dataset.assignmentType = model.type;
+    card.dataset.searchable = model.searchable;
+    card.dataset.filteredOut = 'false';
+    card.title = `${model.typeLabel}: ${model.workName} | ${model.consultorName} (${model.consultorId}) | ${model.companyName} | ${model.moduleName}`;
+
+    card.innerHTML = `
+        <div class="assignment-list-main">
+            <div class="assignment-list-title-row">
+                <span class="assignment-type-pill assignment-type-pill--${model.typeClass}">
+                    <i class="fa-solid ${model.typeIcon}"></i> ${model.typeLabel}
+                </span>
+                <h3>${model.workName}</h3>
+                <span class="assignment-id-pill">${model.displayId}</span>
+            </div>
+            <div class="assignment-list-meta">
+                <span><i class="fa-solid fa-user"></i> ${model.consultorName} <em>(${model.consultorId})</em></span>
+                <span><i class="fa-solid fa-building"></i> ${model.companyName}</span>
+                <span><i class="fa-solid fa-puzzle-piece"></i> ${model.moduleName}</span>
+            </div>
+        </div>
+        <div class="assignment-list-money">
+            <span><small>Consultor</small><strong>$${model.consultorRate.toFixed(2)}/hr</strong></span>
+            <span><small>Cliente</small><strong>$${model.clientRate.toFixed(2)}/hr</strong></span>
+            <span><small>Margen</small><strong class="${model.margin >= 0 ? 'positive' : 'negative'}">$${model.margin.toFixed(2)}/hr</strong></span>
+        </div>
+        <div class="assignment-list-actions">
+            ${model.editHandler ? `<button type="button" class="crud-action-btn edit" onclick="${model.editHandler}" title="Editar" aria-label="Editar asignación ${model.displayId}"><i class="fa-solid fa-pen"></i></button>` : ''}
+            <button type="button" class="crud-action-btn delete" onclick="${model.deleteHandler}" title="Eliminar" aria-label="Eliminar asignación ${model.displayId}"><i class="fa-solid fa-trash"></i></button>
+        </div>
+    `;
+
+    return card;
+}
+
+function normalizeAssignmentSearchText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function updateAssignmentsFilterCounts(assignments) {
+    const counts = {
+        all: assignments.length,
+        support: assignments.filter(a => a.assignmentType === 'support').length,
+        project: assignments.filter(a => a.assignmentType === 'project').length,
+        task: assignments.filter(a => a.assignmentType === 'task').length
+    };
+
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
+
+    setText('assignmentsFilterAll', counts.all);
+    setText('assignmentsFilterSupport', counts.support);
+    setText('assignmentsFilterProject', counts.project);
+    setText('assignmentsFilterTask', counts.task);
+}
+
+function setAssignmentsFilter(type) {
+    assignmentsListFilter = type;
+    assignmentsListPage = 1;
+    document.querySelectorAll('.assignment-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.assignmentFilter === type);
+    });
+    applyAssignmentsListView();
+}
+
+function setAssignmentsPageSize(size) {
+    assignmentsListPageSize = parseInt(size, 10) || 10;
+    assignmentsListPage = 1;
+    applyAssignmentsListView();
+}
+
+function changeAssignmentsPage(delta) {
+    assignmentsListPage = Math.max(1, assignmentsListPage + delta);
+    applyAssignmentsListView();
+}
+
+function filterAssignmentsList() {
+    assignmentsListPage = 1;
+    applyAssignmentsListView();
+}
+
+function applyAssignmentsListView() {
+    const container = document.getElementById('assignmentsList');
+    if (!container) return;
+
+    const search = normalizeAssignmentSearchText(document.getElementById('searchAssignmentsList')?.value || '');
+    const cards = Array.from(container.querySelectorAll('.assignment-list-card'));
+    if (cards.length === 0) return;
+
+    const matchingCards = cards.filter(card => {
+        const matchesType = assignmentsListFilter === 'all' || card.dataset.assignmentType === assignmentsListFilter;
+        const matchesSearch = !search || (card.dataset.searchable || '').includes(search);
+        return matchesType && matchesSearch;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(matchingCards.length / assignmentsListPageSize));
+    assignmentsListPage = Math.min(assignmentsListPage, totalPages);
+    const start = (assignmentsListPage - 1) * assignmentsListPageSize;
+    const end = start + assignmentsListPageSize;
+    const visible = new Set(matchingCards.slice(start, end));
+
+    cards.forEach(card => {
+        card.style.display = visible.has(card) ? 'grid' : 'none';
+    });
+
+    let noResults = container.querySelector('.assignment-no-results');
+    if (!noResults) {
+        noResults = document.createElement('div');
+        noResults.className = 'assignment-no-results';
+        noResults.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+                <div class="empty-state-title">Sin coincidencias</div>
+                <div class="empty-state-desc">Ajusta la búsqueda o cambia el filtro de tipo</div>
+            </div>
+        `;
+        container.appendChild(noResults);
+    }
+    noResults.style.display = matchingCards.length === 0 ? 'block' : 'none';
+
+    const pagination = document.getElementById('assignmentsPagination');
+    const status = document.getElementById('assignmentsPaginationStatus');
+    const prev = document.getElementById('assignmentsPrevPage');
+    const next = document.getElementById('assignmentsNextPage');
+    if (pagination && status && prev && next) {
+        const firstShown = matchingCards.length === 0 ? 0 : start + 1;
+        const lastShown = Math.min(end, matchingCards.length);
+        status.textContent = `${firstShown}-${lastShown} de ${matchingCards.length}`;
+        pagination.style.display = cards.length > assignmentsListPageSize || matchingCards.length !== cards.length ? 'flex' : 'none';
+        prev.disabled = assignmentsListPage <= 1;
+        next.disabled = assignmentsListPage >= totalPages;
+    }
 }
 
 async function updateReportsList() {
@@ -2764,6 +2898,9 @@ let currentData = {
 
 let currentSection = 'panel-general';
 let pendingAdminRealtimeRefresh = false;
+let assignmentsListFilter = 'all';
+let assignmentsListPage = 1;
+let assignmentsListPageSize = 10;
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
@@ -2780,6 +2917,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeAdminPanel();
         setupEventListeners();
         setupSidebarNavigation();
+        initializeTablePaginationObserver();
         
         // Cargar datos con delay para asegurar que el DOM esté listo
         setTimeout(() => {
@@ -8885,6 +9023,7 @@ async function updateTarifarioTable() {
                 </td>
             </tr>
         `;
+        applyTablePagination('tarifarioTableBody');
         return;
     }
     
@@ -8893,6 +9032,13 @@ async function updateTarifarioTable() {
         const row = createTarifaRow(tarifa);
         tbody.appendChild(row);
     });
+
+    const searchInput = document.getElementById('searchTarifario');
+    if (searchInput && searchInput.value.trim()) {
+        filterCrudTable('tarifario');
+    } else {
+        applyTablePagination('tarifarioTableBody');
+    }
 }
 
 /**
@@ -8917,6 +9063,15 @@ function createTarifaRow(tarifa) {
     
     const margen = parseFloat(tarifa.margen || 0);
     const margenPorcentaje = parseFloat(tarifa.margenPorcentaje || 0);
+    row.dataset.searchable = [
+        tarifa.assignmentType,
+        tarifa.assignmentId,
+        tarifa.moduloNombre,
+        tarifa.consultorNombre,
+        tarifa.empresaNombre,
+        tarifa.clienteNombre,
+        tarifa.trabajoNombre
+    ].filter(Boolean).join(' ').toLowerCase();
     
     row.innerHTML = `
         <td>${tipoIcon} ${tipoLabel}</td>
@@ -8965,9 +9120,9 @@ function createTarifaRow(tarifa) {
  async function updateConsultoresTable() {  // ✅ Agregar async si no lo tiene
     console.log('👥 Actualizando tabla de consultores...');
     
-    const tbody = document.getElementById('consultoresTableBody');
+    const tbody = document.getElementById('tarifarioConsultoresTableBody');
     if (!tbody) {
-        console.error('❌ consultoresTableBody no encontrado');
+        console.error('❌ tarifarioConsultoresTableBody no encontrado');
         return;
     }
     
@@ -9038,6 +9193,7 @@ function createTarifaRow(tarifa) {
                 </td>
             </tr>
         `;
+        applyTablePagination('tarifarioConsultoresTableBody');
         return;
     }
     
@@ -9048,6 +9204,12 @@ function createTarifaRow(tarifa) {
             : 0;
         
         const row = document.createElement('tr');
+        row.dataset.searchable = [
+            consultor.id,
+            consultor.nombre,
+            ...Array.from(consultor.modulos),
+            ...Array.from(consultor.clientes)
+        ].filter(Boolean).join(' ').toLowerCase();
         row.innerHTML = `
             <td><strong>${consultor.id}</strong></td>
             <td>${consultor.nombre}</td>
@@ -9058,6 +9220,8 @@ function createTarifaRow(tarifa) {
         `;
         tbody.appendChild(row);
     });
+
+    applyTablePagination('tarifarioConsultoresTableBody');
     
     console.log('✅ Tabla de consultores actualizada');
 }
@@ -10538,6 +10702,10 @@ window.updateApprovedReportsList = updateApprovedReportsList;
 window.updateProjectsList = updateProjectsList;
 window.updateModulesList = updateModulesList;
 window.updateAssignmentsList = updateAssignmentsList;
+window.setAssignmentsFilter = setAssignmentsFilter;
+window.setAssignmentsPageSize = setAssignmentsPageSize;
+window.changeAssignmentsPage = changeAssignmentsPage;
+window.filterAssignmentsList = filterAssignmentsList;
 window.updateUsersList = updateUsersList;
 window.viewUserAssignments = viewUserAssignments;
 window.updateGeneratedReportsList = updateGeneratedReportsList;
@@ -10559,6 +10727,8 @@ window.updateTarifarioTable = updateTarifarioTable;
 window.updateConsultoresTable = updateConsultoresTable;
 window.updateTarifarioStats = updateTarifarioStats;
 window.filterTarifarioByType = filterTarifarioByType;
+window.applyTablePagination = applyTablePagination;
+window.refreshTablePagination = refreshTablePagination;
 window.editTarifaInline = editTarifaInline;
 window.saveTarifaEdit = saveTarifaEdit;
 window.viewTarifaDetails = viewTarifaDetails;
@@ -11507,8 +11677,141 @@ function filterCrudTable(sectionName) {
     const rows = tbody.querySelectorAll('tr[data-searchable]');
     rows.forEach(row => {
         const text = row.getAttribute('data-searchable') || '';
-        row.style.display = text.includes(query) ? '' : 'none';
+        row.dataset.filteredOut = text.includes(query) ? 'false' : 'true';
     });
+
+    tbody.dataset.page = '1';
+    applyTablePagination(tableBodyId);
+}
+
+function setupTablePagination(tbody) {
+    if (!tbody || !tbody.id) return null;
+
+    const table = tbody.closest('table');
+    if (!table) return null;
+
+    const tableContainer = table.closest('.crud-table-container, .reports-table-container, .table-container') || table.parentElement;
+    if (!tableContainer) return null;
+
+    const controlsId = `${tbody.id}Pagination`;
+    let controls = document.getElementById(controlsId);
+    if (!controls) {
+        controls = document.createElement('div');
+        controls.id = controlsId;
+        controls.className = 'table-pagination';
+        controls.dataset.paginationFor = tbody.id;
+        controls.innerHTML = `
+            <div class="table-pagination-size">
+                <span>Mostrar</span>
+                <select aria-label="Registros por página">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </select>
+                <span>registros</span>
+            </div>
+            <div class="table-pagination-status"></div>
+            <div class="table-pagination-actions">
+                <button type="button" data-page-action="prev" aria-label="Página anterior">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button type="button" data-page-action="next" aria-label="Página siguiente">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
+
+        const target = tableContainer.classList.contains('table-responsive') && tableContainer.parentElement
+            ? tableContainer.parentElement
+            : tableContainer;
+        target.insertAdjacentElement('afterend', controls);
+
+        const select = controls.querySelector('select');
+        select.addEventListener('change', () => {
+            tbody.dataset.pageSize = select.value;
+            tbody.dataset.page = '1';
+            applyTablePagination(tbody.id);
+        });
+
+        controls.querySelector('[data-page-action="prev"]').addEventListener('click', () => {
+            const page = Math.max(1, parseInt(tbody.dataset.page || '1', 10) - 1);
+            tbody.dataset.page = String(page);
+            applyTablePagination(tbody.id);
+        });
+
+        controls.querySelector('[data-page-action="next"]').addEventListener('click', () => {
+            const page = parseInt(tbody.dataset.page || '1', 10) + 1;
+            tbody.dataset.page = String(page);
+            applyTablePagination(tbody.id);
+        });
+    }
+
+    const select = controls.querySelector('select');
+    if (!tbody.dataset.pageSize) tbody.dataset.pageSize = select.value || '10';
+    if (!tbody.dataset.page) tbody.dataset.page = '1';
+
+    return controls;
+}
+
+function applyTablePagination(tbodyId) {
+    const tbody = typeof tbodyId === 'string' ? document.getElementById(tbodyId) : tbodyId;
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const dataRows = rows.filter(row => !row.querySelector('.empty-cell, .empty-state-cell, .empty-table-message'));
+    const controls = setupTablePagination(tbody);
+    if (!controls) return;
+
+    if (dataRows.length === 0) {
+        rows.forEach(row => { row.style.display = ''; });
+        controls.style.display = 'none';
+        return;
+    }
+
+    const availableRows = dataRows.filter(row => row.dataset.filteredOut !== 'true');
+    const pageSize = parseInt(tbody.dataset.pageSize || '10', 10);
+    const totalPages = Math.max(1, Math.ceil(availableRows.length / pageSize));
+    const currentPage = Math.min(Math.max(1, parseInt(tbody.dataset.page || '1', 10)), totalPages);
+    tbody.dataset.page = String(currentPage);
+
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    const visibleRows = new Set(availableRows.slice(start, end));
+
+    dataRows.forEach(row => {
+        row.style.display = visibleRows.has(row) ? '' : 'none';
+    });
+
+    const firstShown = availableRows.length === 0 ? 0 : start + 1;
+    const lastShown = Math.min(end, availableRows.length);
+    controls.style.display = dataRows.length > pageSize || availableRows.length !== dataRows.length ? 'flex' : 'none';
+    controls.querySelector('.table-pagination-status').textContent =
+        `${firstShown}-${lastShown} de ${availableRows.length}`;
+
+    controls.querySelector('[data-page-action="prev"]').disabled = currentPage <= 1;
+    controls.querySelector('[data-page-action="next"]').disabled = currentPage >= totalPages;
+}
+
+function refreshTablePagination(scope = document) {
+    const bodies = scope.querySelectorAll(
+        '.crud-table tbody[id], .admin-table tbody[id], .reports-table tbody[id], .tarifario-table tbody[id]'
+    );
+    bodies.forEach(tbody => applyTablePagination(tbody.id));
+}
+
+function initializeTablePaginationObserver() {
+    const root = document.querySelector('.admin-main-content');
+    if (!root || root.dataset.paginationObserved === 'true') return;
+
+    root.dataset.paginationObserved = 'true';
+    refreshTablePagination(root);
+
+    let paginationTimer = null;
+    const observer = new MutationObserver(() => {
+        clearTimeout(paginationTimer);
+        paginationTimer = setTimeout(() => refreshTablePagination(root), 80);
+    });
+    observer.observe(root, { childList: true, subtree: true });
 }
 
 

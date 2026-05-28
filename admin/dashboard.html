@@ -283,7 +283,7 @@
                                     <i class="fa-solid fa-chevron-down"></i>
                                 </div>
                                 <div class="help-faq-answer">
-                                    Ve a <strong>Reportes → Generar Reporte</strong>. Selecciona el tipo de reporte, configura el período y parámetros, visualiza la vista previa y descárgalo en formato Excel.
+                                    Ve a <strong>Reportes → Sistema de Reportes</strong>. Selecciona el tipo de reporte, configura el período y parámetros, visualiza la vista previa y descárgalo en formato Excel.
                                 </div>
                             </div>
                             <div class="help-faq-item" data-search="tarifa tarifario precio hora consultor cliente">
@@ -398,12 +398,12 @@
                             </div>
 
                             <div class="sidebar-menu-item" data-section="lista-asignaciones">
-                                <span class="menu-text">Lista Completa</span>
+                                <span class="menu-text">Todas las Asignaciones</span>
                                 <span class="menu-badge" id="sidebarAssignmentsCount">0</span>
                             </div>
                             
                             <div class="sidebar-menu-item" data-section="asignaciones-recientes">
-                                <span class="menu-text">Recientes</span>
+                                <span class="menu-text">Asignaciones Recientes</span>
                             </div>
 
                             <div class="sidebar-menu-item" data-section="asignar-proyectos">
@@ -414,7 +414,7 @@
                                 <span class="menu-badge" id="sidebarProjectAssignmentsCount">0</span>
                             </div>
                              <div class="sidebar-menu-item" data-section="taskAssignments">
-                                <span class="menu-text">Tareas</span>
+                                <span class="menu-text">Asignaciones de Tareas</span>
                                 <span class="menu-badge" id="sidebarTaskCount">0</span>
                             </div>
                         </div>
@@ -440,11 +440,11 @@
                             </div>
                             <div class="sidebar-menu-item" data-section="generar-reporte">
                                 <span class="menu-icon"> <i class="fa-solid fa-file-alt"></i> </span>
-                                <span class="menu-text">Generar Reporte</span>
+                                <span class="menu-text">Sistema de Reportes</span>
                             </div>
                             <div class="sidebar-menu-item" data-section="historial-reportes">
                                 <span class="menu-icon"> <i class="fa-solid fa-scroll"></i> </span>
-                                <span class="menu-text">Historial Generados</span>
+                                <span class="menu-text">Historial de Reportes</span>
                                 <span class="menu-badge" id="sidebarGeneratedReportsCount">0</span>
                             </div>
                         </div>
@@ -466,6 +466,9 @@
 
                     <!-- Sección de Calendario -->
                     <div id="calendario-section" class="content-section">
+                        <div class="section-header">
+                            <h2 class="section-title"><i class="fa-solid fa-calendar-days"></i> Calendario</h2>
+                        </div>
                         <div id="calendarModuleRoot"></div>
                     </div>
 
@@ -761,39 +764,6 @@
                         </div>
                     </div>
 
-                    <!-- SECCIÓN: TARIFARIO -->
-                    <div id="tarifario-section" class="content-section">
-                        <div class="section-header">
-                            <h2 class="section-title"><i class="fa-solid fa-dollar-sign"></i> Tarifario Global</h2>
-                        </div>
-                        <div class="crud-toolbar">
-                            <div class="search-box">
-                                <i class="fa-solid fa-search"></i>
-                                <input type="text" id="searchTarifario" placeholder="Buscar en tarifario..." oninput="filterCrudTable('tarifario')">
-                            </div>
-                            <button class="add-btn" onclick="showSection('crear-asignacion')"><i class="fa-solid fa-plus"></i> Nueva Tarifa / Asignación</button>
-                        </div>
-                        <div class="crud-table-container">
-                            <table class="crud-table" id="tarifarioTable">
-                                <thead>
-                                    <tr>
-                                        <th>Consultor</th>
-                                        <th>Empresa</th>
-                                        <th>Soporte / Proyecto</th>
-                                        <th>Módulo</th>
-                                        <th>Tarifa Consultor</th>
-                                        <th>Tarifa Cliente</th>
-                                        <th>Margen</th>
-                                        <th>Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tarifarioTableBody">
-                                    <tr><td colspan="8" class="empty-cell"><i class="fa-solid fa-dollar-sign"></i> Cargando tarifario...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
                     <!-- Sección de Nueva Asignación -->
                     <div id="crear-asignacion-section" class="content-section">
                         <div class="section-header">
@@ -811,9 +781,9 @@
                                     </div>
                                     
                                     <div class="form-group">
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <label for="assignCompany" style="margin:0;">Empresa Cliente</label>
-                                            <button type="button" class="btn btn-sm btn-link" onclick="openCompanyModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        <div class="field-label-row">
+                                            <label for="assignCompany">Empresa Cliente</label>
+                                            <button type="button" class="field-mini-action" onclick="openCompanyModal()"><i class="fa-solid fa-plus"></i> Nuevo</button>
                                         </div>
                                         <select id="assignCompany" name="assignCompany" required>
                                             <option value="">Seleccionar empresa</option>
@@ -821,9 +791,9 @@
                                     </div>
                                     
                                     <div class="form-group">
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <label for="assignSupport" style="margin:0;">Soporte</label>
-                                            <button type="button" class="btn btn-sm btn-link" onclick="openSupportModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        <div class="field-label-row">
+                                            <label for="assignSupport">Soporte</label>
+                                            <button type="button" class="field-mini-action" onclick="openSupportModal()"><i class="fa-solid fa-plus"></i> Nuevo</button>
                                         </div>
                                         <select id="assignSupport" name="assignSupport" required>
                                             <option value="">Seleccionar Soporte</option>
@@ -831,9 +801,9 @@
                                     </div>
                                     
                                     <div class="form-group">
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <label for="assignModule" style="margin:0;">Módulos</label>
-                                            <button type="button" class="btn btn-sm btn-link" onclick="openModuleModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        <div class="field-label-row">
+                                            <label for="assignModule">Módulos</label>
+                                            <button type="button" class="field-mini-action" onclick="openModuleModal()"><i class="fa-solid fa-plus"></i> Nuevo</button>
                                         </div>
                                         <select id="assignModule" name="assignModule" required>
                                             <option value="">Seleccionar Módulo</option>
@@ -917,9 +887,9 @@
                                     </div>
                                     
                                     <div class="form-group">
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <label for="assignProjectProject" style="margin:0;">Proyecto</label>
-                                            <button type="button" class="btn btn-sm btn-link" onclick="openProjectModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        <div class="field-label-row">
+                                            <label for="assignProjectProject">Proyecto</label>
+                                            <button type="button" class="field-mini-action" onclick="openProjectModal()"><i class="fa-solid fa-plus"></i> Nuevo</button>
                                         </div>
                                         <select id="assignProjectProject" name="assignProjectProject" required>
                                             <option value="">Seleccionar proyecto</option>
@@ -927,9 +897,9 @@
                                     </div>
                                     
                                     <div class="form-group">
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <label for="assignProjectCompany" style="margin:0;">Empresa Cliente</label>
-                                            <button type="button" class="btn btn-sm btn-link" onclick="openCompanyModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        <div class="field-label-row">
+                                            <label for="assignProjectCompany">Empresa Cliente</label>
+                                            <button type="button" class="field-mini-action" onclick="openCompanyModal()"><i class="fa-solid fa-plus"></i> Nuevo</button>
                                         </div>
                                         <select id="assignProjectCompany" name="assignProjectCompany" required>
                                             <option value="">Seleccionar empresa cliente</option>
@@ -937,9 +907,9 @@
                                     </div>
                                     
                                     <div class="form-group">
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <label for="assignProjectModule" style="margin:0;">Módulo</label>
-                                            <button type="button" class="btn btn-sm btn-link" onclick="openModuleModal()" style="padding:0; text-decoration:none;"><i class="fa-solid fa-circle-plus"></i> Nuevo</button>
+                                        <div class="field-label-row">
+                                            <label for="assignProjectModule">Módulo</label>
+                                            <button type="button" class="field-mini-action" onclick="openModuleModal()"><i class="fa-solid fa-plus"></i> Nuevo</button>
                                         </div>
                                         <select id="assignProjectModule" name="assignProjectModule" required>
                                             <option value="">Seleccionar módulo</option>
@@ -1100,13 +1070,52 @@
                     <!-- Sección de Lista de Asignaciones -->
                     <div id="lista-asignaciones-section" class="content-section">
                         <div class="section-header">
-                            <h2 class="section-title">Lista Completa de Asignaciones</h2>
+                            <h2 class="section-title">Todas las Asignaciones</h2>
+                        </div>
+                        <div class="assignment-list-toolbar">
+                            <div class="search-box assignment-search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchAssignmentsList" aria-label="Buscar asignaciones" placeholder="Buscar por consultor, cliente, trabajo, módulo o ID…" oninput="filterAssignmentsList()">
+                            </div>
+                            <div class="assignment-filter-group" role="group" aria-label="Filtrar asignaciones">
+                                <button type="button" class="assignment-filter-btn active" data-assignment-filter="all" onclick="setAssignmentsFilter('all')">
+                                    <i class="fa-solid fa-layer-group"></i> Todas <span id="assignmentsFilterAll">0</span>
+                                </button>
+                                <button type="button" class="assignment-filter-btn" data-assignment-filter="support" onclick="setAssignmentsFilter('support')">
+                                    <i class="fa-solid fa-headset"></i> Soportes <span id="assignmentsFilterSupport">0</span>
+                                </button>
+                                <button type="button" class="assignment-filter-btn" data-assignment-filter="project" onclick="setAssignmentsFilter('project')">
+                                    <i class="fa-solid fa-folder-open"></i> Proyectos <span id="assignmentsFilterProject">0</span>
+                                </button>
+                                <button type="button" class="assignment-filter-btn" data-assignment-filter="task" onclick="setAssignmentsFilter('task')">
+                                    <i class="fa-solid fa-list-check"></i> Tareas <span id="assignmentsFilterTask">0</span>
+                                </button>
+                            </div>
+                            <div class="assignment-page-size">
+                                <span>Mostrar</span>
+                                <select id="assignmentsPageSize" aria-label="Cantidad de asignaciones por página" onchange="setAssignmentsPageSize(this.value)">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="assignments-list" id="assignmentsList">
                             <div class="empty-state">
                                 <div class="empty-state-icon"> <i class="fa-solid fa-link"></i> </div>
                                 <div class="empty-state-title">No hay asignaciones</div>
                                 <div class="empty-state-desc">Las asignaciones creadas aparecerán en esta lista</div>
+                            </div>
+                        </div>
+                        <div class="assignment-list-pagination" id="assignmentsPagination" style="display:none;">
+                            <span id="assignmentsPaginationStatus">0-0 de 0</span>
+                            <div class="assignment-pagination-actions">
+                                <button type="button" onclick="changeAssignmentsPage(-1)" id="assignmentsPrevPage" aria-label="Página anterior">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </button>
+                                <button type="button" onclick="changeAssignmentsPage(1)" id="assignmentsNextPage" aria-label="Página siguiente">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1424,20 +1433,25 @@
                             </button>
                         </div>
 
-                        <!-- Filtros de tipo -->
-                        <div class="filter-buttons">
-                            <button class="filter-btn active" data-filter="all" onclick="filterTarifarioByType('all')">
-                                <i class="fa-solid fa-list"></i> Todos
-                            </button>
-                            <button class="filter-btn" data-filter="support" onclick="filterTarifarioByType('support')">
-                                <i class="fa-solid fa-headset"></i> Soportes
-                            </button>
-                            <button class="filter-btn" data-filter="project" onclick="filterTarifarioByType('project')">
-                                <i class="fa-solid fa-folder-open"></i> Proyectos
-                            </button>
-                            <button class="filter-btn" data-filter="task" onclick="filterTarifarioByType('task')">
-                                <i class="fa-solid fa-tasks"></i> Tareas
-                            </button>
+                        <div class="crud-toolbar tarifario-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchTarifario" placeholder="Buscar en tarifario..." oninput="filterCrudTable('tarifario')">
+                            </div>
+                            <div class="filter-buttons" role="group" aria-label="Filtrar tarifario por tipo">
+                                <button class="filter-btn active" data-filter="all" onclick="filterTarifarioByType('all')">
+                                    <i class="fa-solid fa-list"></i> Todos
+                                </button>
+                                <button class="filter-btn" data-filter="support" onclick="filterTarifarioByType('support')">
+                                    <i class="fa-solid fa-headset"></i> Soportes
+                                </button>
+                                <button class="filter-btn" data-filter="project" onclick="filterTarifarioByType('project')">
+                                    <i class="fa-solid fa-folder-open"></i> Proyectos
+                                </button>
+                                <button class="filter-btn" data-filter="task" onclick="filterTarifarioByType('task')">
+                                    <i class="fa-solid fa-tasks"></i> Tareas
+                                </button>
+                            </div>
                         </div>
                         <!-- Estadísticas rápidas -->
                         <div class="tarifario-stats">
@@ -1465,16 +1479,16 @@
                         </div>
 
                         <!-- Tabla de Unión -->
-                        <div class="table-container">
-                            <div class="table-header">
-                                <h3 class="table-title"><i class="fa-solid fa-chart-pie"></i> Tabla de Unión - Asignaciones con Tarifas</h3>
-                                <div class="table-info">
+                        <div class="crud-table-container tarifario-table-container">
+                            <div class="crud-table-header">
+                                <h3 class="crud-table-title"><i class="fa-solid fa-chart-pie"></i> Asignaciones con Tarifas</h3>
+                                <div class="crud-table-info">
                                     <span id="tarifarioCount">0 asignaciones</span>
                                 </div>
                             </div>
                             
                             <div class="table-responsive">
-                                <table class="tarifario-table">
+                                <table class="crud-table tarifario-table" id="tarifarioTable">
                                     <thead>
                                         <tr>
                                             <th>Tipo</th>
@@ -1505,16 +1519,16 @@
                         </div>
 
                         <!-- Tabla de Consultores -->
-                        <div class="table-container">
-                            <div class="table-header">
-                                <h3 class="table-title"><i class="fa-solid fa-user"></i> Resumen por Consultor</h3>
-                                <div class="table-info">
+                        <div class="crud-table-container tarifario-table-container">
+                            <div class="crud-table-header">
+                                <h3 class="crud-table-title"><i class="fa-solid fa-user"></i> Resumen por Consultor</h3>
+                                <div class="crud-table-info">
                                     <span id="consultoresCount">0 consultores</span>
                                 </div>
                             </div>
                             
                             <div class="table-responsive">
-                                <table class="consultores-table">
+                                <table class="crud-table consultores-table" id="tarifarioConsultoresTable">
                                     <thead>
                                         <tr>
                                             <th>ID</th>
@@ -1525,7 +1539,7 @@
                                             <th>Promedio Tarifa</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="consultoresTableBody">
+                                    <tbody id="tarifarioConsultoresTableBody">
                                         <tr>
                                             <td colspan="6" class="empty-state-cell">
                                                 <div class="empty-state">
@@ -1909,7 +1923,6 @@
     <script src="../js/modules/calendarModule.js?v=7"></script>
     <script src="../js/activity-report-generator.js?v=7"></script>
     <script src="../js/arvic-pdf-exporter.js?v=7"></script>
-    <script src="../js/seed-test-data.js?v=7"></script>
     <script src="../js/chatWidget.js?v=8"></script>
 
     <!-- Compatibilidad con funciones legadas (Contenedores Fantasma) -->
@@ -1919,10 +1932,6 @@
         <div id="projectsList"></div>
         <div id="supportsList"></div>
         <div id="modulesList"></div>
-        <table>
-            <tbody id="tarifarioTableBody"></tbody>
-        </table>
-        <span id="tarifarioCount"></span>
     </div>
 
 </body>

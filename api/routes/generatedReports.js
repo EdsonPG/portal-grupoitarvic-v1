@@ -2,6 +2,21 @@ const express = require('express');
 const router = express.Router();
 const GeneratedReport = require('../models/GeneratedReport');
 
+router.use((req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+  }
+
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Acceso denegado: Se requiere rol de administrador'
+    });
+  }
+
+  next();
+});
+
 // GET all generated reports
 router.get('/', async (req, res) => {
   try {

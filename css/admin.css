@@ -1008,7 +1008,7 @@ body {
 
 /* Botones específicos del admin */
 .add-btn {
-    background: linear-gradient(135deg, var(--success-color) 0%, #047857 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: white;
     border: none;
     padding: var(--spacing-md) var(--spacing-xl);
@@ -1028,7 +1028,7 @@ body {
 .add-btn:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
-    background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #172554 100%);
 }
 
 .delete-btn {
@@ -3314,7 +3314,7 @@ body {
 
 /* Botón de exportar */
 .btn-export {
-    background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: white;
     border: none;
     padding: var(--spacing-sm) var(--spacing-lg);
@@ -3328,7 +3328,7 @@ body {
 }
 
 .btn-export:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #172554 100%);
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
@@ -5180,6 +5180,806 @@ body.dark-mode .item div[style*="background"] {
     font-size: 1.1rem;
 }
 
+.crud-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fff;
+}
+
+.crud-table-title {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.crud-table-info {
+    padding: 7px 11px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tarifario-toolbar {
+    display: grid;
+    grid-template-columns: minmax(240px, 360px) 1fr;
+    align-items: center;
+    gap: 14px;
+}
+
+.tarifario-toolbar .filter-buttons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    margin: 0;
+    padding: 3px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    box-shadow: none;
+}
+
+.tarifario-toolbar .filter-btn {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    box-shadow: none;
+    transform: none;
+}
+
+.tarifario-toolbar .filter-btn:hover {
+    background: #eef2ff;
+    color: var(--primary-color, #1e3a8a);
+    box-shadow: none;
+    transform: none;
+}
+
+.tarifario-toolbar .filter-btn.active {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: 0;
+    box-shadow: 0 6px 14px rgba(30, 58, 138, 0.18);
+}
+
+.tarifario-table-container {
+    margin-bottom: 22px;
+}
+
+.tarifario-table td.editable-cell {
+    background: #fff9db;
+}
+
+.tarifario-table td.editable-cell:hover {
+    background: #fef3c7;
+}
+
+.table-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin: 10px 0 18px;
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+.table-pagination-size,
+.table-pagination-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.table-pagination select {
+    min-width: 70px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    padding: 6px 28px 6px 10px;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    font-weight: 600;
+}
+
+.table-pagination-status {
+    font-weight: 700;
+    color: #475569;
+}
+
+.table-pagination button {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: white;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.table-pagination button:hover:not(:disabled) {
+    border-color: var(--primary-color, #1e3a8a);
+    color: var(--primary-color, #1e3a8a);
+    background: #f8fafc;
+}
+
+.table-pagination button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+    .tarifario-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .tarifario-toolbar .filter-buttons {
+        justify-content: flex-start;
+        overflow-x: auto;
+    }
+
+    .table-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+/* Assignment forms: compact operational layout */
+#crear-asignacion-section,
+#asignar-proyectos-section {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+#crear-asignacion-section .assignment-form-container,
+#asignar-proyectos-section .assignment-form-container {
+    position: relative;
+    padding: 22px 28px;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--primary-color, #1e3a8a);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+}
+
+#crear-asignacion-section .assignment-form,
+#asignar-proyectos-section .assignment-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+    gap: 22px;
+    align-items: stretch;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+#crear-asignacion-section .main-fields-column,
+#asignar-proyectos-section .main-fields-column {
+    gap: 14px;
+    justify-content: center;
+}
+
+#crear-asignacion-section .form-group,
+#asignar-proyectos-section .form-group {
+    margin-bottom: 0;
+}
+
+#crear-asignacion-section .form-group label,
+#asignar-proyectos-section .form-group label {
+    margin: 0 0 7px;
+    color: #334155;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+#crear-asignacion-section .form-group select,
+#crear-asignacion-section .form-group input,
+#asignar-proyectos-section .form-group select,
+#asignar-proyectos-section .form-group input {
+    min-height: 44px;
+    padding: 9px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 0.92rem;
+    box-shadow: none;
+}
+
+#crear-asignacion-section .form-group select:focus,
+#crear-asignacion-section .form-group input:focus,
+#asignar-proyectos-section .form-group select:focus,
+#asignar-proyectos-section .form-group input:focus {
+    border-color: var(--primary-color, #1e3a8a);
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.08);
+    outline: none;
+}
+
+.field-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 7px;
+}
+
+.field-label-row label {
+    margin: 0 !important;
+}
+
+.field-mini-action {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: var(--primary-color, #1e3a8a);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.field-mini-action:hover {
+    border-color: var(--primary-color, #1e3a8a);
+    background: #eef2ff;
+}
+
+#crear-asignacion-section .tarifa-column,
+#asignar-proyectos-section .tarifa-column {
+    min-width: 0;
+}
+
+#crear-asignacion-section .tarifa-section,
+#asignar-proyectos-section .tarifa-section {
+    min-height: 0;
+    height: auto;
+    padding: 18px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #f8fafc;
+    box-shadow: none;
+}
+
+#crear-asignacion-section .tarifa-section h3,
+#asignar-proyectos-section .tarifa-section h3 {
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #dbe3ef;
+    color: #0f172a;
+    font-size: 0.98rem;
+    font-weight: 800;
+}
+
+#crear-asignacion-section .tarifa-inputs,
+#asignar-proyectos-section .tarifa-inputs {
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+#crear-asignacion-section .form-hint,
+#asignar-proyectos-section .form-hint {
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 0.76rem;
+    line-height: 1.35;
+}
+
+#crear-asignacion-section .margen-display,
+#asignar-proyectos-section .margen-display {
+    margin-top: 6px;
+    padding: 13px 14px;
+    border: 1px dashed #cbd5e1;
+    border-left: 4px solid var(--primary-color, #1e3a8a);
+    border-radius: 10px;
+    background: #fff;
+    text-align: left;
+}
+
+#crear-asignacion-section .margen-info,
+#asignar-proyectos-section .margen-info {
+    justify-content: flex-start;
+    gap: 12px;
+}
+
+#crear-asignacion-section .margen-value,
+#asignar-proyectos-section .margen-value {
+    font-size: 1.25rem;
+}
+
+#crear-asignacion-section .form-submit-row,
+#asignar-proyectos-section .form-submit-row {
+    display: flex;
+    justify-content: center;
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+#crear-asignacion-section .form-submit-row .btn-primary,
+#asignar-proyectos-section .form-submit-row .btn-primary {
+    min-height: 44px;
+    padding: 0 24px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    box-shadow: 0 8px 18px rgba(30, 58, 138, 0.2);
+    font-size: 0.92rem;
+}
+
+@media (max-width: 1100px) {
+    #crear-asignacion-section .assignment-form,
+    #asignar-proyectos-section .assignment-form {
+        grid-template-columns: 1fr;
+    }
+
+    #crear-asignacion-section .tarifa-inputs,
+    #asignar-proyectos-section .tarifa-inputs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 680px) {
+    #crear-asignacion-section .assignment-form-container,
+    #asignar-proyectos-section .assignment-form-container {
+        padding: 16px;
+    }
+
+    #crear-asignacion-section .tarifa-inputs,
+    #asignar-proyectos-section .tarifa-inputs {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Assignment list: searchable, paginated operational cards */
+#lista-asignaciones-section {
+    max-width: 1320px;
+    margin: 0 auto;
+}
+
+.assignment-list-toolbar {
+    display: grid;
+    grid-template-columns: minmax(260px, 420px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.assignment-search-box {
+    width: 100%;
+    max-width: none;
+}
+
+.assignment-search-box input {
+    min-height: 42px;
+}
+
+.assignment-filter-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 3px;
+    min-width: 0;
+    padding: 3px;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    background: #f8fafc;
+    overflow-x: auto;
+}
+
+.assignment-filter-btn {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    padding: 7px 11px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.assignment-filter-btn span {
+    min-width: 24px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.assignment-filter-btn:hover {
+    background: #eef2ff;
+    color: var(--primary-color, #1e3a8a);
+}
+
+.assignment-filter-btn:focus-visible,
+.assignment-page-size select:focus-visible,
+.assignment-list-pagination button:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.28);
+    outline-offset: 2px;
+}
+
+.assignment-filter-btn.active {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    box-shadow: 0 6px 14px rgba(30, 58, 138, 0.18);
+}
+
+.assignment-filter-btn.active span {
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+}
+
+.assignment-page-size {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.assignment-page-size select {
+    min-width: 76px;
+    min-height: 36px;
+    padding: 6px 28px 6px 10px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    font-weight: 800;
+}
+
+.assignments-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.assignment-list-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(330px, 420px) auto;
+    align-items: center;
+    gap: 14px;
+    min-height: 84px;
+    padding: 13px 14px 13px 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055);
+    content-visibility: auto;
+    contain-intrinsic-size: 92px;
+}
+
+.assignment-list-card::before {
+    content: '';
+    position: absolute;
+    inset: 12px auto 12px 0;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: #3b82f6;
+}
+
+.assignment-list-card--project::before {
+    background: #f59e0b;
+}
+
+.assignment-list-card--task::before {
+    background: #8b5cf6;
+}
+
+.assignment-list-main {
+    min-width: 0;
+}
+
+.assignment-list-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    margin-bottom: 10px;
+}
+
+.assignment-list-title-row h3 {
+    min-width: 0;
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.assignment-type-pill,
+.assignment-id-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.assignment-type-pill--support {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.assignment-type-pill--project {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.assignment-type-pill--task {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.assignment-id-pill {
+    background: #1e3a8a;
+    color: white;
+    font-variant-numeric: tabular-nums;
+}
+
+.assignment-list-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px 16px;
+    color: #64748b;
+    font-size: 0.84rem;
+}
+
+.assignment-list-meta span {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.assignment-list-meta i {
+    flex: 0 0 auto;
+    color: #64748b;
+}
+
+.assignment-list-meta em {
+    color: #94a3b8;
+    font-style: normal;
+}
+
+.assignment-list-money {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(88px, 1fr));
+    gap: 8px;
+    min-width: 0;
+}
+
+.assignment-list-money span {
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.assignment-list-money small,
+.assignment-list-money strong {
+    display: block;
+}
+
+.assignment-list-money small {
+    margin-bottom: 3px;
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.assignment-list-money strong {
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.assignment-list-money strong.positive {
+    color: #059669;
+}
+
+.assignment-list-money strong.negative {
+    color: #dc2626;
+}
+
+.assignment-list-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.assignment-list-pagination {
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #475569;
+    font-size: 0.84rem;
+    font-weight: 800;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+}
+
+.assignment-pagination-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.assignment-list-pagination button {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.assignment-list-pagination button:hover:not(:disabled) {
+    border-color: var(--primary-color, #1e3a8a);
+    background: #eef2ff;
+    color: var(--primary-color, #1e3a8a);
+}
+
+.assignment-list-pagination button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.assignment-no-results {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 1180px) {
+    .assignment-list-toolbar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .assignment-filter-group,
+    .assignment-page-size {
+        justify-content: flex-start;
+    }
+
+    .assignment-list-card {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .assignment-list-money {
+        grid-column: 1 / -1;
+    }
+
+    .assignment-list-actions {
+        align-self: start;
+    }
+}
+
+@media (max-width: 760px) {
+    .assignment-list-card {
+        grid-template-columns: 1fr;
+    }
+
+    .assignment-list-title-row {
+        flex-wrap: wrap;
+    }
+
+    .assignment-list-title-row h3 {
+        flex-basis: 100%;
+        white-space: normal;
+    }
+
+    .assignment-list-meta,
+    .assignment-list-money {
+        grid-template-columns: 1fr;
+    }
+
+    .assignment-list-actions {
+        justify-content: flex-start;
+    }
+
+    .assignment-list-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+body.dark-mode .assignment-filter-group,
+body.dark-mode .assignment-page-size select,
+body.dark-mode .assignment-list-card,
+body.dark-mode .assignment-list-pagination {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-mode .assignment-filter-btn {
+    color: #cbd5e1;
+}
+
+body.dark-mode .assignment-filter-btn span,
+body.dark-mode .assignment-list-money span {
+    background: #334155;
+    border-color: #475569;
+    color: #cbd5e1;
+}
+
+body.dark-mode .assignment-list-title-row h3,
+body.dark-mode .assignment-list-money strong {
+    color: #f8fafc;
+}
+
+body.dark-mode .assignment-list-meta,
+body.dark-mode .assignment-list-meta i,
+body.dark-mode .assignment-list-money small,
+body.dark-mode .assignment-list-pagination {
+    color: #94a3b8;
+}
+
 /* Status Badges */
 .crud-status-badge {
     display: inline-flex;
@@ -5992,4 +6792,4 @@ body.dark-mode .admin-sidebar.resizing .sidebar-resizer {
         width: 100% !important;
         justify-content: center !important;
     }
-}
+}
