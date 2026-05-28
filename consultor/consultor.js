@@ -2549,6 +2549,8 @@ async function saveDraftCellToMongoDB(aId, dayKey, hours, detail) {
             }
         }
         
+        const finalDescription = (detail && detail.trim()) ? detail.trim() : 'JUSTIFICACION_PENDIENTE';
+
         const reportData = {
             reportId,
             userId: currentUser.userId,
@@ -2557,7 +2559,7 @@ async function saveDraftCellToMongoDB(aId, dayKey, hours, detail) {
             companyId: assignment?.companyId || 'GENERAL',
             moduleId: assignment?.moduleId || 'GENERAL',
             title: `Timesheet ${['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][dayIndex]} ${formatShortDate(cellDate)} — ${label}`,
-            description: detail || `Horas registradas: ${hours}h`,
+            description: finalDescription,
             hours,
             date: dateStr,
             reportDate: dateStr,
@@ -2573,7 +2575,7 @@ async function saveDraftCellToMongoDB(aId, dayKey, hours, detail) {
             console.log(`📝 Actualizando borrador en la BD: ${reportId}`);
             await window.PortalDB.updateReport(reportId, {
                 hours,
-                description: reportData.description,
+                description: finalDescription,
                 title: reportData.title
             });
         } else {

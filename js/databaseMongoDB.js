@@ -2282,7 +2282,9 @@ async getTarifario() {
                 const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayIndex];
                 
                 entriesMap[assignmentId].days[dayKey].hours = hours;
-                entriesMap[assignmentId].days[dayKey].detail = report.description || '';
+                const rawDesc = report.description || '';
+                const cleanDesc = (rawDesc === 'JUSTIFICACION_PENDIENTE' || rawDesc.startsWith('Horas registradas:')) ? '' : rawDesc;
+                entriesMap[assignmentId].days[dayKey].detail = cleanDesc;
                 entriesMap[assignmentId].totalHours += hours;
             });
             
