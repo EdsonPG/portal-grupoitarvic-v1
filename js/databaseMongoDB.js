@@ -2223,6 +2223,7 @@ async getTarifario() {
             const weekEndStr = `${y}-${m}-${d}`;
             
             const timesheetId = `ts_${userId}_${weekStart.replace(/-/g, '')}`;
+            const existing = timesheets[timesheetId] || {};
             
             // Build entries
             const entriesMap = {};
