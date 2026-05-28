@@ -11133,6 +11133,22 @@ async function approveTimesheet(timesheetId) {
                         } catch (e) { /* ignore individual report errors */ }
                     }
                 }
+
+                // Enviar notificación al consultor de aprobación
+                if (ts && typeof sendNotification === 'function') {
+                    try {
+                        await sendNotification(
+                            ts.userId,
+                            'report_approved',
+                            'Timesheet Aprobado',
+                            `Tu timesheet de la semana ${ts.weekStart} fue aprobado por el administrador.`,
+                            timesheetId
+                        );
+                    } catch (notifErr) {
+                        console.error('Error enviando notificación de aprobación:', notifErr);
+                    }
+                }
+
                 await renderAdminTimesheets();
                 updateSidebarCounts();
             } else {
@@ -11176,6 +11192,21 @@ async function rejectTimesheet(timesheetId) {
                         } catch (e) {
                             console.error('Error al actualizar reporte a rechazado:', e);
                         }
+                    }
+                }
+
+                // Enviar notificación al consultor de rechazo
+                if (ts && typeof sendNotification === 'function') {
+                    try {
+                        await sendNotification(
+                            ts.userId,
+                            'report_rejected',
+                            'Timesheet Rechazado',
+                            `Tu timesheet de la semana ${ts.weekStart} fue rechazado por el administrador. Motivo: ${reason || 'Sin motivo especificado'}.`,
+                            timesheetId
+                        );
+                    } catch (notifErr) {
+                        console.error('Error enviando notificación de rechazo:', notifErr);
                     }
                 }
                 
