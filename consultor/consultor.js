@@ -1964,6 +1964,7 @@ const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 let currentWeekStart = null; // Date object for Monday of current week
 let timesheetDraft = {}; // { assignmentId: { mon: {hours,detail}, tue: ... } }
 let activeDetailPopover = null;
+let activeDetailBackdrop = null;
 
 /**
  * Get Monday of the week containing the given date
@@ -2165,6 +2166,14 @@ async function renderTimesheetGrid() {
             if (isToday) inputClass += ' today';
             if (!editable) inputClass += ' locked';
             
+            const hasDetailText = detail && detail.trim().length > 0;
+            let indicatorClass = 'ts-detail-indicator';
+            if (hasDetailText) {
+                indicatorClass += ' visible populated';
+            } else if (hours > 0) {
+                indicatorClass += ' visible warning';
+            }
+
             dayCells += `
                 <td class="ts-day-cell">
                     <input type="number" 
@@ -2176,9 +2185,16 @@ async function renderTimesheetGrid() {
                         ${!editable ? 'disabled' : ''}
                         onchange="onHourChange(this)"
                         onfocus="onHourFocus(this)"
+                        ondblclick="if(parseFloat(this.value) > 0) window.showDetailPopover(this, '${aId}', '${dayKey}')"
                         title="${detail ? 'Detalle: ' + detail : (editable ? 'Clic para ingresar horas' : 'Día bloqueado')}"
                     >
-                    <span class="ts-detail-indicator ${detail ? 'visible' : ''}" data-assignment="${aId}" data-day="${dayKey}"></span>
+                    <span class="${indicatorClass}" 
+                        data-assignment="${aId}" 
+                        data-day="${dayKey}"
+                        onclick="if(${editable}) window.showDetailPopover(this.parentNode.querySelector('input'), '${aId}', '${dayKey}')"
+                        style="cursor:pointer;"
+                        title="${hasDetailText ? 'Detalle: ' + detail : (hours > 0 ? 'Falta justificación obligatoria (Clic para escribir)' : 'Clic para ingresar horas')}"
+                    ></span>
                 </td>
             `;
         }
@@ -2247,13 +2263,27 @@ function onHourChange(input) {
     // Update classes
     input.classList.toggle('has-value', hours > 0);
     
+    // Update indicator classes
+    const indicator = document.querySelector(`.ts-detail-indicator[data-assignment="${aId}"][data-day="${dayKey}"]`);
+    if (indicator) {
+        indicator.className = 'ts-detail-indicator';
+        const detailText = timesheetDraft[aId][dayKey].detail || '';
+        if (detailText.trim().length > 0) {
+            indicator.classList.add('visible', 'populated');
+            indicator.title = 'Detalle: ' + detailText;
+        } else if (hours > 0) {
+            indicator.classList.add('visible', 'warning');
+            indicator.title = 'Falta justificación obligatoria (Clic para escribir)';
+        }
+    }
+
     // Update row total
     updateRowTotal(aId);
     updateTimesheetTotals();
     saveTimesheetDraft();
     
     // If hours > 0 and no detail yet, prompt for detail
-    if (hours > 0 && !timesheetDraft[aId][dayKey].detail) {
+    if (hours > 0 && (!timesheetDraft[aId][dayKey].detail || !timesheetDraft[aId][dayKey].detail.trim())) {
         showDetailPopover(input, aId, dayKey);
     }
 }
@@ -2292,9 +2322,27 @@ function showDetailPopover(anchor, aId, dayKey) {
         </div>
     `;
     
-    const cell = anchor.closest('.ts-day-cell');
-    cell.style.position = 'relative';
-    cell.appendChild(popover);
+    // Check if mobile view
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        popover.classList.add('mobile-modal');
+        
+        // Create a backdrop overlay
+        const backdrop = document.createElement('div');
+        backdrop.className = 'ts-popover-backdrop';
+        backdrop.onclick = closeDetailPopover;
+        document.body.appendChild(backdrop);
+        document.body.appendChild(popover);
+        
+        activeDetailBackdrop = backdrop;
+    } else {
+        const cell = anchor.closest('.ts-day-cell');
+        if (cell) {
+            cell.style.position = 'relative';
+            cell.appendChild(popover);
+        }
+    }
+    
     activeDetailPopover = popover;
     
     setTimeout(() => {
@@ -2308,6 +2356,10 @@ function closeDetailPopover() {
         activeDetailPopover.remove();
         activeDetailPopover = null;
     }
+    if (activeDetailBackdrop) {
+        activeDetailBackdrop.remove();
+        activeDetailBackdrop = null;
+    }
 }
 
 function saveDetail(aId, dayKey) {
@@ -2319,13 +2371,27 @@ function saveDetail(aId, dayKey) {
     
     timesheetDraft[aId][dayKey].detail = textarea.value.trim();
     
+    const val = textarea.value.trim();
+    timesheetDraft[aId][dayKey].detail = val;
+    
     // Update indicator
     const indicator = document.querySelector(`.ts-detail-indicator[data-assignment="${aId}"][data-day="${dayKey}"]`);
-    if (indicator) indicator.classList.toggle('visible', textarea.value.trim().length > 0);
+    const input = document.querySelector(`input[data-assignment="${aId}"][data-day="${dayKey}"]`);
+    const hours = parseFloat(input?.value) || 0;
+
+    if (indicator) {
+        indicator.className = 'ts-detail-indicator';
+        if (val.length > 0) {
+            indicator.classList.add('visible', 'populated');
+            indicator.title = 'Detalle: ' + val;
+        } else if (hours > 0) {
+            indicator.classList.add('visible', 'warning');
+            indicator.title = 'Falta justificación obligatoria (Clic para escribir)';
+        }
+    }
     
     // Update title attribute of the input
-    const input = document.querySelector(`input[data-assignment="${aId}"][data-day="${dayKey}"]`);
-    if (input) input.title = textarea.value.trim() ? 'Detalle: ' + textarea.value.trim() : 'Clic para ingresar horas';
+    if (input) input.title = val ? 'Detalle: ' + val : 'Clic para ingresar horas';
     
     closeDetailPopover();
     saveTimesheetDraft();
@@ -2495,7 +2561,12 @@ async function submitWeeklyTimesheet() {
     }
     
     if (!hasDetail) {
-        if (!confirm('Algunos días tienen horas sin detalle. ¿Deseas enviar de todas formas?')) return;
+        if (window.NotificationUtils) {
+            window.NotificationUtils.error('Todos los días con horas registradas deben tener una justificación/detalle obligatorio.');
+        } else {
+            alert('Todos los días con horas registradas deben tener una justificación/detalle obligatorio.');
+        }
+        return;
     }
     
     // ──────────────────────────────────────────────

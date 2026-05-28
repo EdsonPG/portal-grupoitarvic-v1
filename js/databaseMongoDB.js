@@ -21,6 +21,23 @@ class PortalDatabase {
         console.log('Sistema de Base de Datos Portal ARVIC inicializado con MongoDB');
         console.log(`Entorno: ${isDevelopment ? 'DESARROLLO' : 'PRODUCCIÓN'}`);
         console.log('API URL:', this.API_URL);
+
+        // Cache system to prevent redundant lookup requests in rendering loops
+        this.cache = {
+            companies: null,
+            supports: null,
+            modules: null,
+            projects: null,
+            users: null
+        };
+        this.cacheTimestamps = {
+            companies: 0,
+            supports: 0,
+            modules: 0,
+            projects: 0,
+            users: 0
+        };
+        this.CACHE_DURATION = 15000; // Cache valid for 15 seconds
     }
 
     // === CONFIGURACIÓN DE HEADERS ===
@@ -32,6 +49,15 @@ class PortalDatabase {
             headers['Authorization'] = `Bearer ${this.token}`;
         }
         return headers;
+    }
+
+    // === GESTIÓN DE CACHÉ ===
+    invalidateCache(key) {
+        if (this.cache && key in this.cache) {
+            this.cache[key] = null;
+            this.cacheTimestamps[key] = 0;
+            console.log(`[Cache] Invalida caché de: ${key}`);
+        }
     }
 
     // === UTILIDADES PARA MANTENER COMPATIBILIDAD ===
@@ -92,6 +118,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE USUARIOS ===
     async getUsers() {
+        const now = Date.now();
+        if (this.cache && this.cache.users && (now - this.cacheTimestamps.users < this.CACHE_DURATION)) {
+            return this.cache.users;
+        }
         try {
             const response = await fetch(`${this.API_URL}/users`, {
                 method: 'GET',
@@ -105,6 +135,8 @@ class PortalDatabase {
                 result.data.forEach(user => {
                     users[user.userId] = user;  // ✅ Cambiar de user.id a user.userId
                 });
+                this.cache.users = users;
+                this.cacheTimestamps.users = now;
                 return users;
             }
             return {};
@@ -192,6 +224,7 @@ class PortalDatabase {
                 throw new Error(data.message || 'Error al crear usuario');
             }
 
+            this.invalidateCache('users');
             return data;
         } catch (error) {
             console.error('❌ Error en createUser:', error);
@@ -210,6 +243,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Usuario actualizado:', userId);
+                this.invalidateCache('users');
                 return { success: true, user: result.data };
             }
             
@@ -235,6 +269,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Usuario eliminado:', userId);
+                this.invalidateCache('users');
             }
             
             return result;
@@ -252,6 +287,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE EMPRESAS ===
     async getCompanies() {
+        const now = Date.now();
+        if (this.cache && this.cache.companies && (now - this.cacheTimestamps.companies < this.CACHE_DURATION)) {
+            return this.cache.companies;
+        }
         try {
             const response = await fetch(`${this.API_URL}/companies`, {
                 method: 'GET',
@@ -265,6 +304,8 @@ class PortalDatabase {
                 result.data.forEach(company => {
                     companies[company.companyId] = company;  // ✅ YA CORRECTO
                 });
+                this.cache.companies = companies;
+                this.cacheTimestamps.companies = now;
                 return companies;
             }
             return {};
@@ -298,6 +339,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Empresa creada:', result.data.id);
+                this.invalidateCache('companies');
                 return { success: true, company: result.data };
             }
             
@@ -319,6 +361,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Empresa actualizada:', companyId);
+                this.invalidateCache('companies');
                 return { success: true, company: result.data };
             }
             
@@ -339,6 +382,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Empresa eliminada:', companyId);
+                this.invalidateCache('companies');
             }
             
             return result;
@@ -350,6 +394,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE PROYECTOS ===
     async getProjects() {
+        const now = Date.now();
+        if (this.cache && this.cache.projects && (now - this.cacheTimestamps.projects < this.CACHE_DURATION)) {
+            return this.cache.projects;
+        }
         try {
             const response = await fetch(`${this.API_URL}/projects`, {
                 method: 'GET',
@@ -363,6 +411,8 @@ class PortalDatabase {
                 result.data.forEach(project => {
                     projects[project.projectId] = project;  // ✅ YA CORRECTO
                 });
+                this.cache.projects = projects;
+                this.cacheTimestamps.projects = now;
                 return projects;
             }
             return {};
@@ -393,6 +443,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Proyecto creado:', result.data.id);
+                this.invalidateCache('projects');
                 return { success: true, project: result.data };
             }
             
@@ -414,6 +465,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Proyecto actualizado:', projectId);
+                this.invalidateCache('projects');
                 return { success: true, project: result.data };
             }
             
@@ -434,6 +486,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Proyecto eliminado:', projectId);
+                this.invalidateCache('projects');
             }
             
             return result;
@@ -445,6 +498,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE SOPORTES ===
     async getSupports() {
+        const now = Date.now();
+        if (this.cache && this.cache.supports && (now - this.cacheTimestamps.supports < this.CACHE_DURATION)) {
+            return this.cache.supports;
+        }
         try {
             const response = await fetch(`${this.API_URL}/supports`, {
                 method: 'GET',
@@ -458,6 +515,8 @@ class PortalDatabase {
                 result.data.forEach(support => {
                     supports[support.supportId] = support;  // ✅ YA CORRECTO
                 });
+                this.cache.supports = supports;
+                this.cacheTimestamps.supports = now;
                 return supports;
             }
             return {};
@@ -491,6 +550,7 @@ class PortalDatabase {
 
             if (result.success) {
                 console.log('✅ Soporte creado:', result.data.supportId);
+                this.invalidateCache('supports');
                 return { success: true, support: result.data };
             }
             
@@ -512,6 +572,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Soporte actualizado:', supportId);
+                this.invalidateCache('supports');
                 return { success: true, support: result.data };
             }
             
@@ -532,6 +593,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Soporte eliminado:', supportId);
+                this.invalidateCache('supports');
             }
             
             return result;
@@ -543,6 +605,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE MÓDULOS ===
     async getModules() {
+        const now = Date.now();
+        if (this.cache && this.cache.modules && (now - this.cacheTimestamps.modules < this.CACHE_DURATION)) {
+            return this.cache.modules;
+        }
         try {
             const response = await fetch(`${this.API_URL}/modules`, {
                 method: 'GET',
@@ -556,6 +622,8 @@ class PortalDatabase {
                 result.data.forEach(module => {
                     modules[module.moduleId] = module;  // ✅ YA CORRECTO
                 });
+                this.cache.modules = modules;
+                this.cacheTimestamps.modules = now;
                 return modules;
             }
             return {};
@@ -590,6 +658,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Módulo creado:', result.data.moduleId);  // ✅ Cambia de .id a .moduleId
+                this.invalidateCache('modules');
                 return { success: true, module: result.data };
             }
             
@@ -611,6 +680,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Módulo actualizado:', moduleId);
+                this.invalidateCache('modules');
                 return { success: true, module: result.data };
             }
             
@@ -631,6 +701,7 @@ class PortalDatabase {
             
             if (result.success) {
                 console.log('✅ Módulo eliminado:', moduleId);
+                this.invalidateCache('modules');
             }
             
             return result;
