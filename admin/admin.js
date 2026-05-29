@@ -10354,9 +10354,7 @@ async function reactivateTask(taskId) {
  * Ver detalles de tarea
  */
 async function viewTaskDetails(taskId) {
-
     try {
-
         const task = await window.PortalDB.getTaskAssignment(taskId);
         
         if (!task) {
@@ -10379,47 +10377,51 @@ async function viewTaskDetails(taskId) {
         const margen = task.tarifaCliente - task.tarifaConsultor;
         const porcentaje = task.tarifaConsultor > 0 ? (margen / task.tarifaConsultor) * 100 : 0;
         
-        const details = `
-        ═══════════════════════════════════════
-        Detalles de Tarea
-        ═══════════════════════════════════════
-
-        Id: ${task.taskAssignmentId || task.taskAssignmentId}
-        Estado: ${task.isActive ? 'Activa' : 'Inactiva'}
-
-        Consultor
-        ${consultor ? consultor.name : 'N/A'}
-        Id: ${task.consultorId}
-
-        Cliente
-        ${company ? company.name : 'N/A'}
-        Id: ${task.companyId}
-
-        Soporte Padre
-        ${support ? support.name : 'N/A'}
-        Id: ${task.linkedSupportId}
-
-        Módulo
-        ${module ? module.name : 'N/A'}
-        Id: ${task.moduleId}
-
-        Descripción
-        ${task.descripcion || 'Sin descripción'}
-
-        Tarifas
-        Consultor: ${formatCurrency(task.tarifaConsultor)}/hora
-        Cliente:   ${formatCurrency(task.tarifaCliente)}/hora
-        Margen:    ${formatCurrency(margen)} (${porcentaje.toFixed(1)}%)
-
-        Fechas
-        Creada:      ${window.DateUtils ? window.DateUtils.formatDate(task.createdAt) : task.createdAt}
-        Actualizada: ${window.DateUtils ? window.DateUtils.formatDate(task.updatedAt) : task.updatedAt}
-
-        ═══════════════════════════════════════
-        `;
+        // Populate modal fields
+        const detailTaskId = document.getElementById('detailTaskId');
+        const detailTaskStatus = document.getElementById('detailTaskStatus');
+        const detailTaskConsultor = document.getElementById('detailTaskConsultor');
+        const detailTaskCompany = document.getElementById('detailTaskCompany');
+        const detailTaskSupport = document.getElementById('detailTaskSupport');
+        const detailTaskModule = document.getElementById('detailTaskModule');
+        const detailTaskDescription = document.getElementById('detailTaskDescription');
+        const detailTaskTarifaConsultor = document.getElementById('detailTaskTarifaConsultor');
+        const detailTaskTarifaCliente = document.getElementById('detailTaskTarifaCliente');
+        const detailTaskMargen = document.getElementById('detailTaskMargen');
         
-        alert(details);
-
+        if (detailTaskId) detailTaskId.textContent = task.taskAssignmentId || taskId;
+        
+        if (detailTaskStatus) {
+            detailTaskStatus.textContent = task.isActive ? 'Activa' : 'Inactiva';
+            detailTaskStatus.className = 'status-badge ' + (task.isActive ? 'active' : 'inactive');
+            detailTaskStatus.style.background = task.isActive ? '#dcfce7' : '#fee2e2';
+            detailTaskStatus.style.color = task.isActive ? '#15803d' : '#b91c1c';
+        }
+        
+        if (detailTaskConsultor) detailTaskConsultor.textContent = consultor ? consultor.name : 'N/A';
+        if (detailTaskCompany) detailTaskCompany.textContent = company ? company.name : 'N/A';
+        if (detailTaskSupport) detailTaskSupport.textContent = support ? support.name : 'N/A';
+        if (detailTaskModule) detailTaskModule.textContent = module ? module.name : 'N/A';
+        if (detailTaskDescription) detailTaskDescription.textContent = task.descripcion || 'Sin descripción';
+        
+        if (detailTaskTarifaConsultor) detailTaskTarifaConsultor.textContent = formatCurrency(task.tarifaConsultor);
+        if (detailTaskTarifaCliente) detailTaskTarifaCliente.textContent = formatCurrency(task.tarifaCliente);
+        
+        if (detailTaskMargen) {
+            detailTaskMargen.textContent = `${formatCurrency(margen)} (${porcentaje.toFixed(1)}%)`;
+            if (margen >= 0) {
+                detailTaskMargen.style.color = '#16a34a';
+            } else {
+                detailTaskMargen.style.color = '#dc2626';
+            }
+        }
+        
+        const modal = document.getElementById('taskDetailsModal');
+        if (modal) {
+            modal.style.display = 'flex';
+        } else {
+            alert(`Tarea: ${task.taskAssignmentId || taskId}\nEstado: ${task.isActive ? 'Activa' : 'Inactiva'}\nDescripción: ${task.descripcion}`);
+        }
     } catch (error) {
         window.NotificationUtils.error('Error al obtener detalles de la tarea: ' + error.message);
     }
@@ -11903,6 +11905,9 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.style.display = 'none';
         }
         if (e.target.id === 'infoEntityModal') {
+            e.target.style.display = 'none';
+        }
+        if (e.target.id === 'taskDetailsModal') {
             e.target.style.display = 'none';
         }
     });
