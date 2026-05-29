@@ -3683,6 +3683,19 @@ body {
     color: #059669;
 }
 
+/* Filtros de Tareas - Diseño Portal */
+#taskAssignments-section .filters-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--border-radius-xl, 14px);
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    ESTILOS MEJORADOS PARA SECCIÓN DE TAREAS
    ═══════════════════════════════════════════════════════════════ */
@@ -3691,10 +3704,13 @@ body {
    SECCIÓN DE TAREAS - HEADER Y TÍTULO
    ═══════════════════════════════════════════════════════════════ */
 
-#tasksSection {
-    background: #f8fafc;
-    padding: 2rem;
-    border-radius: 0;
+/* Toolbar de Tareas */
+#taskAssignments-section .crud-toolbar {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
 }
 
 #tasksSection .section-header {
@@ -6791,5 +6807,190 @@ body.dark-mode .admin-sidebar.resizing .sidebar-resizer {
         margin-left: 0 !important;
         width: 100% !important;
         justify-content: center !important;
+    }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ESTILOS PREMIUM PARA SECCIÓN DE TAREAS (SOBREESCRITURAS)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Filtros de Tareas - Diseño Portal */
+#taskAssignments-section .filters-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+    gap: 1.25rem !important;
+    background: white !important;
+    padding: 1.5rem !important;
+    border-radius: var(--border-radius-xl, 14px) !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+#taskAssignments-section .filter-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+}
+
+#taskAssignments-section .filter-group label {
+    font-weight: 600 !important;
+    color: #475569 !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+#taskAssignments-section .filter-group label i {
+    color: var(--primary-color, #1e3a8a) !important;
+}
+
+#taskAssignments-section .filter-select {
+    padding: 0.625rem 0.875rem !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: var(--border-radius-md, 8px) !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #1e293b !important;
+    background: white !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    outline: none !important;
+}
+
+#taskAssignments-section .filter-select:hover {
+    border-color: var(--primary-color, #1e3a8a) !important;
+    background: #f8fafc !important;
+}
+
+#taskAssignments-section .filter-select:focus {
+    border-color: var(--primary-dark, #1e40af) !important;
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1) !important;
+}
+
+/* Tareas: Detalles del ID y tarifas */
+.task-id-code {
+    background: #f1f5f9;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-family: var(--font-secondary, monospace);
+    font-size: 0.775rem;
+    font-weight: 600;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+
+.task-tarifa {
+    font-weight: 600;
+    color: #0f766e; /* Color verde azulado/teal elegante para precios */
+    font-family: var(--font-secondary, monospace);
+    font-size: 0.875rem;
+}
+
+.task-description {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.task-description:hover {
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+
+/* Inactive row */
+#taskAssignments-section .crud-table tr.inactive-row {
+    opacity: 0.6 !important;
+    background-color: #f8fafc !important;
+}
+
+/* Botones de acción */
+#taskAssignments-section .btn-icon {
+    padding: 0.5rem !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: var(--border-radius-md, 8px) !important;
+    cursor: pointer !important;
+    font-size: 0.875rem !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 34px !important;
+    height: 34px !important;
+    background: white !important;
+    color: #475569 !important;
+    box-shadow: none !important;
+}
+
+#taskAssignments-section .btn-icon:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+}
+
+#taskAssignments-section .btn-icon:first-child {
+    color: var(--primary-color, #1e3a8a) !important;
+    background: white !important;
+}
+
+#taskAssignments-section .btn-icon:first-child:hover {
+    background-color: rgba(30, 58, 138, 0.05) !important;
+    border-color: var(--primary-color, #1e3a8a) !important;
+}
+
+#taskAssignments-section .btn-icon.btn-danger {
+    color: var(--accent-color, #dc2626) !important;
+    background: white !important;
+}
+
+#taskAssignments-section .btn-icon.btn-danger:hover {
+    background-color: rgba(220, 38, 38, 0.05) !important;
+    border-color: var(--accent-color, #dc2626) !important;
+}
+
+#taskAssignments-section .btn-icon.btn-success {
+    color: var(--success-color, #059669) !important;
+    background: white !important;
+}
+
+#taskAssignments-section .btn-icon.btn-success:hover {
+    background-color: rgba(5, 150, 105, 0.05) !important;
+    border-color: var(--success-color, #059669) !important;
+}
+
+#taskAssignments-section .btn-icon:last-child {
+    color: #475569 !important;
+    background: white !important;
+}
+
+#taskAssignments-section .btn-icon:last-child:hover {
+    background-color: rgba(71, 85, 105, 0.05) !important;
+    border-color: #475569 !important;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    #taskAssignments-section .filters-container {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #taskAssignments-section .crud-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    #taskAssignments-section .filters-container {
+        grid-template-columns: 1fr !important;
+        padding: 1.25rem !important;
+        gap: 1rem !important;
     }
 }

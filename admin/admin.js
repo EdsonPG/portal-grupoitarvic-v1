@@ -9937,6 +9937,7 @@ async function filterTasks() {
     const supportId = document.getElementById('taskFilterSupport')?.value || '';
     const consultorId = document.getElementById('taskFilterConsultor')?.value || '';
     const status = document.getElementById('taskFilterStatus')?.value || 'active';
+    const searchQuery = document.getElementById('searchTasks')?.value.toLowerCase().trim() || '';
     
     const taskAssignments = await window.PortalDB.getTaskAssignments();
     let tasks = Object.values(taskAssignments);
@@ -9960,6 +9961,32 @@ async function filterTasks() {
         tasks = tasks.filter(t => !t.isActive);
     }
     
+    // Aplicar búsqueda por texto
+    if (searchQuery) {
+        const currentData = {
+            users: await window.PortalDB.getUsers() || {},
+            companies: await window.PortalDB.getCompanies() || {},
+            supports: await window.PortalDB.getSupports() || {},
+            modules: await window.PortalDB.getModules() || {}
+        };
+        
+        tasks = tasks.filter(t => {
+            const consultor = currentData.users[t.consultorId]?.name.toLowerCase() || '';
+            const company = currentData.companies[t.companyId]?.name.toLowerCase() || '';
+            const support = currentData.supports[t.linkedSupportId]?.name.toLowerCase() || '';
+            const module = currentData.modules[t.moduleId]?.name.toLowerCase() || '';
+            const desc = t.descripcion?.toLowerCase() || '';
+            const id = (t.taskAssignmentId || '').toLowerCase();
+            
+            return consultor.includes(searchQuery) || 
+                   company.includes(searchQuery) || 
+                   support.includes(searchQuery) || 
+                   module.includes(searchQuery) || 
+                   desc.includes(searchQuery) || 
+                   id.includes(searchQuery);
+        });
+    }
+    
     // Renderizar tabla (ahora asíncrono)
     await renderTasksTable(tasks);
 }
@@ -9976,8 +10003,8 @@ async function renderTasksTable(tasks) {
     if (tasks.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="empty-state">
-                    <i class="fa-solid fa-tasks fa-3x"></i>
+                <td colspan="10" class="empty-cell" style="text-align: center; padding: 40px 20px; color: #94a3b8;">
+                    <i class="fa-solid fa-tasks fa-3x" style="margin-bottom: 10px; display: block; opacity: 0.5;"></i>
                     <p>No se encontraron tareas con estos filtros</p>
                 </td>
             </tr>
@@ -10002,14 +10029,14 @@ async function renderTasksTable(tasks) {
         row.className = task.isActive ? '' : 'inactive-row';
         
         row.innerHTML = `
-            <td><code>${task.taskAssignmentId || task.taskAssignmentId}</code></td>
+            <td><code class="task-id-code">${task.taskAssignmentId || 'N/A'}</code></td>
             <td>${consultor ? consultor.name : 'N/A'}</td>
             <td>${company ? company.name : 'N/A'}</td>
             <td>${support ? support.name : 'N/A'}</td>
             <td>${module ? module.name : 'N/A'}</td>
-            <td class="task-description">${task.descripcion || 'Sin descripción'}</td>
-            <td>${formatCurrency(task.tarifaConsultor)}</td>
-            <td>${formatCurrency(task.tarifaCliente)}</td>
+            <td class="task-description" title="${task.descripcion || ''}">${task.descripcion || 'Sin descripción'}</td>
+            <td class="task-tarifa task-tarifa-consultor">${formatCurrency(task.tarifaConsultor)}</td>
+            <td class="task-tarifa task-tarifa-cliente">${formatCurrency(task.tarifaCliente)}</td>
             <td>
                 <span class="status-badge ${task.isActive ? 'active' : 'inactive'}">
                     ${task.isActive ? 'Activa' : 'Inactiva'}

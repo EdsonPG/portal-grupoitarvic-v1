@@ -1002,6 +1002,17 @@
                             </button>
                         </div>
 
+                        <!-- Barra de Herramientas del Portal -->
+                        <div class="crud-toolbar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchTasks" placeholder="Buscar tareas por consultor, cliente, descripción..." oninput="filterTasks()">
+                            </div>
+                            <button class="add-btn" onclick="openCreateTaskModal()">
+                                <i class="fa-solid fa-plus"></i> Nueva Tarea
+                            </button>
+                        </div>
+
                         <!-- Filtros -->
                         <div class="filters-container">
                             <div class="filter-group">
@@ -1035,9 +1046,9 @@
                             </div>
                         </div>
 
-                        <!-- Tabla de Tareas -->
-                        <div class="table-container">
-                            <table class="data-table">
+                        <!-- Tabla de Tareas (Estilo Portal) -->
+                        <div class="crud-table-container">
+                            <table class="crud-table">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
@@ -1054,11 +1065,11 @@
                                 </thead>
                                 <tbody id="taskAssignmentsTableBody">
                                     <tr>
-                                        <td colspan="10" class="empty-state">
-                                            <i class="fa-solid fa-tasks fa-3x"></i>
+                                        <td colspan="10" class="empty-cell">
+                                            <i class="fa-solid fa-tasks fa-3x" style="margin-bottom: 10px; display: block; opacity: 0.5;"></i>
                                             <p>No hay tareas asignadas</p>
-                                            <button class="btn btn-primary" onclick="openCreateTaskModal()">
-                                                Crear Primera Tarea
+                                            <button class="add-btn" onclick="openCreateTaskModal()" style="margin: 10px auto 0 auto; display: inline-flex;">
+                                                <i class="fa-solid fa-plus"></i> Crear Primera Tarea
                                             </button>
                                         </td>
                                     </tr>
