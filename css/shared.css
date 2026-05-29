@@ -1289,8 +1289,7 @@ body.dark-mode .settings-divider {
     left: 0;
     width: 100%;
     height: 100%;
-    background: url('../images/galaxy_bg.png') no-repeat center center;
-    background-size: cover;
+    background: rgba(255, 255, 255, 0.98);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1301,8 +1300,7 @@ body.dark-mode .settings-divider {
 }
 
 body.dark-mode .portal-loading-overlay {
-    background: url('../images/galaxy_bg.png') no-repeat center center;
-    background-size: cover;
+    background: rgba(15, 23, 42, 0.98);
 }
 
 .portal-loading-content {
@@ -1328,38 +1326,35 @@ body.dark-mode .portal-loading-overlay {
 .portal-loading-spinner {
     width: 72px;
     height: 72px;
-    border: 4px solid rgba(255, 255, 255, 0.15);
-    border-top: 4px solid #38bdf8; /* Azul claro brillante */
-    border-right: 4px solid #818cf8; /* Morado/índigo brillante */
+    border: 4px solid var(--gray-200);
+    border-top: 4px solid var(--primary-light);
+    border-right: 4px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto;
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.35); /* Aura luminosa premium */
 }
 
 body.dark-mode .portal-loading-spinner {
-    border-color: rgba(255, 255, 255, 0.15);
-    border-top-color: #38bdf8;
-    border-right-color: #818cf8;
+    border-color: var(--gray-800);
+    border-top-color: var(--primary-light);
+    border-right-color: var(--primary-color);
 }
 
 .portal-loading-text {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    color: #ffffff; /* Blanco para contraste */
+    color: var(--gray-700);
     margin-top: var(--spacing-md);
-    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
 }
 
 body.dark-mode .portal-loading-text {
-    color: #ffffff;
+    color: var(--gray-300);
 }
 
 .portal-loading-subtext {
-    font-size: 0.9rem;
-    color: #cbd5e1; /* Gris azulado claro */
+    font-size: 0.85rem;
+    color: var(--gray-500);
     margin-top: var(--spacing-sm);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .portal-loading-error-card {
