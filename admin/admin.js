@@ -12093,10 +12093,12 @@ function editModule(moduleId) {
 function setupSidebarResize(sidebar, resizer) {
     let isResizing = false;
     
-    // Cargar ancho preferido de localStorage si existe
+    // Cargar ancho preferido de localStorage si existe, si no, usar 220px por defecto
     const savedWidth = localStorage.getItem('adminSidebarWidth');
     if (savedWidth) {
         sidebar.style.width = savedWidth + 'px';
+    } else {
+        sidebar.style.width = '220px';
     }
     
     resizer.addEventListener('mousedown', (e) => {

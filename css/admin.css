@@ -6994,3 +6994,32 @@ body.dark-mode .admin-sidebar.resizing .sidebar-resizer {
         gap: 1rem !important;
     }
 }
+
+
+/* Ajuste de sidebar por defecto a 220px */
+.admin-sidebar {
+    width: 220px;
+}
+
+/* Compresión de tabla de tareas para evitar scroll horizontal en dashboard */
+#taskAssignments-section .crud-table-container {
+    overflow-x: auto !important; /* Scroll interno si es estrictamente necesario */
+}
+
+#taskAssignments-section .crud-table th,
+#taskAssignments-section .crud-table td {
+    padding: 8px 10px !important; /* Espaciado interno más compacto */
+    font-size: 0.8rem !important; /* Letra un poco más pequeña */
+}
+
+#taskAssignments-section .task-description {
+    max-width: 130px !important; /* Truncar descripción un poco más para ahorrar espacio */
+}
+
+/* Botones de acción más pequeños */
+#taskAssignments-section .btn-icon {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0.25rem !important;
+    font-size: 0.75rem !important;
+}
