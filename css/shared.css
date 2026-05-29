@@ -1437,9 +1437,8 @@ body.dark-mode .portal-loading-error-desc {
 /* Ocultar contenido mientras carga inicialmente para evitar ver ceros o layouts vacíos */
 body.portal-loading-active .admin-header,
 body.portal-loading-active .admin-sidebar,
-body.portal-loading-active .admin-main,
-body.portal-loading-active .main-content,
-body.portal-loading-active .dashboard-container,
+body.portal-loading-active .admin-content,
+body.portal-loading-active .admin-layout-wrapper,
 body.portal-loading-active .consultor-header,
 body.portal-loading-active #mainContent {
     opacity: 0 !important;
