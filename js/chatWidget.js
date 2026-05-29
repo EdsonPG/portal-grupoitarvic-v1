@@ -115,7 +115,7 @@ class ChatWidget {
                                 <span class="chat-header-status" id="chatHeaderStatus"></span>
                             </div>
                         </div>
-                        <div class="chat-header-actions" id="chatHeaderActions" style="display:none; gap:10px; margin-right:15px;">
+                        <div class="chat-header-actions" id="chatHeaderActions" style="display:none; gap:10px; margin-left:auto; margin-right:15px;">
                             <button class="chat-call-btn" id="chatVoiceCallBtn" title="Iniciar llamada de voz"><i class="fa-solid fa-phone"></i></button>
                             <button class="chat-call-btn" id="chatVideoCallBtn" title="Iniciar videollamada"><i class="fa-solid fa-video"></i></button>
                         </div>
@@ -541,7 +541,15 @@ class ChatWidget {
             let lastMsgPreview = '';
             if (lastMsg) {
                 const isMe = lastMsg.lastSenderId === currentUserId;
-                const text = lastMsg.lastMessage || '📎 Archivo';
+                let text = lastMsg.lastMessage || '📎 Archivo';
+                
+                // Formatear etiquetas de llamadas
+                if (text.startsWith('[MEET_CALL_VIDEO]')) {
+                    text = '🎥 Videollamada';
+                } else if (text.startsWith('[MEET_CALL_VOICE]')) {
+                    text = '📞 Llamada de voz';
+                }
+                
                 lastMsgPreview = `<span class="contact-last-msg">${isMe ? 'Tú: ' : ''}${this.truncate(text, 30)}</span>`;
             } else {
                 lastMsgPreview = `<span class="contact-last-msg empty">Sin mensajes</span>`;
@@ -673,7 +681,7 @@ class ChatWidget {
         // Remove badge from contact item
         const contactItem = this.contactsList.querySelector(`[data-user-id="${senderId}"]`);
         if (contactItem) {
-            const badge = contactItem.querySelector('.contact-unread-badge');
+            const badge = contactItem.querySelector('.contact-unread');
             if (badge) badge.remove();
         }
     }

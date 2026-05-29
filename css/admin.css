@@ -7023,3 +7023,861 @@ body.dark-mode .admin-sidebar.resizing .sidebar-resizer {
     padding: 0.25rem !important;
     font-size: 0.75rem !important;
 }
+
+
+/* ==========================================================
+   MODO OSCURO (DARK MODE) OVERRIDES FOR MODALS & FORMS (ADMIN)
+   ========================================================== */
+body.dark-mode .modal-content {
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
+}
+body.dark-mode .modal-header {
+    border-bottom: 2px solid #334155 !important;
+    color: #f8fafc !important;
+    background: #1e293b !important;
+}
+body.dark-mode .modal-header h2 {
+    color: #f8fafc !important;
+}
+body.dark-mode .modal-close {
+    color: #cbd5e1 !important;
+}
+body.dark-mode .modal-close:hover {
+    color: #f8fafc !important;
+}
+body.dark-mode .form-group label {
+    color: #cbd5e1 !important;
+}
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea,
+body.dark-mode .admin-form input,
+body.dark-mode .admin-form select,
+body.dark-mode .admin-form textarea {
+    background-color: #0f172a !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
+}
+body.dark-mode .form-group input:focus,
+body.dark-mode .form-group select:focus,
+body.dark-mode .form-group textarea:focus,
+body.dark-mode .admin-form input:focus,
+body.dark-mode .admin-form select:focus,
+body.dark-mode .admin-form textarea:focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+body.dark-mode .form-group input[disabled],
+body.dark-mode .form-group select[disabled],
+body.dark-mode .form-group textarea[disabled],
+body.dark-mode .admin-form input[disabled],
+body.dark-mode .admin-form select[disabled],
+body.dark-mode .admin-form textarea[disabled] {
+    background-color: #1e293b !important;
+    color: #64748b !important;
+    cursor: not-allowed;
+    border-color: #334155 !important;
+}
+body.dark-mode .crud-table {
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+body.dark-mode .crud-table th {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-bottom: 2px solid #334155 !important;
+}
+body.dark-mode .crud-table td {
+    border-bottom: 1px solid #334155 !important;
+    color: #cbd5e1 !important;
+}
+body.dark-mode .crud-table tr:hover {
+    background-color: #273549 !important;
+}
+body.dark-mode .message-info {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    color: #93c5fd !important;
+    border-left: 4px solid #3b82f6 !important;
+}
+body.dark-mode .modal-close {
+    background: transparent !important;
+    color: #94a3b8 !important;
+}
+body.dark-mode .modal-close:hover {
+    color: white !important;
+}
+body.dark-mode .close {
+    color: #94a3b8 !important;
+    opacity: 1 !important;
+}
+body.dark-mode .close:hover {
+    color: white !important;
+}
+
+
+/* ==========================================================================
+   MODO OSCURO (DARK MODE) COMPLETO - ASIGNACIONES, REPORTES Y CALENDARIO
+   ========================================================================== */
+
+/* 1. SECCIÓN DE ASIGNACIONES (Asignar Soporte y Asignar Proyecto) */
+body.dark-mode #crear-asignacion-section .assignment-form-container,
+body.dark-mode #asignar-proyectos-section .assignment-form-container {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark-mode #crear-asignacion-section .form-group label,
+body.dark-mode #asignar-proyectos-section .form-group label,
+body.dark-mode .field-label-row label {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode #crear-asignacion-section .form-group select,
+body.dark-mode #crear-asignacion-section .form-group input,
+body.dark-mode #asignar-proyectos-section .form-group select,
+body.dark-mode #asignar-proyectos-section .form-group input {
+    background: #0f172a !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode #crear-asignacion-section .form-group select:focus,
+body.dark-mode #crear-asignacion-section .form-group input:focus,
+body.dark-mode #asignar-proyectos-section .form-group select:focus,
+body.dark-mode #asignar-proyectos-section .form-group input:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+
+body.dark-mode .field-mini-action {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .field-mini-action:hover {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode #crear-asignacion-section .tarifa-section,
+body.dark-mode #asignar-proyectos-section .tarifa-section {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode #crear-asignacion-section .tarifa-section h3,
+body.dark-mode #asignar-proyectos-section .tarifa-section h3 {
+    color: #f8fafc !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode #crear-asignacion-section .form-hint,
+body.dark-mode #asignar-proyectos-section .form-hint {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode #crear-asignacion-section .margen-display,
+body.dark-mode #asignar-proyectos-section .margen-display {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode #crear-asignacion-section .margen-label,
+body.dark-mode #asignar-proyectos-section .margen-label {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode #crear-asignacion-section .margen-value,
+body.dark-mode #asignar-proyectos-section .margen-value {
+    color: #f8fafc !important;
+}
+
+body.dark-mode #crear-asignacion-section .form-submit-row,
+body.dark-mode #asignar-proyectos-section .form-submit-row {
+    border-top-color: #334155 !important;
+}
+
+/* 2. PROYECTOS ASIGNADOS Y ASIGNACIONES DE TAREAS */
+body.dark-mode .project-assignment-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.dark-mode .project-assignment-card .assignment-header {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .project-assignment-card .assignment-header h3 {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .project-assignment-card .assignment-id {
+    color: #94a3b8 !important;
+    background: #0f172a !important;
+    border: 1px solid #334155 !important;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+body.dark-mode .project-assignment-card .assignment-details p {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .project-assignment-card .assignment-details p strong {
+    color: #f8fafc !important;
+}
+
+body.dark-mode #taskAssignments-section .filters-container {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode #taskAssignments-section .filter-group label {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode #taskAssignments-section .filter-group label i {
+    color: #3b82f6 !important;
+}
+
+body.dark-mode #taskAssignments-section .filter-select {
+    background: #0f172a !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode #taskAssignments-section .filter-select:hover {
+    background: #1e293b !important;
+    border-color: #3b82f6 !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon:hover {
+    background: #334155 !important;
+    color: white !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon:first-child {
+    color: #93c5fd !important;
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon:first-child:hover {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon.btn-danger {
+    color: #f87171 !important;
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon.btn-danger:hover {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    border-color: #ef4444 !important;
+    color: white !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon.btn-success {
+    color: #34d399 !important;
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon.btn-success:hover {
+    background-color: rgba(16, 185, 129, 0.2) !important;
+    border-color: #10b981 !important;
+    color: white !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon:last-child {
+    color: #cbd5e1 !important;
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode #taskAssignments-section .btn-icon:last-child:hover {
+    background-color: rgba(71, 85, 105, 0.2) !important;
+    border-color: #475569 !important;
+    color: white !important;
+}
+
+body.dark-mode #taskAssignments-section .crud-table tr.inactive-row {
+    background-color: #0f172a !important;
+    opacity: 0.5 !important;
+}
+
+body.dark-mode .task-id-code {
+    background: #334155 !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode .task-tarifa {
+    color: #2dd4bf !important;
+}
+
+body.dark-mode .search-box input,
+body.dark-mode .assignment-search-box input {
+    background: #0f172a !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .search-box input:focus,
+body.dark-mode .assignment-search-box input:focus {
+    border-color: #3b82f6 !important;
+}
+
+body.dark-mode .crud-table-container {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .crud-table thead {
+    background: #0f172a !important;
+}
+
+/* 3. SECCIÓN DE REPORTES (Pendientes, Aprobados, Sistema e Historial) */
+body.dark-mode .admin-table {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode .admin-table th {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+    border-bottom: 2px solid #334155 !important;
+}
+
+body.dark-mode .admin-table td {
+    border-bottom: 1px solid #334155 !important;
+    color: #cbd5e1 !important;
+    background: #1e293b !important;
+}
+
+body.dark-mode .admin-table tr:hover {
+    background: #273549 !important;
+}
+
+body.dark-mode .admin-table tr:hover td {
+    background: #273549 !important;
+}
+
+body.dark-mode .reports-table-container {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .empty-table-message {
+    background: #1e293b !important;
+}
+
+body.dark-mode .reports-category-filters {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+    border-color: #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode .category-filter-btn {
+    background: #0f172a !important;
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode .category-filter-btn:hover {
+    border-color: #3b82f6 !important;
+    background: #1e293b !important;
+    color: white !important;
+}
+
+body.dark-mode .category-filter-btn.active {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    border-color: #2563eb !important;
+    color: white !important;
+}
+
+body.dark-mode .category-filter-btn.active:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+}
+
+body.dark-mode .reports-filters {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode .filter-group label {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .filter-group select,
+body.dark-mode .filter-group input[type="date"] {
+    background: #0f172a !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .filter-group select:focus,
+body.dark-mode .filter-group input[type="date"]:focus {
+    border-color: #3b82f6 !important;
+}
+
+body.dark-mode .filter-info {
+    color: #cbd5e1 !important;
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode #customDateRange,
+body.dark-mode #historialCustomDateRange {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+/* Sistema de Reportes ARVIC */
+body.dark-mode .report-selector {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode .report-selector h3 {
+    color: #93c5fd !important;
+}
+
+body.dark-mode .report-option {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .report-option:hover {
+    border-color: #3b82f6 !important;
+    background: #1e293b !important;
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25) !important;
+}
+
+body.dark-mode .report-option.active {
+    border-color: #10b981 !important;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(4, 120, 87, 0.15) 100%) !important;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2) !important;
+}
+
+body.dark-mode .report-name {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .report-description {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .report-audience {
+    color: #34d399 !important;
+    background: rgba(16, 185, 129, 0.2) !important;
+}
+
+body.dark-mode .report-config-panel {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode .config-header {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .config-title {
+    color: #93c5fd !important;
+}
+
+body.dark-mode .config-subtitle {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .actions-row {
+    border-top-color: #334155 !important;
+}
+
+body.dark-mode .back-to-selector-btn:hover {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+    color: white !important;
+}
+
+body.dark-mode .preview-panel {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode .preview-header {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .preview-title {
+    color: #93c5fd !important;
+}
+
+body.dark-mode .preview-info {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .preview-table {
+    border-color: #334155 !important;
+}
+
+body.dark-mode .preview-table th {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .preview-table td {
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+    background: #1e293b !important;
+}
+
+body.dark-mode .preview-table tbody tr:nth-child(even) td {
+    background: #192231 !important;
+}
+
+body.dark-mode .editable-cell {
+    background: #3f2f17 !important;
+}
+
+body.dark-mode .editable-input {
+    color: #fef08a !important;
+}
+
+body.dark-mode .editable-input:focus {
+    outline-color: #f59e0b !important;
+    background: #0f172a !important;
+}
+
+body.dark-mode .warning-message {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%) !important;
+    border-left-color: #f59e0b !important;
+    color: #fef08a !important;
+}
+
+body.dark-mode .warning-message strong {
+    color: #fbbf24 !important;
+}
+
+body.dark-mode .empty-preview {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .mass-approval-tools {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode #selectedReportsCount {
+    color: #60a5fa !important;
+}
+
+body.dark-mode .stat-number {
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    color: #f8fafc !important;
+}
+
+body.dark-mode .stat-label {
+    font-size: 0.82rem !important;
+    color: #94a3b8 !important;
+    font-weight: 500 !important;
+}
+
+/* 4. HERRAMIENTAS - MODULO DE CALENDARIO (Inyectado dinámicamente) */
+body.dark-mode .cal-current-label {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .cal-nav-btn {
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+    background: #1e293b !important;
+}
+
+body.dark-mode .cal-nav-btn:hover {
+    background: #334155 !important;
+    border-color: #3b82f6 !important;
+    color: #3b82f6 !important;
+}
+
+body.dark-mode .cal-today-btn {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .cal-today-btn:hover {
+    background: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode .cal-view-toggle {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .cal-view-btn {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .cal-view-btn.active {
+    background: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode .cal-month-grid,
+body.dark-mode .cal-week-grid {
+    border-color: #334155 !important;
+    background: #1e293b !important;
+}
+
+body.dark-mode .cal-cell {
+    border-color: #334155 !important;
+    background: #1e293b !important;
+}
+
+body.dark-mode .cal-cell:hover {
+    background: #273549 !important;
+}
+
+body.dark-mode .cal-cell-other {
+    opacity: 0.25 !important;
+}
+
+body.dark-mode .cal-cell-today {
+    background: rgba(59, 130, 246, 0.15) !important;
+}
+
+body.dark-mode .cal-cell-num {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .today-badge {
+    background: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode .cal-event-more {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .cal-week-day-col {
+    border-color: #334155 !important;
+}
+
+body.dark-mode .cal-week-day-name {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .cal-week-row {
+    border-bottom-color: #334155 !important;
+    background: #1e293b !important;
+}
+
+body.dark-mode .cal-week-time {
+    color: #94a3b8 !important;
+    border-right-color: #334155 !important;
+}
+
+body.dark-mode .cal-week-cell {
+    border-right-color: #334155 !important;
+}
+
+body.dark-mode .cal-drawer {
+    background: #1e293b !important;
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5) !important;
+    border-left: 1px solid #334155 !important;
+}
+
+body.dark-mode .cal-drawer-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+body.dark-mode .cal-form-group label {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .cal-form-group input,
+body.dark-mode .cal-form-group select,
+body.dark-mode .cal-form-group textarea {
+    background-color: #0f172a !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .cal-form-group input:focus,
+body.dark-mode .cal-form-group select:focus,
+body.dark-mode .cal-form-group textarea:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+
+body.dark-mode .cal-attendees-list {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .cal-attendee-check {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .cal-attendee-check:hover {
+    background: #1e293b !important;
+    color: white !important;
+}
+
+body.dark-mode .cal-form-actions {
+    border-top-color: #334155 !important;
+}
+
+body.dark-mode .cal-btn-sm {
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+    background: #1e293b !important;
+}
+
+body.dark-mode .cal-btn-sm:hover {
+    background: #334155 !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode .cal-modal {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.dark-mode .cal-modal-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+body.dark-mode .cal-summary-section h4 {
+    color: #f8fafc !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .cal-summary-event {
+    background: #0f172a !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-mode .cal-summary-time {
+    color: #93c5fd !important;
+    background: rgba(59, 130, 246, 0.15) !important;
+}
+
+body.dark-mode .cal-summary-desc {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .cal-summary-attendees {
+    color: #60a5fa !important;
+}
+
+body.dark-mode .cal-summary-empty {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .cal-consultant-card {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .cal-task-row {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .cal-task-desc {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .cal-task-hours {
+    color: #3b82f6 !important;
+}
+
+body.dark-mode .cal-summary-footer {
+    border-top-color: #334155 !important;
+}
+
+body.dark-mode .cal-status-pendiente {
+    background: rgba(251, 191, 36, 0.15) !important;
+    color: #fbbf24 !important;
+}
+
+body.dark-mode .cal-status-aprobado {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34d399 !important;
+}
+
+body.dark-mode .cal-status-rechazado {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #f87171 !important;
+}
+
+/* Overrides para formularios de configuración de reportes y botones secundarios */
+body.dark-mode .config-form {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+    box-shadow: none !important;
+}
+
+body.dark-mode .btn-secondary {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .btn-secondary:hover {
+    background-color: #475569 !important;
+    border-color: #64748b !important;
+    color: white !important;
+}
+
+body.dark-mode .back-to-selector-btn {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .back-to-selector-btn:hover {
+    background: #475569 !important;
+    border-color: #64748b !important;
+    color: white !important;
+}
+
+
+

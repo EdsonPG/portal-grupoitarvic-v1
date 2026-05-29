@@ -682,6 +682,7 @@ async function loadAllData() {
         if (typeof updateSidebarCounts === 'function') {
             updateSidebarCounts();
         }
+        updateNotificationBadge();
         
         // Ocultar overlay
         if (overlay) {
@@ -757,8 +758,8 @@ async function updateSidebarCounts() {
         const projectAssignments = currentData.projectAssignments || {};
         const taskAssignments = currentData.taskAssignments || {};
 
-        // Contar consultores activos (excluyendo admin)
-        const consultorCount = Object.values(users).filter(u => u.role === 'consultor' && u.isActive !== false).length;
+        // Contar consultores y administradores activos (excluyendo al admin del sistema principal)
+        const consultorCount = Object.values(users).filter(u => (u.role === 'consultor' || u.role === 'admin') && u.userId !== 'admin' && u.isActive !== false).length;
         const empresaCount = Object.values(companies).filter(c => c.isActive !== false).length;
         const proyectoCount = Object.values(projects).filter(p => p.isActive !== false).length;
         const soporteCount = Object.values(supports).filter(s => s.isActive !== false).length;
@@ -3146,14 +3147,9 @@ async function loadAllData() {
         // Actualizar UI general
         updateSidebarCounts();
         
-        // Si estamos en una sección que requiere renderizado inmediato
-        if (currentSection === 'usuarios') await updateUsersList();
-        if (currentSection === 'reportes-pendientes') await updateReportsList();
-        
-        // Si estamos en Panel General, actualizar stats
-        if (currentSection === 'panel-general') {
-            renderPanelGeneral();
-        }
+        // Actualizar la sección actual dinámicamente
+        await updateCurrentSectionData();
+        updateNotificationBadge();
 
         // Ocultar overlay con transición suave
         if (overlay) {
@@ -10968,6 +10964,7 @@ window.cerrarModalTarifas = cerrarModalTarifas;
 window.cerrarFormularioTarifa = cerrarFormularioTarifa;
 window.silentAdminRefresh = silentAdminRefresh;
 window.isAdminInteracting = isAdminInteracting;
+window.loadAllData = loadAllData;
 
 // === GESTIÓN MAESTRA (SISTEMA HÍBRIDO) ===
 
@@ -11638,7 +11635,7 @@ function renderPanelGeneral() {
         const tarifario = currentData.tarifario || {};
         const taskAssignments = currentData.taskAssignments || {};
 
-        const consultorCount = Object.values(users).filter(u => u.role === 'consultor' && u.isActive !== false).length;
+        const consultorCount = Object.values(users).filter(u => (u.role === 'consultor' || u.role === 'admin') && u.userId !== 'admin' && u.isActive !== false).length;
         const empresaCount = Object.values(companies).filter(c => c.isActive !== false).length;
         const proyectoCount = Object.values(projects).filter(p => p.isActive !== false).length;
         const soporteCount = Object.values(supports).filter(s => s.isActive !== false).length;
@@ -11676,17 +11673,28 @@ function renderConsultoresList() {
     if (!tbody) return;
 
     const users = currentData.users || {};
-    const consultores = Object.values(users).filter(u => u.role === 'consultor');
+    const consultores = Object.values(users).filter(u => (u.role === 'consultor' || u.role === 'admin') && u.userId !== 'admin');
 
     if (consultores.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-users"></i> No hay consultores registrados. Cree uno con "+ Nuevo Consultor".</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-users"></i> No hay usuarios registrados. Cree uno con "+ Nuevo Consultor".</td></tr>';
         return;
     }
 
     tbody.innerHTML = consultores.map(u => `
         <tr data-searchable="${(u.name || '').toLowerCase()} ${(u.email || '').toLowerCase()} ${(u.id || u.userId || '')}">
             <td><strong>${u.id || u.userId || '—'}</strong></td>
-            <td>${u.name || 'Sin nombre'}</td>
+            <td>
+                ${u.name || 'Sin nombre'}
+                ${u.role === 'admin' ? `
+                    <span class="custom-badge" style="background-color: var(--color-arvic-primary, #0f1d3a); color: white; border-color: var(--color-arvic-primary, #0f1d3a); padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; margin-left: 8px; font-weight: bold; display: inline-block;">
+                        <i class="fa-solid fa-crown" style="font-size: 0.65rem; margin-right: 4px;"></i> ADMIN
+                    </span>
+                ` : `
+                    <span class="custom-badge badge-info" style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; margin-left: 8px; font-weight: bold; background: transparent; color: var(--gray-600); border-color: var(--gray-300); box-shadow: none; display: inline-block;">
+                        CONSULTOR
+                    </span>
+                `}
+            </td>
             <td>${u.email || '—'}</td>
             <td class="crud-password-cell">${u.password || '—'}</td>
             <td><span class="crud-status-badge ${u.isActive !== false ? 'active' : 'inactive'}">${u.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>

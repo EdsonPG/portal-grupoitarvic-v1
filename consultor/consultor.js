@@ -774,6 +774,7 @@ async function loadUserAssignments() {
         // Render lists and update UI
         updateAssignmentsList();
         updateCountersOnly();
+        updateNotificationBadge();
         
         setTimeout(() => {
             updateRejectedReportsSection();
