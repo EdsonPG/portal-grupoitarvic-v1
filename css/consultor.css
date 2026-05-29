@@ -2272,6 +2272,20 @@ body.dark-mode div[style*="background"] {
 .ts-type-badge.project { background: #fee2e2; color: #b91c1c; }
 .ts-type-badge.task { background: #d1fae5; color: #065f46; }
 
+.ts-module-badge {
+    font-size: 0.65em;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    background: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #e9d5ff;
+    margin-left: 6px;
+    display: inline-block;
+}
+
 /* Day Cells */
 .ts-day-cell {
     text-align: center;

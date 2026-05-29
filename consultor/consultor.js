@@ -2180,6 +2180,9 @@ async function renderTimesheetGrid() {
         
         // Get display info
         const company = await window.PortalDB.getCompany(assignment.companyId);
+        const module = await window.PortalDB.getModule(assignment.moduleId);
+        const moduleText = module ? (window.convertModuleToAcronym(module.name) || module.name) : 'GENERAL';
+
         let entityName = '';
         let icon = 'fa-headset';
         
@@ -2257,7 +2260,11 @@ async function renderTimesheetGrid() {
                         </div>
                         <div>
                             <div class="ts-assignment-name">${entityName}</div>
-                            <div class="ts-assignment-company">${company?.name || ''} <span class="ts-type-badge ${aType}">${aType === 'support' ? 'Soporte' : aType === 'project' ? 'Proyecto' : 'Tarea'}</span></div>
+                            <div class="ts-assignment-company">
+                                ${company?.name || ''} 
+                                <span class="ts-type-badge ${aType}">${aType === 'support' ? 'Soporte' : aType === 'project' ? 'Proyecto' : 'Tarea'}</span>
+                                <span class="ts-module-badge" title="Módulo: ${module?.name || 'General'}">${moduleText}</span>
+                            </div>
                         </div>
                     </div>
                 </td>
