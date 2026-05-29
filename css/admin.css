@@ -7910,6 +7910,12 @@ body.dark-mode .sidebar-overlay {
 
 /* Reglas responsivas (Tablets y Móviles) */
 @media (max-width: 1024px) {
+    /* Liberar altura del scroll global de la página */
+    html, body, .admin-layout {
+        height: auto !important;
+        overflow: auto !important;
+    }
+
     /* Mostrar botón hamburguesa en header */
     .mobile-menu-toggle {
         display: flex !important;
