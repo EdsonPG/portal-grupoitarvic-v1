@@ -1279,3 +1279,170 @@ body.dark-mode .settings-footer {
 body.dark-mode .settings-divider {
     background: #334155;
 }
+
+/* ==========================================
+   PORTAL LOADING OVERLAY & ERROR STATE
+   ========================================== */
+.portal-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('../images/galaxy_bg.png') no-repeat center center;
+    background-size: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+    opacity: 1;
+    visibility: visible;
+}
+
+body.dark-mode .portal-loading-overlay {
+    background: url('../images/galaxy_bg.png') no-repeat center center;
+    background-size: cover;
+}
+
+.portal-loading-content {
+    text-align: center;
+    max-width: 450px;
+    width: 90%;
+    padding: var(--spacing-xl);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.portal-loading-spinner-wrapper {
+    position: relative;
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.portal-loading-spinner {
+    width: 72px;
+    height: 72px;
+    border: 4px solid rgba(255, 255, 255, 0.15);
+    border-top: 4px solid #38bdf8; /* Azul claro brillante */
+    border-right: 4px solid #818cf8; /* Morado/índigo brillante */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.35); /* Aura luminosa premium */
+}
+
+body.dark-mode .portal-loading-spinner {
+    border-color: rgba(255, 255, 255, 0.15);
+    border-top-color: #38bdf8;
+    border-right-color: #818cf8;
+}
+
+.portal-loading-text {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #ffffff; /* Blanco para contraste */
+    margin-top: var(--spacing-md);
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+}
+
+body.dark-mode .portal-loading-text {
+    color: #ffffff;
+}
+
+.portal-loading-subtext {
+    font-size: 0.9rem;
+    color: #cbd5e1; /* Gris azulado claro */
+    margin-top: var(--spacing-sm);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.portal-loading-error-card {
+    display: none;
+    background: white;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--gray-200);
+    border-top: 5px solid var(--accent-color);
+    padding: var(--spacing-xl);
+    text-align: center;
+    width: 100%;
+    animation: slideDown 0.3s ease;
+}
+
+body.dark-mode .portal-loading-error-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.portal-loading-error-icon {
+    font-size: 3rem;
+    color: var(--accent-color);
+    margin-bottom: var(--spacing-md);
+}
+
+.portal-loading-error-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: var(--spacing-sm);
+}
+
+body.dark-mode .portal-loading-error-title {
+    color: var(--gray-100);
+}
+
+.portal-loading-error-desc {
+    font-size: 0.9rem;
+    color: var(--gray-600);
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.5;
+}
+
+body.dark-mode .portal-loading-error-desc {
+    color: var(--gray-400);
+}
+
+.portal-loading-btn-retry {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-sm) var(--spacing-xl);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    box-shadow: var(--shadow-md);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.portal-loading-btn-retry:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.portal-loading-btn-retry:active {
+    transform: translateY(0);
+}
+
+/* Ocultar contenido mientras carga inicialmente para evitar ver ceros o layouts vacíos */
+body.portal-loading-active .admin-header,
+body.portal-loading-active .admin-sidebar,
+body.portal-loading-active .admin-main,
+body.portal-loading-active .main-content,
+body.portal-loading-active .dashboard-container,
+body.portal-loading-active .consultor-header,
+body.portal-loading-active #mainContent {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}

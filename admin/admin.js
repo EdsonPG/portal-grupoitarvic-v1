@@ -569,18 +569,94 @@ async function deleteAssignment(assignmentId) {
 
 // === CARGA Y ACTUALIZACIÓN DE DATOS ===
 async function loadAllData() {
-    console.log('Cargando todos los datos...');
+    console.log('🚀 Cargando TODOS los datos del sistema (1)...');
+    
+    const overlay = document.getElementById('portalLoadingOverlay');
+    const loadingState = document.getElementById('portalLoadingState');
+    const errorCard = document.getElementById('portalLoadingErrorCard');
+    
+    // Si el overlay ya está visible (porque estamos reintentando tras un error),
+    // mostramos el spinner y ocultamos el mensaje de error.
+    if (overlay && overlay.style.display === 'flex') {
+        if (loadingState) loadingState.style.display = 'block';
+        if (errorCard) errorCard.style.display = 'none';
+    } else {
+        // De lo contrario, aseguramos que esté oculto al inicio.
+        if (overlay) overlay.style.display = 'none';
+    }
     
     try {
-        currentData.users = await window.PortalDB.getUsers() || {};
-        currentData.companies = await window.PortalDB.getCompanies() || {};
-        currentData.projects = await window.PortalDB.getProjects() || {};
-        currentData.assignments = await window.PortalDB.getAssignments() || {};
-        currentData.supports = await window.PortalDB.getSupports() || {};
-        currentData.modules = await window.PortalDB.getModules() || {};
-        currentData.reports = await window.PortalDB.getReports() || {};
-        currentData.projectAssignments = await window.PortalDB.getProjectAssignments() || {};
-        currentData.taskAssignments = await window.PortalDB.getTaskAssignments() || {};
+        let users, companies, projects, assignments, supports, modules, reports, projectAssignments, taskAssignments, tarifario;
+        
+        // Intentar leer de los datos precargados desde el login
+        const prefetchedRaw = localStorage.getItem('arvic_admin_prefetched_data');
+        let parsed = null;
+        if (prefetchedRaw) {
+            try {
+                parsed = JSON.parse(prefetchedRaw);
+            } catch (e) {
+                console.error('Error parsing prefetched data:', e);
+            }
+        }
+        
+        // Validar que los datos precargados existan y sean frescos (menos de 30 segundos)
+        if (parsed && parsed.timestamp && (Date.now() - parsed.timestamp < 30000)) {
+            console.log('⚡ Usando datos precargados desde el login (Admin - 1)...');
+            users = parsed.users;
+            companies = parsed.companies;
+            projects = parsed.projects;
+            assignments = parsed.assignments;
+            supports = parsed.supports;
+            modules = parsed.modules;
+            reports = parsed.reports;
+            projectAssignments = parsed.projectAssignments;
+            taskAssignments = parsed.taskAssignments;
+            tarifario = parsed.tarifario;
+            
+            // Consumido, borrar para próximas recargas normales (F5)
+            localStorage.removeItem('arvic_admin_prefetched_data');
+        } else {
+            console.log('📡 Fetching system data concurrently from server (Admin - 1)...');
+            [
+                users,
+                companies,
+                projects,
+                assignments,
+                supports,
+                modules,
+                reports,
+                projectAssignments,
+                taskAssignments,
+                tarifario
+            ] = await Promise.all([
+                window.PortalDB.getUsers(),
+                window.PortalDB.getCompanies(),
+                window.PortalDB.getProjects(),
+                window.PortalDB.getAssignments(),
+                window.PortalDB.getSupports(),
+                window.PortalDB.getModules(),
+                window.PortalDB.getReports(),
+                window.PortalDB.getProjectAssignments(),
+                window.PortalDB.getTaskAssignments(),
+                window.PortalDB.getTarifario()
+            ]);
+        }
+        
+        if (!users || Object.keys(users).length === 0) {
+            throw new Error('No se recibieron datos de usuarios. Posible problema de conexión.');
+        }
+        
+        currentData.users = users || {};
+        currentData.companies = companies || {};
+        currentData.projects = projects || {};
+        currentData.assignments = assignments || {};
+        currentData.supports = supports || {};
+        currentData.modules = modules || {};
+        currentData.reports = reports || {};
+        currentData.projectAssignments = projectAssignments || {};
+        currentData.taskAssignments = taskAssignments || {};
+        currentData.tarifario = tarifario || {};
+        currentData.timesheets = window.PortalDB.getTimesheets ? window.PortalDB.getTimesheets() : {};
         
         // Set cache timestamp so loadCurrentData() won't re-fetch immediately
         dataCacheTimestamp = Date.now();
@@ -598,8 +674,37 @@ async function loadAllData() {
             console.log('Actualizando dropdowns después de cargar datos...');
             updateDropdowns();
         }
+        
+        // Si estamos en Panel General, actualizar stats
+        if (typeof renderPanelGeneral === 'function') {
+            renderPanelGeneral();
+        }
+        if (typeof updateSidebarCounts === 'function') {
+            updateSidebarCounts();
+        }
+        
+        // Ocultar overlay
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.visibility = 'hidden';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 400);
+        }
+        
+        // Quitar la clase de carga inicial para mostrar todo al mismo tiempo
+        document.body.classList.remove('portal-loading-active');
+        
     } catch (error) {
-        console.error('Error cargando datos:', error);
+        console.error('❌ Error en loadAllData (1):', error);
+        document.body.classList.remove('portal-loading-active');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+            overlay.style.visibility = 'visible';
+        }
+        if (loadingState) loadingState.style.display = 'none';
+        if (errorCard) errorCard.style.display = 'block';
     }
 }
 
@@ -2919,11 +3024,9 @@ document.addEventListener('DOMContentLoaded', function() {
         setupSidebarNavigation();
         initializeTablePaginationObserver();
         
-        // Cargar datos con delay para asegurar que el DOM esté listo
-        setTimeout(() => {
-            console.log('Cargando datos iniciales...');
-            loadAllData();
-        }, 300);
+        // Cargar datos de inmediato si el DOM está listo
+        console.log('Cargando datos iniciales...');
+        loadAllData();
         
         console.log('Inicialización completada');
         
@@ -2945,18 +3048,93 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function loadAllData() {
-    console.log('🚀 Cargando TODOS los datos del sistema...');
+    console.log('🚀 Cargando TODOS los datos del sistema (2)...');
+    
+    const overlay = document.getElementById('portalLoadingOverlay');
+    const loadingState = document.getElementById('portalLoadingState');
+    const errorCard = document.getElementById('portalLoadingErrorCard');
+    
+    // Si el overlay ya está visible (porque estamos reintentando tras un error),
+    // mostramos el spinner y ocultamos el mensaje de error.
+    if (overlay && overlay.style.display === 'flex') {
+        if (loadingState) loadingState.style.display = 'block';
+        if (errorCard) errorCard.style.display = 'none';
+    } else {
+        // De lo contrario, aseguramos que esté oculto al inicio.
+        if (overlay) overlay.style.display = 'none';
+    }
+    
     try {
-        currentData.users = await window.PortalDB.getUsers() || {};
-        currentData.companies = await window.PortalDB.getCompanies() || {};
-        currentData.projects = await window.PortalDB.getProjects() || {};
-        currentData.assignments = await window.PortalDB.getAssignments() || {};
-        currentData.supports = await window.PortalDB.getSupports() || {};
-        currentData.modules = await window.PortalDB.getModules() || {};
-        currentData.reports = await window.PortalDB.getReports() || {};
-        currentData.projectAssignments = await window.PortalDB.getProjectAssignments() || {};
-        currentData.taskAssignments = await window.PortalDB.getTaskAssignments() || {};
-        currentData.tarifario = await window.PortalDB.getTarifario() || {};
+        let users, companies, projects, assignments, supports, modules, reports, projectAssignments, taskAssignments, tarifario;
+        
+        // Intentar leer de los datos precargados desde el login
+        const prefetchedRaw = localStorage.getItem('arvic_admin_prefetched_data');
+        let parsed = null;
+        if (prefetchedRaw) {
+            try {
+                parsed = JSON.parse(prefetchedRaw);
+            } catch (e) {
+                console.error('Error parsing prefetched data:', e);
+            }
+        }
+        
+        // Validar que los datos precargados existan y sean frescos (menos de 30 segundos)
+        if (parsed && parsed.timestamp && (Date.now() - parsed.timestamp < 30000)) {
+            console.log('⚡ Usando datos precargados desde el login (Admin - 2)...');
+            users = parsed.users;
+            companies = parsed.companies;
+            projects = parsed.projects;
+            assignments = parsed.assignments;
+            supports = parsed.supports;
+            modules = parsed.modules;
+            reports = parsed.reports;
+            projectAssignments = parsed.projectAssignments;
+            taskAssignments = parsed.taskAssignments;
+            tarifario = parsed.tarifario;
+            
+            // Consumido, borrar para próximas recargas normales (F5)
+            localStorage.removeItem('arvic_admin_prefetched_data');
+        } else {
+            console.log('📡 Fetching system data concurrently from server (Admin - 2)...');
+            [
+                users,
+                companies,
+                projects,
+                assignments,
+                supports,
+                modules,
+                reports,
+                projectAssignments,
+                taskAssignments,
+                tarifario
+            ] = await Promise.all([
+                window.PortalDB.getUsers(),
+                window.PortalDB.getCompanies(),
+                window.PortalDB.getProjects(),
+                window.PortalDB.getAssignments(),
+                window.PortalDB.getSupports(),
+                window.PortalDB.getModules(),
+                window.PortalDB.getReports(),
+                window.PortalDB.getProjectAssignments(),
+                window.PortalDB.getTaskAssignments(),
+                window.PortalDB.getTarifario()
+            ]);
+        }
+        
+        if (!users || Object.keys(users).length === 0) {
+            throw new Error('No se recibieron datos de usuarios. Posible problema de conexión.');
+        }
+        
+        currentData.users = users || {};
+        currentData.companies = companies || {};
+        currentData.projects = projects || {};
+        currentData.assignments = assignments || {};
+        currentData.supports = supports || {};
+        currentData.modules = modules || {};
+        currentData.reports = reports || {};
+        currentData.projectAssignments = projectAssignments || {};
+        currentData.taskAssignments = taskAssignments || {};
+        currentData.tarifario = tarifario || {};
         currentData.timesheets = window.PortalDB.getTimesheets ? window.PortalDB.getTimesheets() : {};
         
         console.log('📊 Datos cargados:', {
@@ -2977,8 +3155,28 @@ async function loadAllData() {
             renderPanelGeneral();
         }
 
+        // Ocultar overlay con transición suave
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.visibility = 'hidden';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 400);
+        }
+
+        // Quitar la clase de carga inicial para mostrar todo al mismo tiempo
+        document.body.classList.remove('portal-loading-active');
+
     } catch (error) {
-        console.error('❌ Error en loadAllData:', error);
+        console.error('❌ Error en loadAllData (2):', error);
+        document.body.classList.remove('portal-loading-active');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+            overlay.style.visibility = 'visible';
+        }
+        if (loadingState) loadingState.style.display = 'none';
+        if (errorCard) errorCard.style.display = 'block';
     }
 }
 
@@ -12140,3 +12338,9 @@ function setupSidebarResize(sidebar, resizer) {
         }
     });
 }
+
+// Función global para reintentar la carga de datos del administrador
+window.retryLoadingData = function() {
+    console.log('🔄 Reintentando cargar portal de administrador...');
+    loadAllData();
+};

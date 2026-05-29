@@ -17,7 +17,31 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
    
 </head>
-<body class="admin-layout">
+<body class="admin-layout portal-loading-active">
+    <!-- Portal Loading Overlay & Error Screen -->
+    <div id="portalLoadingOverlay" class="portal-loading-overlay" style="display: none;">
+        <div class="portal-loading-content">
+            <!-- Loading State -->
+            <div id="portalLoadingState" style="display: block; text-align: center;">
+                <div class="portal-loading-spinner-wrapper">
+                    <div class="portal-loading-spinner"></div>
+                </div>
+                <div class="portal-loading-text">Cargando datos del sistema...</div>
+                <div class="portal-loading-subtext">Por favor, espere un momento. Conectando con MongoDB Atlas.</div>
+            </div>
+            <!-- Error State -->
+            <div id="portalLoadingErrorCard" class="portal-loading-error-card">
+                <div class="portal-loading-error-icon">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                </div>
+                <h3 class="portal-loading-error-title">Error de Conexión</h3>
+                <p class="portal-loading-error-desc">No se pudo establecer conexión con la base de datos de MongoDB Atlas. Por favor, comprueba tu conexión a internet o intenta nuevamente.</p>
+                <button type="button" class="portal-loading-btn-retry" onclick="retryLoadingData()">
+                    <i class="fa-solid fa-rotate"></i> Reintentar
+                </button>
+            </div>
+        </div>
+    </div>
     <header class="admin-header">
         <nav class="navbar">
             <!-- Logo -->

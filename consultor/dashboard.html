@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/activity-report.css">
 </head>
-<body class="consultor-layout">
+<body class="consultor-layout portal-loading-active">
     <header class="consultor-header">
         <nav class="navbar">
             <div class="nav-left">
@@ -307,11 +307,28 @@
         </div>
     </header>
 
-    <!-- Loading Spinner -->
-    <div id="loadingSpinner" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; align-items: center; justify-content: center;">
-        <div style="text-align: center;">
-            <div style="border: 4px solid #f3f3f3; border-top: 4px solid #1cb5e0; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
-            <p style="margin-top: 20px; color: #666;">Cargando portal...</p>
+    <!-- Portal Loading Overlay & Error Screen -->
+    <div id="loadingSpinner" class="portal-loading-overlay" style="display: none;">
+        <div class="portal-loading-content">
+            <!-- Loading State -->
+            <div id="portalLoadingState" style="display: block; text-align: center;">
+                <div class="portal-loading-spinner-wrapper">
+                    <div class="portal-loading-spinner"></div>
+                </div>
+                <div class="portal-loading-text">Cargando portal...</div>
+                <div class="portal-loading-subtext">Por favor, espere un momento. Conectando con MongoDB Atlas.</div>
+            </div>
+            <!-- Error State -->
+            <div id="portalLoadingErrorCard" class="portal-loading-error-card">
+                <div class="portal-loading-error-icon">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                </div>
+                <h3 class="portal-loading-error-title">Error de Conexión</h3>
+                <p class="portal-loading-error-desc">No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet o intenta nuevamente.</p>
+                <button type="button" class="portal-loading-btn-retry" onclick="retryLoadingConsultor()">
+                    <i class="fa-solid fa-rotate"></i> Reintentar
+                </button>
+            </div>
         </div>
     </div>
 

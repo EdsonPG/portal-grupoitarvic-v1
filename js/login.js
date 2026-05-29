@@ -80,13 +80,92 @@ async function handleLogin(e) {
     }
     
     // Mostrar estado de carga
-    showLoadingState(submitButton, true);
+    showLoadingState(submitButton, true, 'Iniciando sesión...');
     
     try {
         // LOGIN SIMPLIFICADO - sin parámetro userType
         const result = await window.AuthSys.login(userId, password);
         
         if (result.success) {
+            showLoadingState(submitButton, true, 'Cargando datos del sistema...');
+            
+            // Pre-cargar datos del portal según el rol
+            if (result.user.role === 'admin') {
+                const [
+                    users,
+                    companies,
+                    projects,
+                    assignments,
+                    supports,
+                    modules,
+                    reports,
+                    projectAssignments,
+                    taskAssignments,
+                    tarifario
+                ] = await Promise.all([
+                    window.PortalDB.getUsers(),
+                    window.PortalDB.getCompanies(),
+                    window.PortalDB.getProjects(),
+                    window.PortalDB.getAssignments(),
+                    window.PortalDB.getSupports(),
+                    window.PortalDB.getModules(),
+                    window.PortalDB.getReports(),
+                    window.PortalDB.getProjectAssignments(),
+                    window.PortalDB.getTaskAssignments(),
+                    window.PortalDB.getTarifario()
+                ]);
+                
+                if (!users || Object.keys(users).length === 0) {
+                    throw new Error('No se recibieron datos del servidor.');
+                }
+                
+                localStorage.setItem('arvic_admin_prefetched_data', JSON.stringify({
+                    users,
+                    companies,
+                    projects,
+                    assignments,
+                    supports,
+                    modules,
+                    reports,
+                    projectAssignments,
+                    taskAssignments,
+                    tarifario,
+                    timestamp: Date.now()
+                }));
+            } else if (result.user.role === 'consultor') {
+                const [
+                    supportAssignmentsData,
+                    allProjectAssignments,
+                    allTaskAssignments,
+                    companiesList,
+                    supportsList,
+                    modulesList,
+                    projectsList,
+                    allReportsList
+                ] = await Promise.all([
+                    window.PortalDB.getUserAssignments(result.user.userId),
+                    window.PortalDB.getProjectAssignments ? window.PortalDB.getProjectAssignments() : {},
+                    window.PortalDB.getTaskAssignments ? window.PortalDB.getTaskAssignments() : {},
+                    window.PortalDB.getCompanies(),
+                    window.PortalDB.getSupports(),
+                    window.PortalDB.getModules(),
+                    window.PortalDB.getProjects(),
+                    window.PortalDB.getReportsByUser(result.user.userId)
+                ]);
+                
+                localStorage.setItem('arvic_consultor_prefetched_data', JSON.stringify({
+                    supportAssignmentsData,
+                    allProjectAssignments,
+                    allTaskAssignments,
+                    companiesList,
+                    supportsList,
+                    modulesList,
+                    projectsList,
+                    allReportsList,
+                    timestamp: Date.now()
+                }));
+            }
+            
             showSuccess(`¡Bienvenido ${result.user.name}! Redirigiendo...`);
             
             // Guardar último usuario exitoso
@@ -94,7 +173,7 @@ async function handleLogin(e) {
             
             setTimeout(() => {
                 redirectToUserDashboard(result.user);
-            }, 1500);
+            }, 1000);
             
         } else {
             showError(result.message);
@@ -109,8 +188,8 @@ async function handleLogin(e) {
         }
         
     } catch (error) {
-        console.error('Login error:', error);
-        showError('Error interno del sistema. Intente nuevamente.');
+        console.error('Login/Prefetch error:', error);
+        showError('Error de conexión o al cargar datos del sistema. Intente nuevamente.');
         showLoadingState(submitButton, false);
     }
 }
@@ -154,11 +233,11 @@ function redirectToUserDashboard(user = null) {
     }
 }
 
-function showLoadingState(button, isLoading) {
+function showLoadingState(button, isLoading, text = 'Iniciando sesión...') {
     if (isLoading) {
         button.classList.add('loading');
         button.disabled = true;
-        button.innerHTML = '<span>Iniciando sesión...</span>';
+        button.innerHTML = `<span>${text}</span>`;
     } else {
         button.classList.remove('loading');
         button.disabled = false;
