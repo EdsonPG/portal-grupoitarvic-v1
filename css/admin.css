@@ -7880,4 +7880,168 @@ body.dark-mode .back-to-selector-btn:hover {
 }
 
 
+/* ==========================================================================
+   DISEÑO RESPONSIVO PREMIUM - MENÚ HAMBURGUESA Y HEADER OPTIMIZADO
+   ========================================================================== */
+
+/* Botón hamburguesa y overlay */
+.mobile-menu-toggle {
+    display: none !important;
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+body.dark-mode .sidebar-overlay {
+    background: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Reglas responsivas (Tablets y Móviles) */
+@media (max-width: 1024px) {
+    /* Mostrar botón hamburguesa en header */
+    .mobile-menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 1.4rem;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 8px;
+        transition: background 0.2s;
+        margin-right: 8px;
+    }
+    
+    .mobile-menu-toggle:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Modificación del contenedor principal de scroll */
+    .admin-content {
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* Convertir el wrapper en relativo con fondo oscuro en dark mode */
+    .admin-layout-wrapper {
+        flex-direction: row !important;
+        height: auto !important;
+        overflow: visible !important;
+        background: transparent !important;
+    }
+    
+    body.dark-mode .admin-layout-wrapper {
+        background: transparent !important;
+    }
+
+    /* El sidebar se transforma en un Drawer Flotante Deslizable */
+    .admin-sidebar {
+        position: fixed !important;
+        top: 80px !important;
+        left: -320px !important; /* Escondido por defecto */
+        width: 280px !important;
+        height: calc(100vh - 80px) !important;
+        max-height: none !important;
+        z-index: 999 !important;
+        transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.25) !important;
+        background: white !important;
+        border-right: 1px solid var(--gray-200) !important;
+        border-bottom: none !important;
+        overflow-y: auto !important;
+    }
+
+    body.dark-mode .admin-sidebar {
+        background: #1e293b !important;
+        border-right: 1px solid #334155 !important;
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.6) !important;
+    }
+
+    /* Abrir el drawer cuando se activa la clase */
+    .admin-layout-wrapper.sidebar-open .admin-sidebar {
+        left: 0 !important;
+    }
+
+    /* Mostrar la capa de fondo opaca al abrir el menú */
+    .admin-layout-wrapper.sidebar-open .sidebar-overlay {
+        display: block !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Contenido principal al 100% */
+    .admin-main-content {
+        width: 100% !important;
+        flex: 1 !important;
+        padding: var(--spacing-md) !important;
+        height: auto !important;
+        overflow-y: visible !important;
+    }
+
+    /* Esconder el resizer manual en móviles */
+    .sidebar-resizer {
+        display: none !important;
+    }
+}
+
+/* Reglas específicas para Móviles */
+@media (max-width: 768px) {
+    /* Liberar altura del scroll global de la página */
+    html, body {
+        height: auto !important;
+        overflow: auto !important;
+    }
+
+    /* Header Compacto de Una Sola Línea */
+    .admin-header .navbar {
+        flex-wrap: nowrap !important;
+        height: 80px !important;
+        padding: 0 16px !important;
+        gap: 12px !important;
+    }
+
+    .mobile-menu-toggle {
+        margin-right: 0 !important;
+    }
+
+    /* Ocultar textos de los botones en el Header */
+    .nav-action-btn span {
+        display: none !important;
+    }
+
+    .nav-action-btn {
+        min-width: auto !important;
+        padding: 8px 10px !important;
+    }
+
+    /* Ocultar nombre del usuario en header */
+    .user-info .user-name {
+        display: none !important;
+    }
+
+    .user-info {
+        padding: 4px !important;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr !important; /* Tarjetas en una sola columna en móviles pequeños */
+    }
+}
+
+
+
 

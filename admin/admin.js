@@ -3398,6 +3398,12 @@ function setupSidebarNavigation() {
 async function showSection(sectionName) {
     console.log(`🔄 === CAMBIANDO A SECCIÓN: ${sectionName} ===`);
     
+    // Cerrar menú móvil si está abierto en móviles
+    const layoutWrapper = document.querySelector('.admin-layout-wrapper');
+    if (layoutWrapper) {
+        layoutWrapper.classList.remove('sidebar-open');
+    }
+    
     // Guardar sección anterior ANTES de cambiar
     const previousSection = currentSection;
     
@@ -12352,3 +12358,12 @@ window.retryLoadingData = function() {
     console.log('🔄 Reintentando cargar portal de administrador...');
     loadAllData();
 };
+
+// Función para alternar el sidebar colapsable en móvil
+window.toggleMobileSidebar = function() {
+    const wrapper = document.querySelector('.admin-layout-wrapper');
+    if (wrapper) {
+        wrapper.classList.toggle('sidebar-open');
+    }
+};
+
