@@ -8051,3 +8051,160 @@ body.dark-mode .sidebar-overlay {
 
 
 
+/* ==========================================
+   DARK MODE — PANEL DE NOTIFICACIONES
+   ========================================== */
+body.dark-mode .notif-panel-content {
+    background: #1e293b !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px #334155 !important;
+}
+
+body.dark-mode .notif-panel-body::-webkit-scrollbar-track { background: #0f172a !important; }
+body.dark-mode .notif-panel-body::-webkit-scrollbar-thumb { background: #475569 !important; }
+
+body.dark-mode .notif-item {
+    border-bottom-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .notif-item:hover {
+    background: #334155 !important;
+}
+
+body.dark-mode .notif-item.unread {
+    background: #172554 !important;
+    border-left-color: #3b82f6 !important;
+}
+
+body.dark-mode .notif-item.unread:hover {
+    background: #1e3a8a !important;
+}
+
+body.dark-mode .notif-title {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .notif-message {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .notif-time {
+    color: #64748b !important;
+}
+
+body.dark-mode .notif-empty {
+    color: #64748b !important;
+}
+
+body.dark-mode .notif-empty p {
+    color: #64748b !important;
+}
+
+body.dark-mode .notif-icon.type-report_created  { background: #1e3a8a !important; color: #60a5fa !important; }
+body.dark-mode .notif-icon.type-report_approved { background: #14532d !important; color: #4ade80 !important; }
+body.dark-mode .notif-icon.type-report_rejected { background: #7f1d1d !important; color: #f87171 !important; }
+body.dark-mode .notif-icon.type-report_resubmitted { background: #78350f !important; color: #fbbf24 !important; }
+body.dark-mode .notif-icon.type-assignment_new { background: #4c1d95 !important; color: #a78bfa !important; }
+body.dark-mode .notif-icon.type-user_registered { background: #0c4a6e !important; color: #38bdf8 !important; }
+body.dark-mode .notif-icon.type-system { background: #1e293b !important; color: #64748b !important; }
+
+/* ==========================================
+   DARK MODE — PANEL DE AYUDA
+   ========================================== */
+body.dark-mode .help-panel-content {
+    background: #1e293b !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px #334155 !important;
+}
+
+body.dark-mode .help-panel-body {
+    background: #1e293b !important;
+}
+
+body.dark-mode .help-panel-body::-webkit-scrollbar-track { background: #0f172a !important; }
+body.dark-mode .help-panel-body::-webkit-scrollbar-thumb { background: #475569 !important; }
+
+body.dark-mode .help-search input {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .help-search input::placeholder { color: #475569 !important; }
+
+body.dark-mode .help-search input:focus {
+    background: #0f172a !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+}
+
+body.dark-mode .help-search i {
+    color: #475569 !important;
+}
+
+body.dark-mode .help-section h4 {
+    color: #64748b !important;
+}
+
+body.dark-mode .help-faq-item {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+}
+
+body.dark-mode .help-faq-item:hover {
+    border-color: #475569 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+}
+
+body.dark-mode .help-faq-question {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .help-faq-question:hover {
+    background: #172554 !important;
+    color: #60a5fa !important;
+}
+
+body.dark-mode .help-faq-question i {
+    color: #475569 !important;
+}
+
+body.dark-mode .help-faq-item.open .help-faq-question {
+    background: #1e3a8a !important;
+    color: #93c5fd !important;
+}
+
+body.dark-mode .help-faq-answer {
+    background: #0f172a !important;
+    color: #94a3b8 !important;
+    border-top-color: #334155 !important;
+}
+
+body.dark-mode .help-faq-answer strong {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .help-guide-item {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .help-guide-item:hover {
+    background: #172554 !important;
+    border-color: #3b82f6 !important;
+    color: #60a5fa !important;
+}
+
+body.dark-mode .help-info-item {
+    background: #0f172a !important;
+}
+
+body.dark-mode .help-info-label {
+    color: #64748b !important;
+}
+
+body.dark-mode .help-info-value {
+    color: #e2e8f0 !important;
+}
+
