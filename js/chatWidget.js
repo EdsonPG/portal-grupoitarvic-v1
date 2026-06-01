@@ -604,6 +604,7 @@ class ChatWidget {
                 if (optEl) {
                     // Promover ID y estado
                     optEl.id = `msg-${m._id}`;
+                    optEl.dataset.timestamp = Date.now(); // Actualizar timestamp para dar otra gracia de 15s
                     const statusSpan = optEl.querySelector('.msg-status');
                     if (statusSpan) {
                         if (m.read) {
@@ -629,11 +630,15 @@ class ChatWidget {
                 }
             });
 
-            // 2. Limpiar del DOM mensajes borrados (que ya no están en la BD), excepto temporales locales
+            // 2. Limpiar del DOM mensajes borrados (que ya no están en la BD), excepto temporales locales y mensajes recientes (evitar lag de replicación)
             const allRendered = this.messagesArea.querySelectorAll('.chat-msg');
             allRendered.forEach(el => {
                 const id = el.id.replace('msg-', '');
                 if (id.startsWith('temp-')) return;
+                
+                // Evitar borrar mensajes agregados hace menos de 15 segundos (lag de base de datos)
+                const addedTime = parseInt(el.dataset.timestamp || '0', 10);
+                if (Date.now() - addedTime < 15000) return;
                 
                 const exists = history.some(m => m._id === id);
                 if (!exists) {
@@ -930,6 +935,7 @@ class ChatWidget {
             const optEl = document.getElementById(`msg-${msg.tempId}`);
             if (optEl) {
                 optEl.id = `msg-${msg._id}`;
+                optEl.dataset.timestamp = Date.now(); // Actualizar timestamp
                 // Update status indicator from clock to checkmark
                 const statusSpan = optEl.querySelector('.msg-status');
                 if (statusSpan) {
@@ -1078,6 +1084,7 @@ class ChatWidget {
                 const optEl = document.getElementById(`msg-${tempId}`);
                 if (optEl) {
                     optEl.id = `msg-${res.data._id}`;
+                    optEl.dataset.timestamp = Date.now(); // Actualizar timestamp
                     const statusSpan = optEl.querySelector('.msg-status');
                     if (statusSpan) {
                         statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
@@ -1159,6 +1166,7 @@ class ChatWidget {
         const div = document.createElement('div');
         div.id = `msg-${msg._id}`;
         div.className = `chat-msg ${isMe ? 'msg-out' : 'msg-in'}${animate ? ' msg-animate-in' : ''}`;
+        div.dataset.timestamp = Date.now(); // Registrar cuándo se agregó al DOM para evitar lag de replicación
 
         let content = '';
         if (msg.message) {
