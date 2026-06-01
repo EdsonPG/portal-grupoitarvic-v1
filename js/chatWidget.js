@@ -46,11 +46,12 @@ class ChatWidget {
         this.sseAbortController = null;
         setTimeout(() => this.initRealTime(), 800);
 
-        // Polling unread counts every 30s
-        setInterval(() => this.loadUnreadCounts(), 30000);
+        // Polling unread counts (más rápido en Vercel)
+        const isVercel = window.location.hostname.includes('vercel.app');
+        setInterval(() => this.loadUnreadCounts(), isVercel ? 5000 : 30000);
         
-        // Fallback polling for active chat messages if both SSE and WS fail
-        setInterval(() => this.pollActiveChat(), 8000);
+        // Fallback polling for active chat messages (más rápido si no hay WS/SSE funcional o en Vercel)
+        setInterval(() => this.pollActiveChat(), isVercel ? 2000 : 8000);
     }
 
     initDOM() {
@@ -546,20 +547,53 @@ class ChatWidget {
 
     async pollActiveChat() {
         if (!this.isOpen || !this.currentContextId) return;
-        // Don't poll if SSE or WebSocket is healthy
-        if (this.sseConnected) return;
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
+        
+        const isVercel = window.location.hostname.includes('vercel.app');
+        if (!isVercel) {
+            // Don't poll if SSE or WebSocket is healthy on non-Vercel environments
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
+            if (this.sseConnected) return;
+        }
 
         try {
+            const currentUserId = this.currentUser.userId || this.currentUser.id;
             const history = await window.PortalDB.getChatHistory(this.currentContextId);
-            if (!history || history.length === 0) return;
+            if (!history) return;
             
-            const lastMsg = history[history.length - 1];
-            if (lastMsg && !document.getElementById(`msg-${lastMsg._id}`)) {
+            // Si el historial está vacío localmente pero en el servidor hay mensajes, o viceversa
+            const currentRenderedMsgs = this.messagesArea.querySelectorAll('.chat-msg');
+            if (history.length !== currentRenderedMsgs.length) {
                 this.renderHistory(history);
-                this.playNotificationSound();
+                // Si la longitud aumentó, reproducir sonido de notificación (solo si el último mensaje no es nuestro)
+                const lastMsg = history[history.length - 1];
+                if (lastMsg && lastMsg.senderId !== currentUserId && currentRenderedMsgs.length > 0) {
+                    this.playNotificationSound();
+                }
+                return;
             }
-        } catch(e) {}
+
+            // Comprobar si hay algún cambio en el estado de lectura (ej. doble checkmark)
+            let shouldUpdate = false;
+            for (const m of history) {
+                if (m.senderId === currentUserId && m.read) {
+                    const el = document.getElementById(`msg-${m._id}`);
+                    if (el) {
+                        const statusSpan = el.querySelector('.msg-status');
+                        if (statusSpan && !statusSpan.classList.contains('read')) {
+                            shouldUpdate = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (shouldUpdate) {
+                console.log('🔄 Cambios de lectura detectados en el chat, actualizando UI...');
+                this.renderHistory(history);
+            }
+        } catch(e) {
+            console.error('Error en pollActiveChat:', e);
+        }
     }
 
     renderContacts(contacts) {
