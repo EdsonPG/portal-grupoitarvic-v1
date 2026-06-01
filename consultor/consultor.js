@@ -3327,3 +3327,11 @@ window.retryLoadingConsultor = function() {
     console.log('🔄 Reintentando cargar portal de consultor...');
     loadUserAssignments();
 };
+
+// Función para alternar el sidebar colapsable en móvil
+window.toggleMobileSidebar = function() {
+    const wrapper = document.querySelector('.content-wrapper');
+    if (wrapper) {
+        wrapper.classList.toggle('sidebar-open');
+    }
+};

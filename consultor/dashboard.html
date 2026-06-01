@@ -18,6 +18,9 @@
     <header class="consultor-header">
         <nav class="navbar">
             <div class="nav-left">
+                <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()" aria-label="Abrir menú de navegación">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
                 <div class="logo">
                     <img src="../images/Logo Grupo IT Arvic 33.svg" alt="GRUPO IT ARVIC" class="consultor-logo-svg">
                 </div>
@@ -336,6 +339,7 @@
     <main class="main-content" id="mainContent">
         <div class="container">
             <div class="content-wrapper">
+                <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
                 <!-- Sidebar -->
                 <div class="sidebar consultor-sidebar">
                     <h2 class="sidebar-title"><i class="fa-solid fa-clock"></i> Timesheet</h2>

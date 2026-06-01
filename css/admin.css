@@ -8208,3 +8208,55 @@ body.dark-mode .help-info-value {
     color: #e2e8f0 !important;
 }
 
+/* ==========================================================================
+   DISEÑO RESPONSIVO PREMIUM UNIFICADO Y OPTIMIZADO (MOBILE & LAPTOPS)
+   ========================================================================== */
+
+/* Reglas específicas para pantallas medianas y cabeceras compactas */
+@media (max-width: 900px) {
+    /* Ocultar textos de los botones en el Header */
+    .admin-header .nav-action-btn span {
+        display: none !important;
+    }
+
+    .admin-header .nav-action-btn {
+        min-width: auto !important;
+        padding: 8px 12px !important;
+    }
+}
+
+/* Reglas específicas para Móviles */
+@media (max-width: 768px) {
+    /* Paneles de Ayuda y Notificaciones a pantalla completa */
+    .admin-header .help-panel,
+    .admin-header .notif-panel {
+        right: 10px !important;
+        left: 10px !important;
+        width: auto !important;
+        max-width: none !important;
+        top: 80px !important;
+    }
+
+    /* Formularios en grids colapsables */
+    .form-row, .time-date-grid, .assignment-form {
+        grid-template-columns: 1fr !important;
+        gap: var(--spacing-md) !important;
+    }
+}
+
+/* Soporte para scroll horizontal de tablas y captura */
+.crud-table-container,
+.admin-ts-table-container,
+.reports-table-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: var(--border-radius-xl) !important;
+}
+
+/* Asegurar anchos mínimos razonables para tablas en pantallas angostas */
+.crud-table, .admin-table, .reports-table {
+    min-width: 800px !important;
+}
+
