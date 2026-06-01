@@ -10,9 +10,12 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const User = require('./models/User');
 const { authenticateToken } = require('./middleware/auth');
 
+const compression = require('compression');
+
 const app = express();
 
 // Middlewares
+app.use(compression());
 app.use(cors({
   origin: function (origin, callback) {
     // Permitir requests sin origin (como Postman) y todos los dominios de Vercel
@@ -144,6 +147,125 @@ app.use('/api/chat', authenticateToken, chatRoutes); // ✅ NUEVO
 app.use('/api/calendar', authenticateToken, calendarRoutes); // ✅ CALENDARIO
 app.use('/api/video', authenticateToken, videoRoutes); // ✅ VIDEO/VOICE CALLS
 
+// 👇 NUEVO: Endpoints consolidados para carga inicial ultra-rápida (Producción)
+app.get('/api/all-data/admin', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+    }
+
+    const User = require('./models/User');
+    const Company = require('./models/Company');
+    const Project = require('./models/Project');
+    const Assignment = require('./models/Assignment');
+    const Support = require('./models/Support');
+    const Module = require('./models/Module');
+    const Report = require('./models/Report');
+    const ProjectAssignment = require('./models/ProjectAssignment');
+    const TaskAssignment = require('./models/TaskAssignment');
+    const Tarifario = require('./models/Tarifario');
+
+    const [
+      users,
+      companies,
+      projects,
+      assignments,
+      supports,
+      modules,
+      reports,
+      projectAssignments,
+      taskAssignments,
+      tarifario
+    ] = await Promise.all([
+      User.find().select('-password'),
+      Company.find(),
+      Project.find(),
+      Assignment.find(),
+      Support.find(),
+      Module.find(),
+      Report.find().sort({ createdAt: -1 }),
+      ProjectAssignment.find(),
+      TaskAssignment.find(),
+      Tarifario.find()
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        companies,
+        projects,
+        assignments,
+        supports,
+        modules,
+        reports,
+        projectAssignments,
+        taskAssignments,
+        tarifario
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error obteniendo datos admin consolidados:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/all-data/consultor', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'consultor') {
+      return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de consultor' });
+    }
+
+    const userId = req.user.userId;
+
+    const Company = require('./models/Company');
+    const Support = require('./models/Support');
+    const Module = require('./models/Module');
+    const Project = require('./models/Project');
+    const Assignment = require('./models/Assignment');
+    const ProjectAssignment = require('./models/ProjectAssignment');
+    const TaskAssignment = require('./models/TaskAssignment');
+    const Report = require('./models/Report');
+
+    const [
+      companies,
+      supports,
+      modules,
+      projects,
+      assignments,
+      projectAssignments,
+      taskAssignments,
+      reports
+    ] = await Promise.all([
+      Company.find(),
+      Support.find(),
+      Module.find(),
+      Project.find(),
+      Assignment.find({ userId: userId, isActive: { $ne: false } }),
+      ProjectAssignment.find({ $or: [{ consultorId: userId }, { userId: userId }], isActive: { $ne: false } }),
+      TaskAssignment.find({ $or: [{ consultorId: userId }, { userId: userId }], isActive: { $ne: false } }),
+      Report.find({ userId: userId }).sort({ date: -1 })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        companies,
+        supports,
+        modules,
+        projects,
+        assignments,
+        projectAssignments,
+        taskAssignments,
+        reports
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error obteniendo datos consultor consolidados:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
 // Ruta de prueba
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
@@ -273,7 +395,10 @@ wss.on('connection', (ws) => {
 
         const messagePayload = {
           type: 'new_message',
-          payload: newMsg
+          payload: {
+            ...newMsg.toObject(),
+            tempId: data.tempId
+          }
         };
 
         // Enviar al receptor via WS

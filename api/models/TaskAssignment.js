@@ -49,4 +49,7 @@ const taskAssignmentSchema = new mongoose.Schema({
   }
 });
 
+// Indexes for fast queries
+taskAssignmentSchema.index({ consultorId: 1, isActive: 1 });
+
 module.exports = mongoose.model('TaskAssignment', taskAssignmentSchema);

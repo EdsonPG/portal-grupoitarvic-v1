@@ -24,6 +24,10 @@ class AuthSystem {
                 
                 if (hoursDiff < 24) {
                     this.currentUser = session.user;
+                    
+                    // 👇 NUEVO: Validar token con el servidor en segundo plano
+                    setTimeout(() => this.validateTokenWithServer(), 100);
+                    
                     return true;
                 } else {
                     this.logout();
@@ -34,6 +38,36 @@ class AuthSystem {
             this.logout();
         }
         return false;
+    }
+
+    async validateTokenWithServer() {
+        if (!window.PortalDB || !localStorage.getItem('arvic_token')) return;
+        try {
+            const result = await window.PortalDB.validateToken();
+            if (result && result.success && result.user) {
+                const currentSession = JSON.parse(localStorage.getItem(this.sessionKey));
+                if (currentSession) {
+                    // Si el rol de usuario cambió en la BD, redirigir al panel correspondiente
+                    if (currentSession.user.role !== result.user.role) {
+                        console.log('🔄 Rol de usuario actualizado de', currentSession.user.role, 'a', result.user.role);
+                        currentSession.user = result.user;
+                        localStorage.setItem(this.sessionKey, JSON.stringify(currentSession));
+                        this.currentUser = result.user;
+                        this.redirectToAppropriatePanel();
+                    } else {
+                        // Actualizar información fresca
+                        currentSession.user = result.user;
+                        localStorage.setItem(this.sessionKey, JSON.stringify(currentSession));
+                        this.currentUser = result.user;
+                    }
+                }
+            } else {
+                console.warn('⚠️ Token de sesión inválido en el servidor. Cerrando sesión...');
+                this.logout();
+            }
+        } catch (e) {
+            console.error('❌ Error al validar token con el servidor:', e);
+        }
     }
 
     saveCurrentSession(user) {

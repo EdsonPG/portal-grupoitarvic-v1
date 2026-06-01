@@ -41,11 +41,10 @@ class ChatWidget {
         this.loadContacts();
         this.loadUnreadCounts();
         
-        // Start SSE connection (primary real-time transport)
-        setTimeout(() => this.initSSE(), 800);
-        
-        // Also try WebSocket for local dev (optional, additive)
-        setTimeout(() => this.initWebSocket(), 1500);
+        // Start real-time connection manager (mutually exclusive)
+        this.wsFallbackTimer = null;
+        this.sseAbortController = null;
+        setTimeout(() => this.initRealTime(), 800);
 
         // Polling unread counts every 30s
         setInterval(() => this.loadUnreadCounts(), 30000);
@@ -246,22 +245,55 @@ class ChatWidget {
     }
 
     // ========================================
-    // SSE (Server-Sent Events) — PRIMARY
+    // REAL-TIME CONNECTION MANAGER
     // ========================================
-    initSSE() {
-        if (this.sseSource) {
-            try { this.sseSource.close(); } catch(e) {}
+    initRealTime() {
+        const isVercel = window.location.hostname.includes('vercel.app');
+        if (isVercel) {
+            console.log('Modo Vercel: Priorizando SSE (WebSockets no soportados de forma persistente).');
+            this.initSSE();
+            return;
         }
 
-        const streamUrl = `${this.apiBase}/api/chat/stream`;
+        console.log('🔌 Intentando conexión principal por WebSocket...');
+        this.initWebSocket();
         
-        // EventSource doesn't support custom headers, so we'll pass token as query param
-        // We need a workaround: use fetch-based SSE or a proxy approach
-        // For simplicity + security, we'll use the fetch API for SSE
+        // Timer de respaldo: si WS no se conecta en 3 segundos, iniciamos SSE
+        if (this.wsFallbackTimer) clearTimeout(this.wsFallbackTimer);
+        this.wsFallbackTimer = setTimeout(() => {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                console.warn('🔌 WebSocket no conectó a tiempo, iniciando fallback a SSE...');
+                this.initSSE();
+            }
+        }, 3000);
+    }
+
+    // ========================================
+    // SSE (Server-Sent Events) — FALLBACK
+    // ========================================
+    initSSE() {
+        if (this.sseConnected) return;
+        console.log('📡 Iniciando conexión Server-Sent Events (SSE)...');
+        const streamUrl = `${this.apiBase}/api/chat/stream`;
         this._connectSSE(streamUrl);
     }
 
+    closeSSE() {
+        if (this.sseAbortController) {
+            try { this.sseAbortController.abort(); } catch(e) {}
+            this.sseAbortController = null;
+        }
+        this.sseConnected = false;
+        console.log('📡 Conexión SSE cerrada/abortada.');
+    }
+
     async _connectSSE(url) {
+        if (this.sseAbortController) {
+            try { this.sseAbortController.abort(); } catch(e) {}
+        }
+        this.sseAbortController = new AbortController();
+        const signal = this.sseAbortController.signal;
+
         try {
             const response = await fetch(url, {
                 method: 'GET',
@@ -269,13 +301,17 @@ class ChatWidget {
                     'Authorization': `Bearer ${this.token}`,
                     'Accept': 'text/event-stream',
                     'Cache-Control': 'no-cache'
-                }
+                },
+                signal: signal
             });
 
             if (!response.ok) {
                 console.warn('⚠️ SSE connection failed:', response.status);
-                // Retry after 5 seconds
-                setTimeout(() => this._connectSSE(url), 5000);
+                if (!signal.aborted) {
+                    setTimeout(() => {
+                        if (!signal.aborted) this._connectSSE(url);
+                    }, 5000);
+                }
                 return;
             }
 
@@ -289,8 +325,9 @@ class ChatWidget {
             const processStream = async () => {
                 try {
                     while (true) {
+                        if (signal.aborted) break;
                         const { done, value } = await reader.read();
-                        if (done) break;
+                        if (done || signal.aborted) break;
 
                         buffer += decoder.decode(value, { stream: true });
                         
@@ -299,6 +336,7 @@ class ChatWidget {
                         buffer = events.pop(); // Keep incomplete event in buffer
 
                         for (const eventStr of events) {
+                            if (signal.aborted) break;
                             if (!eventStr.trim() || eventStr.startsWith(': ping')) continue;
 
                             let eventType = 'message';
@@ -313,7 +351,7 @@ class ChatWidget {
                                 }
                             }
 
-                            if (eventData) {
+                            if (eventData && !signal.aborted) {
                                 try {
                                     const data = JSON.parse(eventData);
                                     this._handleSSEEvent(eventType, data);
@@ -324,20 +362,30 @@ class ChatWidget {
                         }
                     }
                 } catch (readErr) {
-                    console.warn('📡 SSE stream interrupted, reconnecting...');
+                    if (!signal.aborted) {
+                        console.warn('📡 SSE stream interrupted, reconnecting...');
+                    }
                 }
 
                 // Reconnect after stream ends
-                this.sseConnected = false;
-                setTimeout(() => this._connectSSE(url), 3000);
+                if (!signal.aborted) {
+                    this.sseConnected = false;
+                    setTimeout(() => {
+                        if (!signal.aborted) this._connectSSE(url);
+                    }, 3000);
+                }
             };
 
             processStream();
 
         } catch (err) {
-            console.warn('📡 SSE error, will retry:', err.message);
-            this.sseConnected = false;
-            setTimeout(() => this._connectSSE(url), 5000);
+            if (!signal.aborted) {
+                console.warn('📡 SSE error, will retry:', err.message);
+                this.sseConnected = false;
+                setTimeout(() => {
+                    if (!signal.aborted) this._connectSSE(url);
+                }, 5000);
+            }
         }
     }
 
@@ -405,6 +453,16 @@ class ChatWidget {
     }
 
     async _sendTypingAPI(isTyping) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            try {
+                const type = isTyping ? 'typing_start' : 'typing_stop';
+                this.ws.send(JSON.stringify({ type, receiverId: this.currentContextId }));
+                return;
+            } catch (wsErr) {
+                console.warn('Error enviando typing por WebSocket, usando fallback REST API:', wsErr);
+            }
+        }
+
         try {
             await fetch(`${this.apiBase}/api/chat/typing`, {
                 method: 'POST',
@@ -418,11 +476,7 @@ class ChatWidget {
                 })
             });
         } catch (e) {
-            // Also try via WebSocket if available
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                const type = isTyping ? 'typing_start' : 'typing_stop';
-                this.ws.send(JSON.stringify({ type, receiverId: this.currentContextId }));
-            }
+            console.error('Error enviando typing por API:', e);
         }
     }
 
@@ -684,6 +738,14 @@ class ChatWidget {
             const badge = contactItem.querySelector('.contact-unread');
             if (badge) badge.remove();
         }
+
+        // Refresh global notification badge if available on parent page
+        if (typeof window.updateNotificationBadge === 'function') {
+            window.updateNotificationBadge();
+        }
+        if (typeof window.loadNotifications === 'function') {
+            window.loadNotifications();
+        }
     }
 
     // ========================================
@@ -706,14 +768,17 @@ class ChatWidget {
             this.ws = new WebSocket(`${protocol}//${host}`);
 
             this.ws.onopen = () => {
+                if (this.wsFallbackTimer) {
+                    clearTimeout(this.wsFallbackTimer);
+                    this.wsFallbackTimer = null;
+                }
+                console.log('🔌 WebSocket conectado. Cerrando SSE para ahorrar sockets.');
+                this.closeSSE();
                 this.ws.send(JSON.stringify({ type: 'auth', token: this.token }));
                 this.updateMyStatus(this.statusSelect.value);
             };
 
             this.ws.onmessage = (e) => {
-                // Only handle WS messages if SSE is NOT connected (avoid duplicates)
-                if (this.sseConnected) return;
-
                 const data = JSON.parse(e.data);
                 
                 if (data.type === 'new_message') this.handleIncomingMessage(data.payload);
@@ -727,10 +792,22 @@ class ChatWidget {
                 if (data.type === 'messages_read') this.handleMessagesRead(data.readBy);
             };
 
-            this.ws.onclose = () => setTimeout(() => this.initWebSocket(), 5000);
-            this.ws.onerror = () => {};
+            this.ws.onclose = () => {
+                console.warn('❌ WebSocket cerrado. Conectando SSE como respaldo...');
+                this.initSSE();
+                setTimeout(() => this.initWebSocket(), 10000);
+            };
+
+            this.ws.onerror = (err) => {
+                console.warn('❌ WebSocket error:', err);
+                if (!this.sseConnected) {
+                    console.log('🔌 WebSocket falló, iniciando SSE de inmediato...');
+                    this.initSSE();
+                }
+            };
         } catch (e) {
-            // WebSocket not available, SSE will handle everything
+            console.error('Error inicializando WebSocket:', e);
+            this.initSSE();
         }
     }
 
@@ -885,23 +962,48 @@ class ChatWidget {
             this._typingSent = false;
         }
 
-        // Always send via REST API (works everywhere, SSE will broadcast)
+        // Priorizar WebSocket si está abierto para tiempo real directo y ahorrar sockets HTTP
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            try {
+                this.ws.send(JSON.stringify({
+                    type: 'chat_message',
+                    payload: {
+                        receiverId: payload.receiverId,
+                        message: payload.message,
+                        attachment: payload.attachment,
+                        fileName: payload.fileName
+                    },
+                    tempId: tempId
+                }));
+                console.log('✉️ Mensaje enviado via WebSocket:', tempId);
+                return; // Enviado por WebSocket con éxito, no continuar con REST API
+            } catch (wsErr) {
+                console.warn('Error enviando mensaje por WebSocket, usando fallback REST API:', wsErr);
+            }
+        }
+
+        // Fallback: enviar por REST API si WebSocket no está disponible
         try {
             const res = await window.PortalDB.sendChatMessage(payload);
             if (res.success) {
-                // The SSE event will handle replacing the optimistic message
-                // But if SSE isn't connected, handle it here
-                if (!this.sseConnected) {
-                    const optEl = document.getElementById(`msg-${tempId}`);
-                    if (optEl) {
-                        optEl.id = `msg-${res.data._id}`;
-                        const statusSpan = optEl.querySelector('.msg-status');
-                        if (statusSpan) {
-                            statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
-                            statusSpan.className = 'msg-status sent';
-                        }
+                // Actualizar inmediatamente el mensaje optimista sin esperar a SSE/WS
+                const optEl = document.getElementById(`msg-${tempId}`);
+                if (optEl) {
+                    optEl.id = `msg-${res.data._id}`;
+                    const statusSpan = optEl.querySelector('.msg-status');
+                    if (statusSpan) {
+                        statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
+                        statusSpan.className = 'msg-status sent';
                     }
                 }
+                // Actualizar último mensaje y contactos
+                this.lastMessages[payload.receiverId] = {
+                    lastMessage: res.data.message || '📎 Archivo',
+                    lastTimestamp: res.data.timestamp,
+                    lastSenderId: res.data.senderId,
+                    read: res.data.read
+                };
+                this.renderContacts(this.contacts);
             } else {
                 // Mark optimistic msg as failed
                 const failedEl = document.getElementById(`msg-${tempId}`);

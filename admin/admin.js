@@ -616,30 +616,24 @@ async function loadAllData() {
             // Consumido, borrar para próximas recargas normales (F5)
             localStorage.removeItem('arvic_admin_prefetched_data');
         } else {
-            console.log('📡 Fetching system data concurrently from server (Admin - 1)...');
-            [
-                users,
-                companies,
-                projects,
-                assignments,
-                supports,
-                modules,
-                reports,
-                projectAssignments,
-                taskAssignments,
-                tarifario
-            ] = await Promise.all([
-                window.PortalDB.getUsers(),
-                window.PortalDB.getCompanies(),
-                window.PortalDB.getProjects(),
-                window.PortalDB.getAssignments(),
-                window.PortalDB.getSupports(),
-                window.PortalDB.getModules(),
-                window.PortalDB.getReports(),
-                window.PortalDB.getProjectAssignments(),
-                window.PortalDB.getTaskAssignments(),
-                window.PortalDB.getTarifario()
-            ]);
+            console.log('📡 Fetching consolidated system data from server (Admin - 1)...');
+            const res = await window.PortalDB.getAllAdminData();
+            if (res.success && res.data) {
+                window.PortalDB.prefillCacheFromAllData(res.data);
+                
+                users = window.PortalDB.cache.users;
+                companies = window.PortalDB.cache.companies;
+                projects = window.PortalDB.cache.projects;
+                assignments = window.PortalDB.cache.assignments;
+                supports = window.PortalDB.cache.supports;
+                modules = window.PortalDB.cache.modules;
+                reports = window.PortalDB.cache.reports;
+                projectAssignments = window.PortalDB.cache.projectAssignments;
+                taskAssignments = window.PortalDB.cache.taskAssignments;
+                tarifario = window.PortalDB.cache.tarifario;
+            } else {
+                throw new Error(res.message || 'Error al obtener datos consolidados del servidor');
+            }
         }
         
         if (!users || Object.keys(users).length === 0) {
@@ -3096,30 +3090,24 @@ async function loadAllData() {
             // Consumido, borrar para próximas recargas normales (F5)
             localStorage.removeItem('arvic_admin_prefetched_data');
         } else {
-            console.log('📡 Fetching system data concurrently from server (Admin - 2)...');
-            [
-                users,
-                companies,
-                projects,
-                assignments,
-                supports,
-                modules,
-                reports,
-                projectAssignments,
-                taskAssignments,
-                tarifario
-            ] = await Promise.all([
-                window.PortalDB.getUsers(),
-                window.PortalDB.getCompanies(),
-                window.PortalDB.getProjects(),
-                window.PortalDB.getAssignments(),
-                window.PortalDB.getSupports(),
-                window.PortalDB.getModules(),
-                window.PortalDB.getReports(),
-                window.PortalDB.getProjectAssignments(),
-                window.PortalDB.getTaskAssignments(),
-                window.PortalDB.getTarifario()
-            ]);
+            console.log('📡 Fetching consolidated system data from server (Admin - 2)...');
+            const res = await window.PortalDB.getAllAdminData();
+            if (res.success && res.data) {
+                window.PortalDB.prefillCacheFromAllData(res.data);
+                
+                users = window.PortalDB.cache.users;
+                companies = window.PortalDB.cache.companies;
+                projects = window.PortalDB.cache.projects;
+                assignments = window.PortalDB.cache.assignments;
+                supports = window.PortalDB.cache.supports;
+                modules = window.PortalDB.cache.modules;
+                reports = window.PortalDB.cache.reports;
+                projectAssignments = window.PortalDB.cache.projectAssignments;
+                taskAssignments = window.PortalDB.cache.taskAssignments;
+                tarifario = window.PortalDB.cache.tarifario;
+            } else {
+                throw new Error(res.message || 'Error al obtener datos consolidados del servidor');
+            }
         }
         
         if (!users || Object.keys(users).length === 0) {
@@ -3299,22 +3287,26 @@ async function silentAdminRefresh() {
     console.log('🔄 Actualización silenciosa en segundo plano...');
     
     try {
-        // ✅ CORRECTO: Con await
-        currentData.users = await window.PortalDB.getUsers() || {};
-        currentData.companies = await window.PortalDB.getCompanies() || {};
-        currentData.projects = await window.PortalDB.getProjects() || {};
-        currentData.assignments = await window.PortalDB.getAssignments() || {};
-        currentData.supports = await window.PortalDB.getSupports() || {};
-        currentData.modules = await window.PortalDB.getModules() || {};
-        currentData.reports = await window.PortalDB.getReports() || {};
-        currentData.projectAssignments = await window.PortalDB.getProjectAssignments() || {};
-        currentData.taskAssignments = await window.PortalDB.getTaskAssignments() || {};
-        currentData.tarifario = await window.PortalDB.getTarifario() || {};
-        currentData.timesheets = window.PortalDB.getTimesheets ? window.PortalDB.getTimesheets() : {};
-        
-        updateSidebarCounts();
-        
-        console.log('✅ Datos actualizados en segundo plano');
+        const res = await window.PortalDB.getAllAdminData();
+        if (res.success && res.data) {
+            window.PortalDB.prefillCacheFromAllData(res.data);
+            
+            currentData.users = window.PortalDB.cache.users || {};
+            currentData.companies = window.PortalDB.cache.companies || {};
+            currentData.projects = window.PortalDB.cache.projects || {};
+            currentData.assignments = window.PortalDB.cache.assignments || {};
+            currentData.supports = window.PortalDB.cache.supports || {};
+            currentData.modules = window.PortalDB.cache.modules || {};
+            currentData.reports = window.PortalDB.cache.reports || {};
+            currentData.projectAssignments = window.PortalDB.cache.projectAssignments || {};
+            currentData.taskAssignments = window.PortalDB.cache.taskAssignments || {};
+            currentData.tarifario = window.PortalDB.cache.tarifario || {};
+            currentData.timesheets = window.PortalDB.getTimesheets ? window.PortalDB.getTimesheets() : {};
+            
+            updateSidebarCounts();
+            
+            console.log('✅ Datos actualizados en segundo plano');
+        }
     } catch (error) {
         console.error('Error en actualización silenciosa:', error);
     }

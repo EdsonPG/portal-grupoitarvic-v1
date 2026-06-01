@@ -89,81 +89,47 @@ async function handleLogin(e) {
         if (result.success) {
             showLoadingState(submitButton, true, 'Cargando datos del sistema...');
             
-            // Pre-cargar datos del portal según el rol
+            // Pre-cargar datos del portal según el rol (Consolidado)
             if (result.user.role === 'admin') {
-                const [
-                    users,
-                    companies,
-                    projects,
-                    assignments,
-                    supports,
-                    modules,
-                    reports,
-                    projectAssignments,
-                    taskAssignments,
-                    tarifario
-                ] = await Promise.all([
-                    window.PortalDB.getUsers(),
-                    window.PortalDB.getCompanies(),
-                    window.PortalDB.getProjects(),
-                    window.PortalDB.getAssignments(),
-                    window.PortalDB.getSupports(),
-                    window.PortalDB.getModules(),
-                    window.PortalDB.getReports(),
-                    window.PortalDB.getProjectAssignments(),
-                    window.PortalDB.getTaskAssignments(),
-                    window.PortalDB.getTarifario()
-                ]);
-                
-                if (!users || Object.keys(users).length === 0) {
-                    throw new Error('No se recibieron datos del servidor.');
+                const res = await window.PortalDB.getAllAdminData();
+                if (res && res.success && res.data) {
+                    window.PortalDB.prefillCacheFromAllData(res.data);
+                    
+                    localStorage.setItem('arvic_admin_prefetched_data', JSON.stringify({
+                        users: window.PortalDB.cache.users,
+                        companies: window.PortalDB.cache.companies,
+                        projects: window.PortalDB.cache.projects,
+                        assignments: window.PortalDB.cache.assignments,
+                        supports: window.PortalDB.cache.supports,
+                        modules: window.PortalDB.cache.modules,
+                        reports: window.PortalDB.cache.reports,
+                        projectAssignments: window.PortalDB.cache.projectAssignments,
+                        taskAssignments: window.PortalDB.cache.taskAssignments,
+                        tarifario: window.PortalDB.cache.tarifario,
+                        timestamp: Date.now()
+                    }));
+                } else {
+                    throw new Error(res ? res.message : 'Error al precargar datos de Admin');
                 }
-                
-                localStorage.setItem('arvic_admin_prefetched_data', JSON.stringify({
-                    users,
-                    companies,
-                    projects,
-                    assignments,
-                    supports,
-                    modules,
-                    reports,
-                    projectAssignments,
-                    taskAssignments,
-                    tarifario,
-                    timestamp: Date.now()
-                }));
             } else if (result.user.role === 'consultor') {
-                const [
-                    supportAssignmentsData,
-                    allProjectAssignments,
-                    allTaskAssignments,
-                    companiesList,
-                    supportsList,
-                    modulesList,
-                    projectsList,
-                    allReportsList
-                ] = await Promise.all([
-                    window.PortalDB.getUserAssignments(result.user.userId),
-                    window.PortalDB.getProjectAssignments ? window.PortalDB.getProjectAssignments() : {},
-                    window.PortalDB.getTaskAssignments ? window.PortalDB.getTaskAssignments() : {},
-                    window.PortalDB.getCompanies(),
-                    window.PortalDB.getSupports(),
-                    window.PortalDB.getModules(),
-                    window.PortalDB.getProjects(),
-                    window.PortalDB.getReportsByUser(result.user.userId)
-                ]);
-                
-                localStorage.setItem('arvic_consultor_prefetched_data', JSON.stringify({
-                    supportAssignmentsData,
-                    allProjectAssignments,
-                    allTaskAssignments,
-                    companiesList,
-                    supportsList,
-                    modulesList,
-                    projectsList,
-                    allReportsList,
-                    timestamp: Date.now()
-                }));
+                const res = await window.PortalDB.getAllConsultorData();
+                if (res && res.success && res.data) {
+                    window.PortalDB.prefillConsultorCacheFromAllData(res.data);
+                    
+                    localStorage.setItem('arvic_consultor_prefetched_data', JSON.stringify({
+                        supportAssignmentsData: Object.values(window.PortalDB.cache.assignments || {}),
+                        allProjectAssignments: Object.values(window.PortalDB.cache.projectAssignments || {}),
+                        allTaskAssignments: Object.values(window.PortalDB.cache.taskAssignments || {}),
+                        companiesList: Object.values(window.PortalDB.cache.companies || {}),
+                        supportsList: Object.values(window.PortalDB.cache.supports || {}),
+                        modulesList: Object.values(window.PortalDB.cache.modules || {}),
+                        projectsList: Object.values(window.PortalDB.cache.projects || {}),
+                        allReportsList: Object.values(window.PortalDB.cache.reports || {}),
+                        timestamp: Date.now()
+                    }));
+                } else {
+                    throw new Error(res ? res.message : 'Error al precargar datos de Consultor');
+                }
             }
             
             showSuccess(`¡Bienvenido ${result.user.name}! Redirigiendo...`);

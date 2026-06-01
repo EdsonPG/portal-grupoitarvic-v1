@@ -40,4 +40,7 @@ const assignmentSchema = new mongoose.Schema({
   }
 });
 
+// Indexes for fast queries
+assignmentSchema.index({ userId: 1, isActive: 1 });
+
 module.exports = mongoose.model('Assignment', assignmentSchema);

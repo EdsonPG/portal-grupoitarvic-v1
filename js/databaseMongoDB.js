@@ -28,16 +28,26 @@ class PortalDatabase {
             supports: null,
             modules: null,
             projects: null,
-            users: null
+            users: null,
+            assignments: null,
+            projectAssignments: null,
+            taskAssignments: null,
+            reports: null,
+            tarifario: null
         };
         this.cacheTimestamps = {
             companies: 0,
             supports: 0,
             modules: 0,
             projects: 0,
-            users: 0
+            users: 0,
+            assignments: 0,
+            projectAssignments: 0,
+            taskAssignments: 0,
+            reports: 0,
+            tarifario: 0
         };
-        this.CACHE_DURATION = 15000; // Cache valid for 15 seconds
+        this.CACHE_DURATION = 30000; // Cache valid for 30 seconds
     }
 
     // === CONFIGURACIÓN DE HEADERS ===
@@ -114,6 +124,261 @@ class PortalDatabase {
         localStorage.removeItem('arvic_token');
         localStorage.removeItem('arvic_current_session');
         console.log('✅ Sesión cerrada');
+    }
+
+    // === 👇 NUEVO: ENDPOINTS CONSOLIDADOS PARA CARGA ULTRA-RÁPIDA ===
+    async getAllAdminData() {
+        try {
+            console.log('📡 Solicitando datos consolidados de Administrador...');
+            const response = await fetch(`${this.API_URL}/all-data/admin`, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('❌ Error obteniendo datos admin consolidados:', error);
+            return { success: false, message: 'Error de conexión con el servidor' };
+        }
+    }
+
+    async getAllConsultorData() {
+        try {
+            console.log('📡 Solicitando datos consolidados de Consultor...');
+            const response = await fetch(`${this.API_URL}/all-data/consultor`, {
+                headers: this.getHeaders()
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('❌ Error obteniendo datos consultor consolidados:', error);
+            return { success: false, message: 'Error de conexión con el servidor' };
+        }
+    }
+
+    async validateToken() {
+        try {
+            const response = await fetch(`${this.API_URL}/auth/validate`, {
+                headers: this.getHeaders()
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error validando token:', error);
+            return { success: false, message: 'Error de conexión' };
+        }
+    }
+
+    prefillCacheFromAllData(data) {
+        const now = Date.now();
+        console.log('⚡ Llenando caché de Administrador con datos consolidados...');
+
+        if (data.users) {
+            const users = {};
+            data.users.forEach(user => {
+                users[user.userId] = user;
+            });
+            this.cache.users = users;
+            this.cacheTimestamps.users = now;
+        }
+
+        if (data.companies) {
+            const companies = {};
+            data.companies.forEach(company => {
+                companies[company.companyId] = company;
+            });
+            this.cache.companies = companies;
+            this.cacheTimestamps.companies = now;
+        }
+
+        if (data.projects) {
+            const projects = {};
+            data.projects.forEach(project => {
+                projects[project.projectId] = project;
+            });
+            this.cache.projects = projects;
+            this.cacheTimestamps.projects = now;
+        }
+
+        if (data.supports) {
+            const supports = {};
+            data.supports.forEach(support => {
+                supports[support.supportId] = support;
+            });
+            this.cache.supports = supports;
+            this.cacheTimestamps.supports = now;
+        }
+
+        if (data.modules) {
+            const modules = {};
+            data.modules.forEach(module => {
+                modules[module.moduleId] = module;
+            });
+            this.cache.modules = modules;
+            this.cacheTimestamps.modules = now;
+        }
+
+        if (data.assignments) {
+            const assignments = {};
+            data.assignments.forEach(a => {
+                assignments[a.assignmentId] = a;
+            });
+            this.cache.assignments = assignments;
+            this.cacheTimestamps.assignments = now;
+        }
+
+        if (data.projectAssignments) {
+            const projectAssignments = {};
+            data.projectAssignments.forEach(pa => {
+                projectAssignments[pa.projectAssignmentId] = pa;
+            });
+            this.cache.projectAssignments = projectAssignments;
+            this.cacheTimestamps.projectAssignments = now;
+        }
+
+        if (data.taskAssignments) {
+            this.cache.taskAssignments = this.arrayToObject(data.taskAssignments);
+            this.cacheTimestamps.taskAssignments = now;
+        }
+
+        if (data.reports) {
+            const reportsObj = {};
+            data.reports.forEach(report => {
+                const mappedReport = {
+                    ...report,
+                    id: report.reportId || report._id,
+                    status: report.status || report.estado
+                };
+                reportsObj[report.reportId] = mappedReport;
+            });
+            this.cache.reports = reportsObj;
+            this.cacheTimestamps.reports = now;
+            
+            try {
+                this.reconstructTimesheetsFromReports(data.reports);
+            } catch (e) {
+                console.error('Error al reconstruir timesheets desde caché admin:', e);
+            }
+        }
+
+        if (data.tarifario) {
+            const tarifarios = {};
+            data.tarifario.forEach(tarifario => {
+                const tarifarioMapeado = {
+                    id: tarifario.tarifarioId,
+                    tarifarioId: tarifario.tarifarioId,
+                    assignmentId: tarifario.assignmentId,
+                    idAsignacion: tarifario.assignmentId,
+                    assignmentType: tarifario.tipo,
+                    tipo: tarifario.tipo === 'support' ? 'soporte' : 
+                          tarifario.tipo === 'project' ? 'proyecto' : 'tarea',
+                    consultorId: tarifario.consultorId,
+                    clienteId: tarifario.companyId,
+                    moduleId: tarifario.moduleId,
+                    supportId: tarifario.supportId,
+                    projectId: tarifario.projectId,
+                    consultorNombre: tarifario.consultorNombre,
+                    empresaNombre: tarifario.companyName,
+                    clienteNombre: tarifario.companyName,
+                    moduloNombre: tarifario.moduleName || 'Sin módulo',
+                    trabajoNombre: tarifario.supportName || tarifario.projectName || 'Sin trabajo',
+                    trabajoId: tarifario.supportId || tarifario.projectId,
+                    costoConsultor: parseFloat(tarifario.costoConsultor || 0),
+                    costoCliente: parseFloat(tarifario.costoCliente || 0),
+                    margen: parseFloat(tarifario.margen || 0),
+                    margenPorcentaje: parseFloat(tarifario.margenPorcentaje || 0),
+                    descripcionTarea: tarifario.descripcionTarea || null,
+                    fechaCreacion: tarifario.fechaCreacion || tarifario.createdAt,
+                    isActive: tarifario.isActive !== false,
+                    updatedAt: tarifario.updatedAt
+                };
+                tarifarios[tarifario.assignmentId] = tarifarioMapeado;
+            });
+            this.cache.tarifario = tarifarios;
+            this.cacheTimestamps.tarifario = now;
+        }
+    }
+
+    prefillConsultorCacheFromAllData(data) {
+        const now = Date.now();
+        console.log('⚡ Llenando caché de Consultor con datos consolidados...');
+
+        if (data.companies) {
+            const companies = {};
+            data.companies.forEach(company => {
+                companies[company.id || company.companyId] = company;
+            });
+            this.cache.companies = companies;
+            this.cacheTimestamps.companies = now;
+        }
+
+        if (data.supports) {
+            const supports = {};
+            data.supports.forEach(support => {
+                supports[support.id || support.supportId] = support;
+            });
+            this.cache.supports = supports;
+            this.cacheTimestamps.supports = now;
+        }
+
+        if (data.modules) {
+            const modules = {};
+            data.modules.forEach(module => {
+                modules[module.id || module.moduleId] = module;
+            });
+            this.cache.modules = modules;
+            this.cacheTimestamps.modules = now;
+        }
+
+        if (data.projects) {
+            const projects = {};
+            data.projects.forEach(project => {
+                projects[project.id || project.projectId] = project;
+            });
+            this.cache.projects = projects;
+            this.cacheTimestamps.projects = now;
+        }
+
+        if (data.reports) {
+            const reportsObj = {};
+            data.reports.forEach(report => {
+                const mappedReport = {
+                    ...report,
+                    id: report.reportId || report._id,
+                    status: report.status || report.estado
+                };
+                reportsObj[report.reportId] = mappedReport;
+            });
+            this.cache.reports = reportsObj;
+            this.cacheTimestamps.reports = now;
+            
+            try {
+                this.reconstructTimesheetsFromReports(data.reports);
+            } catch (e) {
+                console.error('Error al reconstruir timesheets desde caché consultor:', e);
+            }
+        }
+
+        if (data.assignments) {
+            const assignments = {};
+            data.assignments.forEach(a => {
+                assignments[a.assignmentId] = a;
+            });
+            this.cache.assignments = assignments;
+            this.cacheTimestamps.assignments = now;
+        }
+
+        if (data.projectAssignments) {
+            const projectAssignments = {};
+            data.projectAssignments.forEach(pa => {
+                projectAssignments[pa.projectAssignmentId] = pa;
+            });
+            this.cache.projectAssignments = projectAssignments;
+            this.cacheTimestamps.projectAssignments = now;
+        }
+
+        if (data.taskAssignments) {
+            this.cache.taskAssignments = this.arrayToObject(data.taskAssignments);
+            this.cacheTimestamps.taskAssignments = now;
+        }
     }
 
     // === GESTIÓN DE USUARIOS ===
@@ -713,6 +978,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE ASIGNACIONES DE SOPORTE ===
     async getAssignments() {
+        const now = Date.now();
+        if (this.cache && this.cache.assignments && (now - this.cacheTimestamps.assignments < this.CACHE_DURATION)) {
+            return this.cache.assignments;
+        }
         try {
             const response = await fetch(`${this.API_URL}/assignments`, {
                 headers: this.getHeaders(),
@@ -726,6 +995,8 @@ class PortalDatabase {
                 data.data.forEach(assignment => {
                     assignments[assignment.assignmentId] = assignment;  // ✅ CAMBIO AQUÍ
                 });
+                this.cache.assignments = assignments;
+                this.cacheTimestamps.assignments = now;
                 return assignments;
             }
             return {};
@@ -896,6 +1167,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE ASIGNACIONES DE PROYECTO ===
     async getProjectAssignments() {
+        const now = Date.now();
+        if (this.cache && this.cache.projectAssignments && (now - this.cacheTimestamps.projectAssignments < this.CACHE_DURATION)) {
+            return this.cache.projectAssignments;
+        }
         try {
             const response = await fetch(`${this.API_URL}/projectAssignments`, {  // ✅ No /assignments/projects
                 method: 'GET',
@@ -908,6 +1183,8 @@ class PortalDatabase {
                 result.data.forEach(pa => {
                     projectAssignments[pa.projectAssignmentId] = pa;  // ✅ Usar projectAssignmentId
                 });
+                this.cache.projectAssignments = projectAssignments;
+                this.cacheTimestamps.projectAssignments = now;
                 return projectAssignments;
             }
             return {};
@@ -1006,6 +1283,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE ASIGNACIONES DE TAREAS ===
     async getTaskAssignments() {
+        const now = Date.now();
+        if (this.cache && this.cache.taskAssignments && (now - this.cacheTimestamps.taskAssignments < this.CACHE_DURATION)) {
+            return this.cache.taskAssignments;
+        }
         try {
             const response = await fetch(`${this.API_URL}/taskAssignments`, {
                 headers: this.getHeaders()
@@ -1013,7 +1294,10 @@ class PortalDatabase {
             const data = await response.json();
             
             if (data.success) {
-                return this.arrayToObject(data.data);
+                const mapped = this.arrayToObject(data.data);
+                this.cache.taskAssignments = mapped;
+                this.cacheTimestamps.taskAssignments = now;
+                return mapped;
             }
             return {};
         } catch (error) {
@@ -1146,7 +1430,11 @@ class PortalDatabase {
     }
 
         // === GESTIÓN DE REPORTES ===
-        async getReports() {
+    async getReports() {
+        const now = Date.now();
+        if (this.cache && this.cache.reports && (now - this.cacheTimestamps.reports < this.CACHE_DURATION)) {
+            return this.cache.reports;
+        }
         try {
             const response = await fetch(`${this.API_URL}/reports`, {
                 method: 'GET', 
@@ -1160,7 +1448,7 @@ class PortalDatabase {
                     // ⭐ MAPPER: Agregar campo "id" que apunte a reportId
                     const mappedReport = {
                         ...report,
-                        id: report.reportId || report._id,  // ✅ AGREGAR ESTA LÍNEA
+                        id: report.reportId || report._id,
                         status: report.status || report.estado
                     };
                     reportsObj[report.reportId] = mappedReport;
@@ -1172,6 +1460,8 @@ class PortalDatabase {
                     console.error('Error reconstructing timesheets in getReports:', e);
                 }
                 
+                this.cache.reports = reportsObj;
+                this.cacheTimestamps.reports = now;
                 return reportsObj;
             }
             
@@ -1466,6 +1756,10 @@ class PortalDatabase {
 
     // === GESTIÓN DE TARIFARIO ===
 async getTarifarios() {
+    const now = Date.now();
+    if (this.cache && this.cache.tarifario && (now - this.cacheTimestamps.tarifario < this.CACHE_DURATION)) {
+        return this.cache.tarifario;
+    }
     try {
         const response = await fetch(`${this.API_URL}/tarifario`, {
             method: 'GET',
@@ -1524,6 +1818,8 @@ async getTarifarios() {
             
             console.log('✅ Tarifarios mapeados:', Object.keys(tarifarios).length, 'entradas');
             
+            this.cache.tarifario = tarifarios;
+            this.cacheTimestamps.tarifario = now;
             return tarifarios;
         }
         return {};

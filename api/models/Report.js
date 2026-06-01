@@ -78,4 +78,9 @@ const reportSchema = new mongoose.Schema({
   }
 });
 
+// Indexes for fast queries
+reportSchema.index({ userId: 1, date: -1 });
+reportSchema.index({ companyId: 1, date: -1 });
+reportSchema.index({ assignmentId: 1 });
+
 module.exports = mongoose.model('Report', reportSchema);

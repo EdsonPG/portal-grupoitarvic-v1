@@ -40,4 +40,7 @@ const projectAssignmentSchema = new mongoose.Schema({
   }
 });
 
+// Indexes for fast queries
+projectAssignmentSchema.index({ consultorId: 1, isActive: 1 });
+
 module.exports = mongoose.model('ProjectAssignment', projectAssignmentSchema);

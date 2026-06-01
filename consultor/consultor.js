@@ -493,36 +493,64 @@ async function silentDataRefresh() {
     try {
         const oldAssignmentsCount = userAssignments.length;
         
-        // Obtener todas las colecciones en paralelo
-        const [
-            supportAssignmentsData,
-            allProjectAssignments,
-            allTaskAssignments,
-            companiesList,
-            supportsList,
-            modulesList,
-            projectsList,
-            allReportsList
-        ] = await Promise.all([
-            window.PortalDB.getUserAssignments(currentUser.userId),
-            window.PortalDB.getProjectAssignments ? window.PortalDB.getProjectAssignments() : {},
-            window.PortalDB.getTaskAssignments ? window.PortalDB.getTaskAssignments() : {},
-            window.PortalDB.getCompanies(),
-            window.PortalDB.getSupports(),
-            window.PortalDB.getModules(),
-            window.PortalDB.getProjects(),
-            window.PortalDB.getReportsByUser(currentUser.userId)
-        ]);
+        const res = await window.PortalDB.getAllConsultorData();
+        if (!res || !res.success || !res.data) {
+            console.warn('⚠️ No se pudieron obtener los datos actualizados del consultor');
+            return;
+        }
+
+        window.PortalDB.prefillConsultorCacheFromAllData(res.data);
         
-        // Actualizar cache para lookup instantáneo en memoria
-        consultorCache.companies = {};
-        if (Array.isArray(companiesList)) {
-            companiesList.forEach(c => {
-                consultorCache.companies[c.id || c.companyId] = c;
-            });
+        // Sincronizar consultorCache con la caché del PortalDB recién cargada
+        consultorCache.companies = window.PortalDB.cache.companies || {};
+        consultorCache.supports = window.PortalDB.cache.supports || {};
+        consultorCache.modules = window.PortalDB.cache.modules || {};
+        consultorCache.projects = window.PortalDB.cache.projects || {};
+        
+        // reports
+        consultorCache.reports = Object.values(window.PortalDB.cache.reports || {});
+
+        // Support Assignments
+        const supportAssignments = Object.values(window.PortalDB.cache.assignments || {});
+        
+        // Project Assignments
+        const projectAssignmentsArray = Object.values(window.PortalDB.cache.projectAssignments || {});
+        
+        // Task Assignments
+        const taskAssignmentsArray = Object.values(window.PortalDB.cache.taskAssignments || {});
+        
+        const combinedAssignments = [
+            ...supportAssignments.map(a => ({...a, assignmentType: 'support'})),
+            ...projectAssignmentsArray.map(a => ({...a, assignmentType: 'project'})),
+            ...taskAssignmentsArray.map(a => ({...a, assignmentType: 'task'}))
+        ];
+        
+        userAssignments = combinedAssignments;
+        
+        updateCountersOnly();
+        
+        if (combinedAssignments.length > oldAssignmentsCount) {
+            if (window.NotificationUtils) {
+                window.NotificationUtils.info('Tienes nuevas asignaciones disponibles', 3000);
+            }
         }
         
-        consultorCache.supports = {};
+        // Sincronizar reportes y actualizar grid/historial en segundo plano si está activo
+        const currentViewEl = document.querySelector('.consultor-sidebar .menu-item.active');
+        const currentView = currentViewEl ? currentViewEl.dataset.view : 'timesheet';
+        
+        if (currentView === 'timesheet') {
+            console.log('🔄 Sincronizando timesheet semanal en segundo plano...');
+            await renderTimesheetGrid();
+        } else if (currentView === 'historial') {
+            console.log('🔄 Sincronizando historial en segundo plano...');
+            await renderHistorial();
+        }
+        
+    } catch (error) {
+        console.error('Error en actualización silenciosa:', error);
+    }
+}
         if (Array.isArray(supportsList)) {
             supportsList.forEach(s => {
                 consultorCache.supports[s.id || s.supportId] = s;
@@ -679,26 +707,23 @@ async function loadUserAssignments() {
             // Consumido, borrar para próximas recargas normales (F5)
             localStorage.removeItem('arvic_consultor_prefetched_data');
         } else {
-            console.log('📡 Fetching all portal data in parallel from server...');
-            [
-                supportAssignmentsData,
-                allProjectAssignments,
-                allTaskAssignments,
-                companiesList,
-                supportsList,
-                modulesList,
-                projectsList,
-                allReportsList
-            ] = await Promise.all([
-                window.PortalDB.getUserAssignments(currentUser.userId),
-                window.PortalDB.getProjectAssignments ? window.PortalDB.getProjectAssignments() : {},
-                window.PortalDB.getTaskAssignments ? window.PortalDB.getTaskAssignments() : {},
-                window.PortalDB.getCompanies(),
-                window.PortalDB.getSupports(),
-                window.PortalDB.getModules(),
-                window.PortalDB.getProjects(),
-                window.PortalDB.getReportsByUser(currentUser.userId)
-            ]);
+            console.log('📡 Fetching all portal data consolidated from server...');
+            const res = await window.PortalDB.getAllConsultorData();
+            if (res && res.success && res.data) {
+                window.PortalDB.prefillConsultorCacheFromAllData(res.data);
+                
+                companiesList = Object.values(window.PortalDB.cache.companies || {});
+                supportsList = Object.values(window.PortalDB.cache.supports || {});
+                modulesList = Object.values(window.PortalDB.cache.modules || {});
+                projectsList = Object.values(window.PortalDB.cache.projects || {});
+                
+                supportAssignmentsData = Object.values(window.PortalDB.cache.assignments || {});
+                allProjectAssignments = Object.values(window.PortalDB.cache.projectAssignments || {});
+                allTaskAssignments = Object.values(window.PortalDB.cache.taskAssignments || {});
+                allReportsList = Object.values(window.PortalDB.cache.reports || {});
+            } else {
+                throw new Error(res.message || 'Error al obtener datos del consultor');
+            }
         }
         
         // Cache these for instant lookup

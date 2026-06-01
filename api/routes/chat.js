@@ -272,6 +272,18 @@ router.put('/mark-read/:senderId', authenticateToken, async (req, res) => {
       { $set: { read: true } }
     );
 
+    // Limpiar notificaciones de chat acumuladas para este remitente
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.deleteMany({
+        userId: myUserId,
+        notificationId: { $regex: /^CHAT-/ },
+        message: { $regex: new RegExp(senderId) }
+      });
+    } catch (notifErr) {
+      console.error('❌ Error limpiando notificaciones de chat:', notifErr);
+    }
+
     // Notify the sender via SSE that their messages were read
     sendSSEToUser(senderId, 'messages_read', { readBy: myUserId });
 
