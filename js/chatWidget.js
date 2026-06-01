@@ -564,10 +564,13 @@ class ChatWidget {
             const currentRenderedMsgs = this.messagesArea.querySelectorAll('.chat-msg');
             if (history.length !== currentRenderedMsgs.length) {
                 this.renderHistory(history);
-                // Si la longitud aumentó, reproducir sonido de notificación (solo si el último mensaje no es nuestro)
+                // Si la longitud aumentó y el último mensaje no es nuestro, marcar como leído de inmediato
                 const lastMsg = history[history.length - 1];
-                if (lastMsg && lastMsg.senderId !== currentUserId && currentRenderedMsgs.length > 0) {
-                    this.playNotificationSound();
+                if (lastMsg && lastMsg.senderId !== currentUserId) {
+                    this.markConversationRead(this.currentContextId);
+                    if (currentRenderedMsgs.length > 0) {
+                        this.playNotificationSound();
+                    }
                 }
                 return;
             }
