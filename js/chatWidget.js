@@ -560,39 +560,90 @@ class ChatWidget {
             const history = await window.PortalDB.getChatHistory(this.currentContextId);
             if (!history) return;
             
-            // Si el historial está vacío localmente pero en el servidor hay mensajes, o viceversa
-            const currentRenderedMsgs = this.messagesArea.querySelectorAll('.chat-msg');
-            if (history.length !== currentRenderedMsgs.length) {
-                this.renderHistory(history);
-                // Si la longitud aumentó y el último mensaje no es nuestro, marcar como leído de inmediato
-                const lastMsg = history[history.length - 1];
-                if (lastMsg && lastMsg.senderId !== currentUserId) {
-                    this.markConversationRead(this.currentContextId);
-                    if (currentRenderedMsgs.length > 0) {
-                        this.playNotificationSound();
-                    }
-                }
-                return;
-            }
+            let changed = false;
 
-            // Comprobar si hay algún cambio en el estado de lectura (ej. doble checkmark)
-            let shouldUpdate = false;
-            for (const m of history) {
-                if (m.senderId === currentUserId && m.read) {
-                    const el = document.getElementById(`msg-${m._id}`);
-                    if (el) {
-                        const statusSpan = el.querySelector('.msg-status');
-                        if (statusSpan && !statusSpan.classList.contains('read')) {
-                            shouldUpdate = true;
+            // 1. Sincronizar mensajes uno por uno (añadir nuevos o promover optimistas)
+            history.forEach(m => {
+                const elById = document.getElementById(`msg-${m._id}`);
+                
+                if (elById) {
+                    // Si ya existe por ID real, sincronizar doble check
+                    const statusSpan = elById.querySelector('.msg-status');
+                    if (statusSpan) {
+                        const isMe = m.senderId === currentUserId;
+                        if (isMe) {
+                            if (m.read && !statusSpan.classList.contains('read')) {
+                                statusSpan.innerHTML = '<i class="fa-solid fa-check-double"></i>';
+                                statusSpan.className = 'msg-status read';
+                            } else if (!m.read && !statusSpan.classList.contains('sent')) {
+                                statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
+                                statusSpan.className = 'msg-status sent';
+                            }
+                        }
+                    }
+                    return;
+                }
+
+                // Si no existe, ver si hay un elemento optimista para asociarlo
+                let optEl = null;
+                if (m.tempId) {
+                    optEl = document.getElementById(`msg-${m.tempId}`);
+                }
+                if (!optEl) {
+                    // Match por contenido si tempId no coincide o no viajó
+                    const tempMessages = this.messagesArea.querySelectorAll('.chat-msg[id^="msg-temp-"]');
+                    for (const tempEl of tempMessages) {
+                        const msgTextEl = tempEl.querySelector('.msg-text');
+                        if (msgTextEl && msgTextEl.textContent === m.message && m.senderId === currentUserId) {
+                            optEl = tempEl;
                             break;
                         }
                     }
                 }
-            }
 
-            if (shouldUpdate) {
-                console.log('🔄 Cambios de lectura detectados en el chat, actualizando UI...');
-                this.renderHistory(history);
+                if (optEl) {
+                    // Promover ID y estado
+                    optEl.id = `msg-${m._id}`;
+                    const statusSpan = optEl.querySelector('.msg-status');
+                    if (statusSpan) {
+                        if (m.read) {
+                            statusSpan.innerHTML = '<i class="fa-solid fa-check-double"></i>';
+                            statusSpan.className = 'msg-status read';
+                        } else {
+                            statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
+                            statusSpan.className = 'msg-status sent';
+                        }
+                    }
+                } else {
+                    // Mensaje verdaderamente nuevo (del otro usuario)
+                    const currentRenderedMsgs = this.messagesArea.querySelectorAll('.chat-msg');
+                    this.appendMessage(m, true); // Animar sólo mensajes entrantes nuevos
+                    changed = true;
+                    
+                    if (m.senderId === this.currentContextId) {
+                        this.markConversationRead(m.senderId);
+                        if (currentRenderedMsgs.length > 0) {
+                            this.playNotificationSound();
+                        }
+                    }
+                }
+            });
+
+            // 2. Limpiar del DOM mensajes borrados (que ya no están en la BD), excepto temporales locales
+            const allRendered = this.messagesArea.querySelectorAll('.chat-msg');
+            allRendered.forEach(el => {
+                const id = el.id.replace('msg-', '');
+                if (id.startsWith('temp-')) return;
+                
+                const exists = history.some(m => m._id === id);
+                if (!exists) {
+                    el.remove();
+                    changed = true;
+                }
+            });
+
+            if (changed) {
+                this.scrollToBottom();
             }
         } catch(e) {
             console.error('Error en pollActiveChat:', e);
@@ -1095,19 +1146,19 @@ class ChatWidget {
                 this.messagesArea.appendChild(sep);
             }
 
-            this.appendMessage(m);
+            this.appendMessage(m, false); // No animar en la carga inicial del historial
         });
         this.scrollToBottom();
     }
 
-    appendMessage(msg) {
+    appendMessage(msg, animate = true) {
         if (document.getElementById(`msg-${msg._id}`)) return;
         const currentUserId = this.currentUser.userId || this.currentUser.id;
         const isMe = msg.senderId === currentUserId;
 
         const div = document.createElement('div');
         div.id = `msg-${msg._id}`;
-        div.className = `chat-msg ${isMe ? 'msg-out' : 'msg-in'} msg-animate-in`;
+        div.className = `chat-msg ${isMe ? 'msg-out' : 'msg-in'}${animate ? ' msg-animate-in' : ''}`;
 
         let content = '';
         if (msg.message) {
