@@ -36,6 +36,10 @@ const chatMessageSchema = new mongoose.Schema({
   tempId: {
     type: String,
     required: false
+  },
+  deleted: {
+    type: Boolean,
+    default: false
   }
 });
 

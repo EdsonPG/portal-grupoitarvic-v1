@@ -429,9 +429,15 @@ router.delete('/message/:messageId', authenticateToken, async (req, res) => {
     }
 
     const receiverId = msg.receiverId;
-    await ChatMessage.findByIdAndDelete(messageId);
     
-    // Notify both parties via SSE
+    // Realizar borrado lógico
+    msg.deleted = true;
+    msg.message = "Este mensaje fue eliminado";
+    msg.attachment = undefined;
+    msg.fileName = undefined;
+    await msg.save();
+    
+    // Notify both parties via SSE (fallback for real-time delivery)
     notifyUserOfEvent(req.user.userId, 'message_deleted', { messageId });
     notifyUserOfEvent(receiverId, 'message_deleted', { messageId });
     

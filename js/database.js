@@ -1858,11 +1858,8 @@ configurarTarifasAsignacion(assignmentId, tarifas) {
         console.error('❌ Error al configurar tarifas:', error);
         return { success: false, message: error.message };
     }
+}
 
-    // === GESTIÓN DE TARIFARIO ===
-    getTarifario() {
-        return this.getData('tarifario') || {};
-    }
 
     // === GESTIÓN DE TIMESHEETS SEMANALES ===
     getTimesheets() {

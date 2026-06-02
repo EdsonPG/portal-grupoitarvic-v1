@@ -463,8 +463,11 @@ wss.on('connection', (ws) => {
         const msg = await ChatMessage.findById(data.messageId);
         
         if (msg && msg.senderId === authenticatedUserId) {
-          const receiverId = msg.receiverId;
-          await ChatMessage.findByIdAndDelete(data.messageId);
+          msg.deleted = true;
+          msg.message = "Este mensaje fue eliminado";
+          msg.attachment = undefined;
+          msg.fileName = undefined;
+          await msg.save();
           
           // Notify both parties
           const payload = JSON.stringify({ type: 'message_deleted', messageId: data.messageId });

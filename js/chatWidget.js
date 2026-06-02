@@ -638,20 +638,27 @@ class ChatWidget {
                 }
             });
 
-            // 2. Limpiar del DOM mensajes borrados (que ya no están en la BD), excepto temporales locales y mensajes recientes (evitar lag de replicación)
+            // 2. Limpiar del DOM mensajes borrados (física o lógicamente)
             const allRendered = this.messagesArea.querySelectorAll('.chat-msg');
             allRendered.forEach(el => {
                 const id = el.id.replace('msg-', '');
                 if (id.startsWith('temp-')) return;
                 
-                // Evitar borrar mensajes agregados hace menos de 15 segundos (lag de base de datos)
-                const addedTime = parseInt(el.getAttribute('data-timestamp') || '0', 10);
-                if (Date.now() - addedTime < 15000) return;
+                // Buscar el mensaje en el historial obtenido del servidor
+                const historyMsg = history.find(m => m._id === id);
                 
-                const exists = history.some(m => m._id === id);
-                if (!exists) {
+                if (historyMsg && historyMsg.deleted) {
+                    // El servidor confirma explícitamente que está borrado: remover de inmediato sin lag
                     el.remove();
                     changed = true;
+                } else if (!historyMsg) {
+                    // No está en el historial (borrado físico o retraso de replicación en base de datos)
+                    // Aplicar regla de 15 segundos para evitar remover mensajes nuevos que están en tránsito
+                    const addedTime = parseInt(el.getAttribute('data-timestamp') || '0', 10);
+                    if (Date.now() - addedTime >= 15000) {
+                        el.remove();
+                        changed = true;
+                    }
                 }
             });
 
@@ -1114,7 +1121,8 @@ class ChatWidget {
 
     renderHistory(msgs) {
         this.messagesArea.innerHTML = '';
-        if (!msgs || msgs.length === 0) {
+        const activeMsgs = (msgs || []).filter(m => !m.deleted);
+        if (activeMsgs.length === 0) {
             this.messagesArea.innerHTML = `
                 <div class="chat-empty-state">
                     <i class="fa-solid fa-paper-plane"></i>
@@ -1126,7 +1134,7 @@ class ChatWidget {
         }
 
         let lastDate = '';
-        msgs.forEach(m => {
+        activeMsgs.forEach(m => {
             // Date separator
             const msgDate = new Date(m.timestamp).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
             const today = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -1150,6 +1158,7 @@ class ChatWidget {
     }
 
     appendMessage(msg, animate = true) {
+        if (msg.deleted) return;
         if (document.getElementById(`msg-${msg._id}`)) return;
         const currentUserId = this.currentUser.userId || this.currentUser.id;
         const isMe = msg.senderId === currentUserId;
