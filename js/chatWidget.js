@@ -590,11 +590,30 @@ class ChatWidget {
                     optEl = document.getElementById(`msg-${m.tempId}`);
                 }
                 if (!optEl) {
-                    // Match por contenido si tempId no coincide o no viajó
+                    // Match por contenido, imagen o archivo si tempId no coincide o no viajó
                     const tempMessages = this.messagesArea.querySelectorAll('.chat-msg[id^="msg-temp-"]');
                     for (const tempEl of tempMessages) {
+                        let isMatch = false;
+                        
+                        // Mensaje de texto
                         const msgTextEl = tempEl.querySelector('.msg-text');
-                        if (msgTextEl && msgTextEl.textContent === m.message && m.senderId === currentUserId) {
+                        if (msgTextEl && m.message && msgTextEl.textContent === m.message) {
+                            isMatch = true;
+                        }
+                        
+                        // Mensaje de imagen
+                        const msgImgEl = tempEl.querySelector('.msg-image img');
+                        if (msgImgEl && m.fileName && (msgImgEl.getAttribute('alt') === m.fileName || msgImgEl.src.includes(m.fileName))) {
+                            isMatch = true;
+                        }
+                        
+                        // Mensaje de archivo
+                        const msgFileEl = tempEl.querySelector('.msg-file a');
+                        if (msgFileEl && m.fileName && msgFileEl.textContent === m.fileName) {
+                            isMatch = true;
+                        }
+                        
+                        if (isMatch && tempEl.classList.contains('msg-out')) {
                             optEl = tempEl;
                             break;
                         }
@@ -604,7 +623,7 @@ class ChatWidget {
                 if (optEl) {
                     // Promover ID y estado
                     optEl.id = `msg-${m._id}`;
-                    optEl.dataset.timestamp = Date.now(); // Actualizar timestamp para dar otra gracia de 15s
+                    optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp para dar otra gracia de 15s
                     const statusSpan = optEl.querySelector('.msg-status');
                     if (statusSpan) {
                         if (m.read) {
@@ -637,7 +656,7 @@ class ChatWidget {
                 if (id.startsWith('temp-')) return;
                 
                 // Evitar borrar mensajes agregados hace menos de 15 segundos (lag de base de datos)
-                const addedTime = parseInt(el.dataset.timestamp || '0', 10);
+                const addedTime = parseInt(el.getAttribute('data-timestamp') || '0', 10);
                 if (Date.now() - addedTime < 15000) return;
                 
                 const exists = history.some(m => m._id === id);
@@ -935,7 +954,7 @@ class ChatWidget {
             const optEl = document.getElementById(`msg-${msg.tempId}`);
             if (optEl) {
                 optEl.id = `msg-${msg._id}`;
-                optEl.dataset.timestamp = Date.now(); // Actualizar timestamp
+                optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp
                 // Update status indicator from clock to checkmark
                 const statusSpan = optEl.querySelector('.msg-status');
                 if (statusSpan) {
@@ -1084,7 +1103,7 @@ class ChatWidget {
                 const optEl = document.getElementById(`msg-${tempId}`);
                 if (optEl) {
                     optEl.id = `msg-${res.data._id}`;
-                    optEl.dataset.timestamp = Date.now(); // Actualizar timestamp
+                    optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp
                     const statusSpan = optEl.querySelector('.msg-status');
                     if (statusSpan) {
                         statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
@@ -1166,7 +1185,7 @@ class ChatWidget {
         const div = document.createElement('div');
         div.id = `msg-${msg._id}`;
         div.className = `chat-msg ${isMe ? 'msg-out' : 'msg-in'}${animate ? ' msg-animate-in' : ''}`;
-        div.dataset.timestamp = Date.now(); // Registrar cuándo se agregó al DOM para evitar lag de replicación
+        div.setAttribute('data-timestamp', Date.now()); // Registrar cuándo se agregó al DOM para evitar lag de replicación
 
         let content = '';
         if (msg.message) {
