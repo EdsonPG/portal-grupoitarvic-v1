@@ -388,7 +388,8 @@ wss.on('connection', (ws) => {
           message: data.payload.message || '',
           attachment: data.payload.attachment,
           fileName: data.payload.fileName,
-          reportId: data.payload.reportId || undefined
+          reportId: data.payload.reportId || undefined,
+          tempId: data.tempId
         });
         
         await newMsg.save();

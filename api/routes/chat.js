@@ -360,7 +360,8 @@ router.post('/send', authenticateToken, async (req, res) => {
       message,
       attachment,
       fileName,
-      reportId: reportId ? reportId : undefined
+      reportId: reportId ? reportId : undefined,
+      tempId
     });
 
     await newMsg.save();

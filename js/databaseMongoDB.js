@@ -2247,10 +2247,10 @@ async getTarifario() {
                 headers: this.getHeaders()
             });
             const result = await response.json();
-            return result.success ? result.data : [];
+            return result.success ? result.data : null;
         } catch (error) {
             console.error('❌ Error obteniendo historial de chat:', error);
-            return [];
+            return null;
         }
     }
 

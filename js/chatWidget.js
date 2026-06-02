@@ -622,6 +622,7 @@ class ChatWidget {
 
                 if (optEl) {
                     // Promover ID y estado
+                    optEl.classList.remove('msg-animate-in'); // Evitar reinicio de animación
                     optEl.id = `msg-${m._id}`;
                     optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp para dar otra gracia de 15s
                     const statusSpan = optEl.querySelector('.msg-status');
@@ -633,6 +634,10 @@ class ChatWidget {
                             statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
                             statusSpan.className = 'msg-status sent';
                         }
+                    }
+                    const deleteBtn = optEl.querySelector('.msg-delete-btn');
+                    if (deleteBtn) {
+                        deleteBtn.setAttribute('onclick', `window.chatWidget.deleteMessage('${m._id}')`);
                     }
                 } else {
                     // Mensaje verdaderamente nuevo (del otro usuario)
@@ -953,6 +958,7 @@ class ChatWidget {
         if (msg.tempId && msg.senderId === currentUserId) {
             const optEl = document.getElementById(`msg-${msg.tempId}`);
             if (optEl) {
+                optEl.classList.remove('msg-animate-in'); // Evitar reinicio de animación
                 optEl.id = `msg-${msg._id}`;
                 optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp
                 // Update status indicator from clock to checkmark
@@ -960,6 +966,10 @@ class ChatWidget {
                 if (statusSpan) {
                     statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
                     statusSpan.className = 'msg-status sent';
+                }
+                const deleteBtn = optEl.querySelector('.msg-delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.setAttribute('onclick', `window.chatWidget.deleteMessage('${msg._id}')`);
                 }
                 // Update last messages and contacts
                 this.lastMessages[msg.receiverId] = {
@@ -1102,12 +1112,17 @@ class ChatWidget {
                 // Actualizar inmediatamente el mensaje optimista sin esperar a SSE/WS
                 const optEl = document.getElementById(`msg-${tempId}`);
                 if (optEl) {
+                    optEl.classList.remove('msg-animate-in'); // Evitar reinicio de animación
                     optEl.id = `msg-${res.data._id}`;
                     optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp
                     const statusSpan = optEl.querySelector('.msg-status');
                     if (statusSpan) {
                         statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
                         statusSpan.className = 'msg-status sent';
+                    }
+                    const deleteBtn = optEl.querySelector('.msg-delete-btn');
+                    if (deleteBtn) {
+                        deleteBtn.setAttribute('onclick', `window.chatWidget.deleteMessage('${res.data._id}')`);
                     }
                 }
                 // Actualizar último mensaje y contactos
