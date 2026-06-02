@@ -340,6 +340,13 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 const userStatuses = new Map();
 
+chatRoutes.sendWebSocketToUser = (userId, messageType, payload) => {
+  const wsClient = clients.get(userId);
+  if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+    wsClient.send(JSON.stringify({ type: messageType, ...payload }));
+  }
+};
+
 wss.on('connection', (ws) => {
   let authenticatedUserId = null;
 

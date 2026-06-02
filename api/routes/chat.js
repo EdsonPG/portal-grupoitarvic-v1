@@ -41,18 +41,24 @@ function sendSSEToUser(userId, eventType, data) {
 }
 
 /**
- * Broadcast an event to all connected SSE clients
+ * Send an event to a user via both SSE and WebSocket (if WS notifier is registered)
  */
-function broadcastSSE(eventType, data) {
-  sseClients.forEach((clients, userId) => {
-    sendSSEToUser(userId, eventType, data);
-  });
+function notifyUserOfEvent(userId, eventType, data) {
+  sendSSEToUser(userId, eventType, data);
+  if (router.sendWebSocketToUser) {
+    try {
+      router.sendWebSocketToUser(userId, eventType, eventType === 'new_message' ? { payload: data } : data);
+    } catch (e) {
+      console.error('Error sending WS event:', e);
+    }
+  }
 }
 
 // Export SSE helpers so index.js can also use them
 router.sseClients = sseClients;
 router.sendSSEToUser = sendSSEToUser;
 router.broadcastSSE = broadcastSSE;
+router.notifyUserOfEvent = notifyUserOfEvent;
 
 // Middleware para verificar token
 const authenticateToken = (req, res, next) => {
@@ -372,8 +378,8 @@ router.post('/send', authenticateToken, async (req, res) => {
       tempId // Include tempId so sender can match optimistic msg
     };
     
-    sendSSEToUser(receiverId, 'new_message', messagePayload);
-    sendSSEToUser(req.user.userId, 'new_message', messagePayload);
+    notifyUserOfEvent(receiverId, 'new_message', messagePayload);
+    notifyUserOfEvent(req.user.userId, 'new_message', messagePayload);
     
     // If receiver is not connected via SSE, create a notification
     const receiverClients = sseClients.get(receiverId);
@@ -417,8 +423,8 @@ router.delete('/message/:messageId', authenticateToken, async (req, res) => {
     await ChatMessage.findByIdAndDelete(messageId);
     
     // Notify both parties via SSE
-    sendSSEToUser(req.user.userId, 'message_deleted', { messageId });
-    sendSSEToUser(receiverId, 'message_deleted', { messageId });
+    notifyUserOfEvent(req.user.userId, 'message_deleted', { messageId });
+    notifyUserOfEvent(receiverId, 'message_deleted', { messageId });
     
     res.json({ success: true });
   } catch (error) {

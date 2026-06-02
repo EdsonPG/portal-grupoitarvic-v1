@@ -621,24 +621,8 @@ class ChatWidget {
                 }
 
                 if (optEl) {
-                    // Promover ID y estado
-                    optEl.classList.remove('msg-animate-in'); // Evitar reinicio de animación
-                    optEl.id = `msg-${m._id}`;
-                    optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp para dar otra gracia de 15s
-                    const statusSpan = optEl.querySelector('.msg-status');
-                    if (statusSpan) {
-                        if (m.read) {
-                            statusSpan.innerHTML = '<i class="fa-solid fa-check-double"></i>';
-                            statusSpan.className = 'msg-status read';
-                        } else {
-                            statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
-                            statusSpan.className = 'msg-status sent';
-                        }
-                    }
-                    const deleteBtn = optEl.querySelector('.msg-delete-btn');
-                    if (deleteBtn) {
-                        deleteBtn.setAttribute('onclick', `window.chatWidget.deleteMessage('${m._id}')`);
-                    }
+                    const tempId = optEl.id.replace('msg-', '');
+                    this.promoteMessage(tempId, m._id, m.timestamp, 'sent', m.read);
                 } else {
                     // Mensaje verdaderamente nuevo (del otro usuario)
                     const currentRenderedMsgs = this.messagesArea.querySelectorAll('.chat-msg');
@@ -958,19 +942,7 @@ class ChatWidget {
         if (msg.tempId && msg.senderId === currentUserId) {
             const optEl = document.getElementById(`msg-${msg.tempId}`);
             if (optEl) {
-                optEl.classList.remove('msg-animate-in'); // Evitar reinicio de animación
-                optEl.id = `msg-${msg._id}`;
-                optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp
-                // Update status indicator from clock to checkmark
-                const statusSpan = optEl.querySelector('.msg-status');
-                if (statusSpan) {
-                    statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
-                    statusSpan.className = 'msg-status sent';
-                }
-                const deleteBtn = optEl.querySelector('.msg-delete-btn');
-                if (deleteBtn) {
-                    deleteBtn.setAttribute('onclick', `window.chatWidget.deleteMessage('${msg._id}')`);
-                }
+                this.promoteMessage(msg.tempId, msg._id, msg.timestamp, 'sent', msg.read);
                 // Update last messages and contacts
                 this.lastMessages[msg.receiverId] = {
                     lastMessage: msg.message || '📎 Archivo',
@@ -1109,22 +1081,7 @@ class ChatWidget {
         try {
             const res = await window.PortalDB.sendChatMessage(payload);
             if (res.success) {
-                // Actualizar inmediatamente el mensaje optimista sin esperar a SSE/WS
-                const optEl = document.getElementById(`msg-${tempId}`);
-                if (optEl) {
-                    optEl.classList.remove('msg-animate-in'); // Evitar reinicio de animación
-                    optEl.id = `msg-${res.data._id}`;
-                    optEl.setAttribute('data-timestamp', Date.now()); // Actualizar timestamp
-                    const statusSpan = optEl.querySelector('.msg-status');
-                    if (statusSpan) {
-                        statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
-                        statusSpan.className = 'msg-status sent';
-                    }
-                    const deleteBtn = optEl.querySelector('.msg-delete-btn');
-                    if (deleteBtn) {
-                        deleteBtn.setAttribute('onclick', `window.chatWidget.deleteMessage('${res.data._id}')`);
-                    }
-                }
+                this.promoteMessage(tempId, res.data._id, res.data.timestamp, 'sent', res.data.read);
                 // Actualizar último mensaje y contactos
                 this.lastMessages[payload.receiverId] = {
                     lastMessage: res.data.message || '📎 Archivo',
@@ -1261,6 +1218,46 @@ class ChatWidget {
         
         // Remove animation class after animation completes
         setTimeout(() => div.classList.remove('msg-animate-in'), 350);
+    }
+
+    promoteMessage(tempId, realId, timestamp, status, read) {
+        const optEl = document.getElementById(`msg-${tempId}`);
+        if (!optEl) return;
+
+        if (optEl.getAttribute('data-promoting') === 'true') return;
+        optEl.setAttribute('data-promoting', 'true');
+
+        const appendedAt = parseInt(optEl.getAttribute('data-timestamp') || '0', 10);
+        const elapsed = Date.now() - appendedAt;
+        const delay = Math.max(0, 350 - elapsed);
+
+        setTimeout(() => {
+            const el = document.getElementById(`msg-${tempId}`);
+            if (!el) return;
+
+            el.classList.remove('msg-animate-in');
+            el.id = `msg-${realId}`;
+            el.setAttribute('data-timestamp', Date.now()); // Para gracia de 15s
+            el.removeAttribute('data-promoting');
+
+            // Actualizar status
+            const statusSpan = el.querySelector('.msg-status');
+            if (statusSpan) {
+                if (read) {
+                    statusSpan.innerHTML = '<i class="fa-solid fa-check-double"></i>';
+                    statusSpan.className = 'msg-status read';
+                } else {
+                    statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    statusSpan.className = 'msg-status sent';
+                }
+            }
+
+            // Actualizar botón de eliminar
+            const deleteBtn = el.querySelector('.msg-delete-btn');
+            if (deleteBtn) {
+                deleteBtn.setAttribute('onclick', `window.chatWidget.deleteMessage('${realId}')`);
+            }
+        }, delay);
     }
 
     // ========================================
