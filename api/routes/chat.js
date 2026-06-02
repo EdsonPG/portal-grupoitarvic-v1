@@ -41,6 +41,15 @@ function sendSSEToUser(userId, eventType, data) {
 }
 
 /**
+ * Broadcast an event to all connected SSE clients
+ */
+function broadcastSSE(eventType, data) {
+  sseClients.forEach((clients, userId) => {
+    sendSSEToUser(userId, eventType, data);
+  });
+}
+
+/**
  * Send an event to a user via both SSE and WebSocket (if WS notifier is registered)
  */
 function notifyUserOfEvent(userId, eventType, data) {
