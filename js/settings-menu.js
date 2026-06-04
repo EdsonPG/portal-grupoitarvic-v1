@@ -70,7 +70,7 @@ document.addEventListener('keydown', function(e) {
 // ============================================
 // STATUS INDICATOR
 // ============================================
-function setUserStatus(status) {
+function setUserStatus(status, avoidSync = false) {
     const badge = document.getElementById('userStatusBadge');
     if (badge) {
         badge.classList.remove('status-away', 'status-dnd');
@@ -87,6 +87,17 @@ function setUserStatus(status) {
     });
 
     localStorage.setItem('arvic_user_status', status);
+
+    if (!avoidSync && window.chatWidget) {
+        let chatStatus = 'online';
+        if (status === 'away') chatStatus = 'away';
+        if (status === 'dnd') chatStatus = 'offline';
+
+        if (window.chatWidget.statusSelect) {
+            window.chatWidget.statusSelect.value = chatStatus;
+        }
+        window.chatWidget.updateMyStatus(chatStatus, true);
+    }
 }
 
 function loadUserStatus() {

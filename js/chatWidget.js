@@ -16,7 +16,11 @@ class ChatWidget {
         this.token = localStorage.getItem('arvic_token');
         this.contacts = [];
         this.selectedFile = null;
-        this.userStatus = 'online';
+        const localStatus = localStorage.getItem('arvic_user_status') || 'online';
+        let chatStatus = 'online';
+        if (localStatus === 'away') chatStatus = 'away';
+        if (localStatus === 'dnd') chatStatus = 'offline';
+        this.userStatus = chatStatus;
         this.soundEnabled = true;
         this.unreadCounts = {};     // { senderId: count }
         this.lastMessages = {};     // { partnerId: { message, timestamp, senderId } }
@@ -185,6 +189,7 @@ class ChatWidget {
         this.attachmentRemove = this.container.querySelector('#chatAttachmentRemove');
         this.typingIndicator = this.container.querySelector('#chatTypingIndicator');
         this.statusSelect = this.container.querySelector('#chatMyStatus');
+        if (this.statusSelect) this.statusSelect.value = this.userStatus;
         this.soundTogglebtn = this.container.querySelector('#chatSoundToggle');
         this.emojiBtn = this.container.querySelector('#chatEmojiBtn');
         this.emojiPicker = this.container.querySelector('#chatEmojiPicker');
@@ -420,6 +425,22 @@ class ChatWidget {
 
             case 'user_status':
                 this.updateContactUIStatus(data.userId, data.status);
+                // Multi-tab sync for current user
+                if (this.currentUser) {
+                    const currentUserId = this.currentUser.userId || this.currentUser.id;
+                    if (currentUserId && String(data.userId) === String(currentUserId)) {
+                        if (this.statusSelect && this.statusSelect.value !== data.status) {
+                            this.statusSelect.value = data.status;
+                            this.userStatus = data.status;
+                        }
+                        if (typeof window.setUserStatus === 'function') {
+                            let settingsStatus = 'online';
+                            if (data.status === 'away') settingsStatus = 'away';
+                            if (data.status === 'offline') settingsStatus = 'dnd';
+                            window.setUserStatus(settingsStatus, true);
+                        }
+                    }
+                }
                 break;
 
             case 'active_users':
@@ -895,7 +916,25 @@ class ChatWidget {
                 
                 if (data.type === 'new_message') this.handleIncomingMessage(data.payload);
                 if (data.type === 'message_deleted') this.handleMessageDeleted(data.messageId);
-                if (data.type === 'user_status_update') this.updateContactUIStatus(data.userId, data.status);
+                if (data.type === 'user_status_update') {
+                    this.updateContactUIStatus(data.userId, data.status);
+                    // Multi-tab sync for current user
+                    if (this.currentUser) {
+                        const currentUserId = this.currentUser.userId || this.currentUser.id;
+                        if (currentUserId && String(data.userId) === String(currentUserId)) {
+                            if (this.statusSelect && this.statusSelect.value !== data.status) {
+                                this.statusSelect.value = data.status;
+                                this.userStatus = data.status;
+                            }
+                            if (typeof window.setUserStatus === 'function') {
+                                let settingsStatus = 'online';
+                                if (data.status === 'away') settingsStatus = 'away';
+                                if (data.status === 'offline') settingsStatus = 'dnd';
+                                window.setUserStatus(settingsStatus, true);
+                            }
+                        }
+                    }
+                }
                 if (data.type === 'active_users_list') {
                     data.users.forEach(u => this.updateContactUIStatus(u.userId, u.status));
                 }
@@ -923,8 +962,28 @@ class ChatWidget {
         }
     }
 
-    async updateMyStatus(status) {
+    async updateMyStatus(status, avoidSync = false) {
         this.userStatus = status;
+
+        if (this.statusSelect && this.statusSelect.value !== status) {
+            this.statusSelect.value = status;
+        }
+
+        // Sync with settings-menu if available
+        if (!avoidSync && typeof window.setUserStatus === 'function') {
+            let settingsStatus = 'online';
+            if (status === 'away') settingsStatus = 'away';
+            if (status === 'offline') settingsStatus = 'dnd';
+            
+            window.setUserStatus(settingsStatus, true);
+        } else {
+            // Even if avoidSync is true, save to localStorage for session persistency
+            let settingsStatus = 'online';
+            if (status === 'away') settingsStatus = 'away';
+            if (status === 'offline') settingsStatus = 'dnd';
+            localStorage.setItem('arvic_user_status', settingsStatus);
+        }
+
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ type: 'status_change', status }));
         } else {
