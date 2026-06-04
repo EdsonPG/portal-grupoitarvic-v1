@@ -347,6 +347,10 @@ chatRoutes.sendWebSocketToUser = (userId, messageType, payload) => {
   }
 };
 
+chatRoutes.broadcastWSStatus = (userId, status) => {
+  broadcastStatus(userId, status);
+};
+
 wss.on('connection', (ws) => {
   let authenticatedUserId = null;
 

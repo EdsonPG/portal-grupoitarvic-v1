@@ -318,6 +318,8 @@ class ChatWidget {
 
             this.sseConnected = true;
             console.log('📡 SSE conectado exitosamente');
+            // Sincronizar mi estado inicial con los demás usuarios
+            this.updateMyStatus(this.statusSelect.value);
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -921,10 +923,25 @@ class ChatWidget {
         }
     }
 
-    updateMyStatus(status) {
+    async updateMyStatus(status) {
         this.userStatus = status;
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ type: 'status_change', status }));
+        } else {
+            // Fallback REST (para entorno Vercel/SSE)
+            try {
+                const token = localStorage.getItem('arvic_token');
+                await fetch(`${this.apiBase}/api/chat/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    },
+                    body: JSON.stringify({ status })
+                });
+            } catch (e) {
+                console.error('Error al actualizar estado vía REST:', e);
+            }
         }
     }
 

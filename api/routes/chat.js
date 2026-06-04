@@ -654,4 +654,37 @@ Ejemplo de respuesta si pide soporte humano:
   }
 });
 
+// ==========================================
+// POST /api/chat/status — Actualizar estado (REST fallback para producción/Vercel)
+// ==========================================
+router.post('/status', authenticateToken, (req, res) => {
+  try {
+    const { status } = req.body;
+    const userId = req.user.userId;
+    
+    if (!['online', 'away', 'offline'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Estado inválido' });
+    }
+
+    console.log(`👤 Cambio de estado REST: ${userId} -> ${status}`);
+    
+    // 1. Broadcast por SSE a todos los conectados
+    broadcastSSE('user_status', { userId, status });
+    
+    // 2. Broadcast por WebSocket a todos los conectados
+    if (router.broadcastWSStatus) {
+      try {
+        router.broadcastWSStatus(userId, status);
+      } catch (wsErr) {
+        console.error('Error al retransmitir estado por WS:', wsErr);
+      }
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error en POST /status:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
