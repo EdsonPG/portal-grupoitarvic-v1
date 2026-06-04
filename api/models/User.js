@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  chatStatus: {
+    type: String,
+    enum: ['online', 'away', 'offline'],
+    default: 'offline'
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 

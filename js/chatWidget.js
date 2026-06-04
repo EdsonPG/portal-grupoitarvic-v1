@@ -558,6 +558,11 @@ class ChatWidget {
             const currentUserId = this.currentUser.userId || this.currentUser.id;
             this.contacts = Object.values(users).filter(u => u.userId !== currentUserId && u.isActive !== false);
             
+            // Popular estados iniciales de los contactos cargados de la base de datos
+            this.contacts.forEach(u => {
+                this.contactsStatuses[u.userId] = u.chatStatus || 'offline';
+            });
+            
             // Load last messages
             const lastMsgs = await window.PortalDB.getLastMessages(currentUserId);
             this.lastMessages = {};

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ChatMessage = require('../models/ChatMessage');
+const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 // ==========================================
@@ -88,7 +89,7 @@ const authenticateToken = (req, res, next) => {
 // Real-time event stream for chat messages,
 // typing indicators, and user status updates
 // ==========================================
-router.get('/stream', authenticateToken, (req, res) => {
+router.get('/stream', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   
   // Set SSE headers
@@ -111,17 +112,41 @@ router.get('/stream', authenticateToken, (req, res) => {
   
   console.log(`📡 SSE conectado: ${userId} (${sseClients.get(userId).size} conexiones)`);
   
+  // Update status in MongoDB to online
+  try {
+    await User.updateOne({ userId }, { $set: { chatStatus: 'online' } });
+  } catch (dbErr) {
+    console.error('Error al actualizar chatStatus a online en stream connect:', dbErr);
+  }
+  
   // Send online status to all users
   broadcastSSE('user_status', { userId, status: 'online' });
   
-  // Send current online users list to the newly connected user
-  const onlineUsers = [];
-  sseClients.forEach((clients, uid) => {
-    if (clients.size > 0) {
-      onlineUsers.push({ userId: uid, status: 'online' });
-    }
-  });
-  res.write(`event: active_users\ndata: ${JSON.stringify({ users: onlineUsers })}\n\n`);
+  // Send current online users list with their actual status to the newly connected user
+  try {
+    const onlineUserIds = Array.from(sseClients.keys()).filter(uid => {
+      const clients = sseClients.get(uid);
+      return clients && clients.size > 0;
+    });
+    
+    const users = await User.find({ userId: { $in: onlineUserIds } });
+    const onlineUsers = users.map(u => ({
+      userId: u.userId,
+      status: u.chatStatus || 'online'
+    }));
+    
+    res.write(`event: active_users\ndata: ${JSON.stringify({ users: onlineUsers })}\n\n`);
+  } catch (dbErr) {
+    console.error('Error al obtener lista de usuarios activos para SSE:', dbErr);
+    // Fallback original si falla la DB
+    const onlineUsers = [];
+    sseClients.forEach((clients, uid) => {
+      if (clients.size > 0) {
+        onlineUsers.push({ userId: uid, status: 'online' });
+      }
+    });
+    res.write(`event: active_users\ndata: ${JSON.stringify({ users: onlineUsers })}\n\n`);
+  }
   
   // Keep-alive ping every 25 seconds (prevents timeout on proxies)
   const keepAlive = setInterval(() => {
@@ -137,7 +162,7 @@ router.get('/stream', authenticateToken, (req, res) => {
   }, 25000);
   
   // Cleanup on disconnect 
-  req.on('close', () => {
+  req.on('close', async () => {
     clearInterval(keepAlive);
     const clients = sseClients.get(userId);
     if (clients) {
@@ -146,6 +171,11 @@ router.get('/stream', authenticateToken, (req, res) => {
         sseClients.delete(userId);
         // User fully disconnected — notify others
         broadcastSSE('user_status', { userId, status: 'offline' });
+        try {
+          await User.updateOne({ userId }, { $set: { chatStatus: 'offline' } });
+        } catch (dbErr) {
+          console.error('Error al actualizar chatStatus a offline en stream close:', dbErr);
+        }
       }
     }
     console.log(`📡 SSE desconectado: ${userId}`);
@@ -657,7 +687,7 @@ Ejemplo de respuesta si pide soporte humano:
 // ==========================================
 // POST /api/chat/status — Actualizar estado (REST fallback para producción/Vercel)
 // ==========================================
-router.post('/status', authenticateToken, (req, res) => {
+router.post('/status', authenticateToken, async (req, res) => {
   try {
     const { status } = req.body;
     const userId = req.user.userId;
@@ -667,6 +697,13 @@ router.post('/status', authenticateToken, (req, res) => {
     }
 
     console.log(`👤 Cambio de estado REST: ${userId} -> ${status}`);
+    
+    // Update user status in MongoDB
+    try {
+      await User.updateOne({ userId }, { $set: { chatStatus: status } });
+    } catch (dbErr) {
+      console.error('Error al actualizar chatStatus en MongoDB:', dbErr);
+    }
     
     // 1. Broadcast por SSE a todos los conectados
     broadcastSSE('user_status', { userId, status });
