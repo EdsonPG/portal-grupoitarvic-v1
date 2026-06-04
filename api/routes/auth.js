@@ -19,11 +19,11 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Buscar usuario por userId o email
+    // Buscar usuario por userId o email (de forma insensible a mayúsculas/minúsculas)
     const user = await User.findOne({ 
       $or: [
-        { userId: userId },      // Cambiado de 'id' a 'userId'
-        { email: userId }
+        { userId: { $regex: new RegExp('^' + userId + '$', 'i') } },
+        { email: userId.toLowerCase() }
       ]
     });
 
