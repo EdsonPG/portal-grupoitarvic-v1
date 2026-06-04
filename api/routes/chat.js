@@ -465,7 +465,6 @@ router.post('/support-email', authenticateToken, async (req, res) => {
     const { userId, name, email } = req.user;
     const userName = name || userId;
     const userEmail = email || 'Sin correo registrado';
-
     await sendSupportEmail(userName, userEmail, message);
 
     res.json({
@@ -475,6 +474,182 @@ router.post('/support-email', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error enviando email de soporte:', error);
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==========================================
+// POST /api/chat/support-bot — Asistente de IA (Gemini) con Escalación automática
+// ==========================================
+router.post('/support-bot', authenticateToken, async (req, res) => {
+  try {
+    const { message, chatHistory } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ success: false, message: 'La pregunta es requerida' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn('⚠️ GEMINI_API_KEY no configurada. Activando fallback local...');
+      return res.status(503).json({ 
+        success: false, 
+        fallback: true,
+        message: 'Servicio de IA temporalmente no disponible (sin clave de API)' 
+      });
+    }
+
+    const { userId, role, name } = req.user;
+    const userName = name || userId;
+
+    // 1. Definir instrucciones de sistema adaptadas al rol
+    let systemPrompt = `Eres el asistente de Soporte Virtual oficial del "Portal ARVIC", una plataforma web de gestión y control de horas de consultores de tecnologías de la información.
+Responde de forma concisa, servicial y profesional en español. Saluda al usuario llamándolo por su nombre (${userName}) cuando sea oportuno.
+
+Estás interactuando con un usuario con el rol de "${role}".
+`;
+
+    if (role === 'admin') {
+      systemPrompt += `Como ADMINISTRADOR, guíalo en:
+- Creación de usuarios (consultores y otros administradores) en la pestaña Usuarios.
+- Registro de empresas cliente y creación de proyectos o módulos.
+- Asignación de consultores a proyectos y soportes en la pestaña Asignaciones, estableciendo tarifas y costos para llevar el control de márgenes.
+- Revisión, aprobación o rechazo de los Timesheets semanales que envían los consultores.
+- Visualización de estadísticas del portal y márgenes de ganancia.
+- Exportación de reportes de actividades a formatos PDF o Excel.
+`;
+    } else {
+      systemPrompt += `Como CONSULTOR, guíalo en:
+- Registro de horas: se capturan en formato decimal. Por ejemplo: 8 horas es 8.0, 8 horas y media es 8.5, 2 horas y cuarto es 2.25. El mínimo es 0.5.
+- Captura Semanal (Timesheet): debe rellenar las horas de lunes a domingo en sus proyectos/soportes asignados y hacer clic en "Enviar Semana".
+- Verificación de asignaciones: si no ve ningún proyecto, dile que su administrador debe asignarlo desde el panel.
+- Reportes rechazados: si tiene reportes rechazados, debe ver el motivo en la sección inferior, corregirlos y enviar un nuevo ticket.
+- Perfil: cambiar su contraseña, correo o foto de perfil en el menú de cuenta arriba a la derecha.
+`;
+    }
+
+    systemPrompt += `
+REGLA CRÍTICA DE ESCALACIÓN A HUMANO:
+Si el usuario reporta una falla técnica explícita del portal (ej: "no carga la página", "da error 500", "el botón no hace nada"), o si solicita hablar explícitamente con soporte técnico humano / administrador / Hector Perez, debes responder de manera atenta y amable indicando que derivarás el caso y FINALIZAR tu respuesta agregando EXACTAMENTE la siguiente etiqueta al final de todo tu texto:
+[ESCALAR]: [Escribe aquí un resumen muy breve y claro de la falla o solicitud del usuario]
+
+Ejemplo de respuesta si pide soporte humano:
+"Entendido ${userName}. Veo que tienes un problema técnico con la carga de las asignaciones. Voy a derivar tu consulta de inmediato con el administrador para que lo revise.
+[ESCALAR]: Error al visualizar asignaciones en el panel principal."
+`;
+
+    // 2. Formatear el historial para Gemini
+    const contents = [];
+    
+    // Añadir historial previo si existe
+    if (Array.isArray(chatHistory)) {
+      chatHistory.forEach(h => {
+        contents.push({
+          role: h.role === 'user' ? 'user' : 'model',
+          parts: [{ text: h.text }]
+        });
+      });
+    }
+    
+    // Añadir mensaje actual
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }]
+    });
+
+    // 3. Consultar API de Gemini (Usa el alias gemini-flash-latest que apunta al modelo Flash más reciente)
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 800
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Error de Gemini API:', response.status, errorText);
+      
+      // Si hay error de cuota o rate-limit, activar fallback local
+      return res.status(response.status === 429 ? 429 : 500).json({ 
+        success: false, 
+        fallback: true,
+        message: 'Error en la respuesta del proveedor de IA' 
+      });
+    }
+
+    const result = await response.json();
+    let replyText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // 4. Analizar si la IA solicitó escalación
+    let escalated = false;
+    const escalateMatch = replyText.match(/\[ESCALAR\]:\s*(.+)$/i);
+    
+    if (escalateMatch) {
+      escalated = true;
+      const escalationSummary = escalateMatch[1].trim();
+      
+      // Limpiar la etiqueta de la respuesta que verá el usuario
+      replyText = replyText.replace(/\[ESCALAR\]:\s*.+$/i, '').trim();
+
+      console.log(`🤖 [Escalación Automática] Iniciada para ${userId}. Detalle: "${escalationSummary}"`);
+
+      // A. Enviar correo de respaldo
+      try {
+        const { sendSupportEmail } = require('../utils/mailer');
+        const userEmail = req.user.email || 'Sin correo registrado';
+        await sendSupportEmail(userName, userEmail, escalationSummary);
+        console.log('✅ Correo de escalación enviado.');
+      } catch (mailErr) {
+        console.error('❌ Error enviando correo de escalación:', mailErr);
+      }
+
+      // B. Enviar mensaje de chat en tiempo real al Administrador
+      try {
+        // Enviar solo si el usuario no es el mismo administrador
+        if (role !== 'admin') {
+          const ChatMessage = require('../models/ChatMessage');
+          
+          const autoMessage = new ChatMessage({
+            senderId: userId,
+            receiverId: 'admin',
+            message: `🤖 [SOPORTE AUTOMÁTICO]: El consultor ${userName} solicita ayuda técnica por medio del Asistente Virtual. Detalle: "${escalationSummary}"`,
+            timestamp: new Date()
+          });
+          
+          await autoMessage.save();
+          
+          // Notificar vía SSE a ambos usuarios en tiempo real
+          notifyUserOfEvent('admin', 'new_message', autoMessage.toObject());
+          notifyUserOfEvent(userId, 'new_message', autoMessage.toObject());
+          
+          console.log('✅ Alerta de chat enviada al Administrador.');
+        }
+      } catch (chatErr) {
+        console.error('❌ Error enviando alerta de chat:', chatErr);
+      }
+    }
+
+    res.json({
+      success: true,
+      reply: replyText,
+      escalated
+    });
+
+  } catch (error) {
+    console.error('❌ Error en support-bot api:', error);
+    res.status(500).json({ 
+      success: false, 
+      fallback: true,
+      message: 'Error interno del servidor en el bot de soporte' 
+    });
   }
 });
 
