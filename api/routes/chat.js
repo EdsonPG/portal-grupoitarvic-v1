@@ -239,6 +239,7 @@ router.get('/unread-count/:userId', authenticateToken, async (req, res) => {
         $match: { 
           receiverId: userId, 
           read: { $ne: true },
+          deleted: { $ne: true },
           reportId: { $exists: false }
         } 
       },
