@@ -857,6 +857,13 @@
     color: #bae6fd;
 }
 
+.support-bot-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.support-bot-new,
 .support-bot-close {
     background: rgba(255,255,255,0.1);
     border: none;
@@ -865,7 +872,14 @@
     height: 30px;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.support-bot-new:hover {
+    background: rgba(14, 165, 233, 0.4);
 }
 
 .support-bot-close:hover {

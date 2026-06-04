@@ -47,7 +47,10 @@ class SupportChatBot {
                         <span id="botSubTitle">Asistente Virtual IA</span>
                     </div>
                 </div>
-                <button class="support-bot-close" id="supportBotCloseBtn" aria-label="Cerrar soporte"><i class="fa-solid fa-xmark"></i></button>
+                <div class="support-bot-header-actions">
+                    <button class="support-bot-new" id="supportBotNewBtn" title="Nueva Conversación" aria-label="Nueva Conversación"><i class="fa-solid fa-plus"></i></button>
+                    <button class="support-bot-close" id="supportBotCloseBtn" aria-label="Cerrar soporte"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
             <div class="support-bot-messages" id="supportBotMessages"></div>
             <div class="support-bot-quick-replies" id="supportBotQuickReplies"></div>
@@ -64,6 +67,7 @@ class SupportChatBot {
         this.input = this.container.querySelector('#supportBotInput');
         this.sendBtn = this.container.querySelector('#supportBotSendBtn');
         this.closeBtn = this.container.querySelector('#supportBotCloseBtn');
+        this.newBtn = this.container.querySelector('#supportBotNewBtn');
     }
 
     initEvents() {
@@ -86,6 +90,15 @@ class SupportChatBot {
         this.input.onkeypress = (e) => {
             if (e.key === 'Enter') this.handleUserInput();
         };
+
+        // Nueva conversación al presionar (+)
+        if (this.newBtn) {
+            this.newBtn.onclick = () => {
+                if (confirm('¿Deseas iniciar una nueva conversación y borrar el historial actual con el bot?')) {
+                    this.startNewConversation();
+                }
+            };
+        }
 
         // Cerrar al hacer clic fuera del panel
         document.onclick = (e) => {
@@ -130,25 +143,35 @@ class SupportChatBot {
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
-                this.chatHistory = parsed.history || [];
-                this.localRetryCount = parsed.localRetryCount || 0;
                 
-                if (parsed.htmlContent) {
-                    this.messagesArea.innerHTML = parsed.htmlContent;
-                    this.scrollToBottom();
+                // Verificar inactividad de 24 horas (86,400,000 milisegundos)
+                const lastInteraction = parsed.lastInteractionTime || 0;
+                const isExpired = lastInteraction > 0 && (Date.now() - lastInteraction > 24 * 60 * 60 * 1000);
+                
+                if (isExpired) {
+                    console.log('Historial del bot de soporte expirado por inactividad de más de 24 horas.');
+                    sessionStorage.removeItem('arvic_support_bot_history');
+                } else {
+                    this.chatHistory = parsed.history || [];
+                    this.localRetryCount = parsed.localRetryCount || 0;
                     
-                    // Restaurar quick replies si correspondiera
-                    if (parsed.quickReplies && parsed.quickReplies.length > 0) {
-                        this.showQuickReplies(parsed.quickReplies);
+                    if (parsed.htmlContent) {
+                        this.messagesArea.innerHTML = parsed.htmlContent;
+                        this.scrollToBottom();
+                        
+                        // Restaurar quick replies si correspondiera
+                        if (parsed.quickReplies && parsed.quickReplies.length > 0) {
+                            this.showQuickReplies(parsed.quickReplies);
+                        }
+                        return;
                     }
-                    return;
                 }
             } catch (e) {
                 console.error('Error cargando historial de bot:', e);
             }
         }
 
-        // Historial vacío: Inicializar bienvenida
+        // Historial vacío o expirado por inactividad: Inicializar bienvenida
         this.messagesArea.innerHTML = '';
         const namePart = this.currentUser.name ? `, ${this.currentUser.name}` : '';
         this.addSystemMessage(`¡Hola${namePart}! Soy tu asistente virtual de Soporte ARVIC 🤖. Estoy aquí para ayudarte a resolver cualquier duda sobre el portal. ¿Qué deseas consultar hoy?`);
@@ -162,12 +185,40 @@ class SupportChatBot {
                 history: this.chatHistory,
                 localRetryCount: this.localRetryCount,
                 htmlContent: this.messagesArea.innerHTML,
-                quickReplies: quickReplies
+                quickReplies: quickReplies,
+                lastInteractionTime: Date.now() // Registrar el timestamp de la última interacción
             };
             sessionStorage.setItem('arvic_support_bot_history', JSON.stringify(dataToStore));
         } catch (e) {
             console.error('Error guardando historial de bot:', e);
         }
+    }
+
+    startNewConversation() {
+        // Limpiar variables de control
+        this.chatHistory = [];
+        this.localRetryCount = 0;
+        
+        // Remover del almacenamiento
+        sessionStorage.removeItem('arvic_support_bot_history');
+        
+        // Limpiar área de mensajes e input
+        this.messagesArea.innerHTML = '';
+        if (this.input) {
+            this.input.value = '';
+            this.input.placeholder = "Escribe tu consulta aquí...";
+            this.input.disabled = false;
+        }
+        
+        // Mensaje de bienvenida de nueva conversación
+        const namePart = this.currentUser.name ? `, ${this.currentUser.name}` : '';
+        this.addSystemMessage(`¡Hola${namePart}! He iniciado una nueva conversación contigo. ¿En qué duda o problema técnico del portal te puedo apoyar hoy? 🤖`);
+        
+        // Mostrar opciones rápidas
+        this.showWelcomeMenu();
+        
+        // Re-inicializar eventos para limpiar listeners (como el de soporte humano si estuviese activo)
+        this.initEvents();
     }
 
     showWelcomeMenu() {
@@ -233,6 +284,13 @@ class SupportChatBot {
         `;
         this.messagesArea.appendChild(msgDiv);
         this.scrollToBottom();
+        
+        // Habilitar y enfocar input para permitir escribir la siguiente consulta
+        if (this.input) {
+            this.input.disabled = false;
+            this.input.focus();
+        }
+        
         this.saveSessionHistory();
     }
 
