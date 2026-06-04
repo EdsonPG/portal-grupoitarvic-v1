@@ -58,6 +58,9 @@ class ChatWidget {
         
         // Fallback polling for active chat messages (más rápido si no hay WS/SSE funcional o en Vercel)
         setInterval(() => this.pollActiveChat(), isVercel ? 2000 : 8000);
+
+        // Fallback polling for user statuses (cada 5 segundos)
+        setInterval(() => this.pollUserStatuses(), 5000);
     }
 
     initDOM() {
@@ -247,13 +250,52 @@ class ChatWidget {
             btn.addEventListener('click', () => this.toggleChat(true));
         });
 
-        // Auto status on focus/blur
+        // Auto status on focus/blur and inactivity (5 seconds)
+        this.inactivityTimeout = null;
+        this.isCurrentlyInactive = false;
+
+        const resetInactivityTimer = () => {
+            if (this.preferredStatus !== 'online') return;
+
+            // Si estaba inactivo, volver a "En línea" instantáneamente ante cualquier actividad
+            if (this.isCurrentlyInactive) {
+                this.isCurrentlyInactive = false;
+                this.updateMyStatus('online', false, true);
+            }
+
+            clearTimeout(this.inactivityTimeout);
+            this.inactivityTimeout = setTimeout(() => {
+                if (this.preferredStatus === 'online' && !this.isCurrentlyInactive) {
+                    this.isCurrentlyInactive = true;
+                    this.updateMyStatus('away', false, true);
+                }
+            }, 5000); // 5 segundos de inactividad
+        };
+
+        // Escuchar eventos de actividad del usuario
+        const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        activityEvents.forEach(evt => {
+            window.addEventListener(evt, resetInactivityTimer, { passive: true });
+        });
+
+        // Enfoque del navegador reactiva el estado En línea inmediatamente
         window.addEventListener('focus', () => {
-            if (this.preferredStatus === 'online') this.updateMyStatus('online', false, true);
+            resetInactivityTimer();
         });
+
+        // Desenfoque del navegador (cambio de pestaña/ventana) inicia inmediatamente el conteo de 5 segundos para marcar como ausente
         window.addEventListener('blur', () => {
-            if (this.preferredStatus === 'online') this.updateMyStatus('away', false, true);
+            clearTimeout(this.inactivityTimeout);
+            this.inactivityTimeout = setTimeout(() => {
+                if (this.preferredStatus === 'online' && !this.isCurrentlyInactive) {
+                    this.isCurrentlyInactive = true;
+                    this.updateMyStatus('away', false, true);
+                }
+            }, 5000);
         });
+
+        // Inicializar el temporizador al cargar
+        resetInactivityTimer();
     }
 
     // ========================================
@@ -703,6 +745,28 @@ class ChatWidget {
             }
         } catch(e) {
             console.error('Error en pollActiveChat:', e);
+        }
+    }
+
+    async pollUserStatuses() {
+        if (!this.isOpen) return; // Sólo pollear si el chat está abierto para ahorrar recursos
+        try {
+            const response = await fetch(`${this.apiBase}/api/chat/statuses`, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+            const result = await response.json();
+            if (result.success && result.statuses) {
+                Object.keys(result.statuses).forEach(uid => {
+                    const status = result.statuses[uid];
+                    if (this.contactsStatuses[uid] !== status) {
+                        this.updateContactUIStatus(uid, status);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Error al pollear estados de usuario:', e);
         }
     }
 

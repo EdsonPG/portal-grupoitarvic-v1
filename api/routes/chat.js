@@ -685,6 +685,23 @@ Ejemplo de respuesta si pide soporte humano:
 });
 
 // ==========================================
+// GET /api/chat/statuses — Obtener el estado de chat de todos los usuarios
+// ==========================================
+router.get('/statuses', authenticateToken, async (req, res) => {
+  try {
+    const users = await User.find({ isActive: { $ne: false } }, 'userId chatStatus');
+    const statuses = {};
+    users.forEach(u => {
+      statuses[u.userId] = u.chatStatus || 'offline';
+    });
+    res.json({ success: true, statuses });
+  } catch (error) {
+    console.error('Error en GET /statuses:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==========================================
 // POST /api/chat/status — Actualizar estado (REST fallback para producción/Vercel)
 // ==========================================
 router.post('/status', authenticateToken, async (req, res) => {
