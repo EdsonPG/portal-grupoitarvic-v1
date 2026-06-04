@@ -102,13 +102,64 @@ async function migratePlaintextPasswords() {
   }
 }
 
-// Conectar a MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-.then(() => {
-  console.log('✅ MongoDB conectado');
-  migratePlaintextPasswords();
-})
-.catch(err => console.error('❌ Error de conexión MongoDB:', err));
+// Desactivar la creación de índices automática en producción para mejorar rendimiento de arranque
+mongoose.set('autoIndex', process.env.NODE_ENV === 'development');
+
+let cachedConnection = null;
+let isMigrationRun = false;
+
+async function connectToDatabase() {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  if (mongoose.connection.readyState === 2) {
+    // Ya se está conectando, esperar a que termine la conexión existente
+    await new Promise((resolve, reject) => {
+      mongoose.connection.once('connected', resolve);
+      mongoose.connection.once('error', reject);
+    });
+    return mongoose.connection;
+  }
+
+  if (!cachedConnection) {
+    console.log('📡 [DB] Conectando a MongoDB Atlas...');
+    cachedConnection = mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 8000, // Tiempo límite para encontrar el servidor
+      socketTimeoutMS: 45000,
+    });
+  }
+
+  try {
+    await cachedConnection;
+    console.log('✅ [DB] MongoDB conectado exitosamente');
+    
+    // Ejecutar migración de contraseñas en segundo plano sin bloquear la solicitud actual
+    if (!isMigrationRun) {
+      isMigrationRun = true;
+      migratePlaintextPasswords().catch(err => console.error('❌ Error en migración:', err));
+    }
+  } catch (error) {
+    cachedConnection = null; // Resetear la promesa fallida en caso de error para permitir reintentos
+    throw error;
+  }
+
+  return mongoose.connection;
+}
+
+// Middleware para asegurar que la base de datos esté conectada antes de procesar cualquier endpoint de la API
+app.use('/api', async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (err) {
+    console.error('❌ Error de conexión a la base de datos en middleware /api:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error de conexión con la base de datos' 
+    });
+  }
+});
 
 // Importar rutas
 const authRoutes = require('./routes/auth');
