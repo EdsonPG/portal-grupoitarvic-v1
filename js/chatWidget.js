@@ -564,6 +564,8 @@ class ChatWidget {
 
             // 1. Sincronizar mensajes uno por uno (añadir nuevos o promover optimistas)
             history.forEach(m => {
+                if (m.deleted) return;
+                
                 const elById = document.getElementById(`msg-${m._id}`);
                 
                 if (elById) {
