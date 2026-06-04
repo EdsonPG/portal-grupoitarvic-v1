@@ -250,52 +250,6 @@ class ChatWidget {
             btn.addEventListener('click', () => this.toggleChat(true));
         });
 
-        // Auto status on focus/blur and inactivity (5 seconds)
-        this.inactivityTimeout = null;
-        this.isCurrentlyInactive = false;
-
-        const resetInactivityTimer = () => {
-            if (this.preferredStatus !== 'online') return;
-
-            // Si estaba inactivo, volver a "En línea" instantáneamente ante cualquier actividad
-            if (this.isCurrentlyInactive) {
-                this.isCurrentlyInactive = false;
-                this.updateMyStatus('online', false, true);
-            }
-
-            clearTimeout(this.inactivityTimeout);
-            this.inactivityTimeout = setTimeout(() => {
-                if (this.preferredStatus === 'online' && !this.isCurrentlyInactive) {
-                    this.isCurrentlyInactive = true;
-                    this.updateMyStatus('away', false, true);
-                }
-            }, 5000); // 5 segundos de inactividad
-        };
-
-        // Escuchar eventos de actividad del usuario
-        const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-        activityEvents.forEach(evt => {
-            window.addEventListener(evt, resetInactivityTimer, { passive: true });
-        });
-
-        // Enfoque del navegador reactiva el estado En línea inmediatamente
-        window.addEventListener('focus', () => {
-            resetInactivityTimer();
-        });
-
-        // Desenfoque del navegador (cambio de pestaña/ventana) inicia inmediatamente el conteo de 5 segundos para marcar como ausente
-        window.addEventListener('blur', () => {
-            clearTimeout(this.inactivityTimeout);
-            this.inactivityTimeout = setTimeout(() => {
-                if (this.preferredStatus === 'online' && !this.isCurrentlyInactive) {
-                    this.isCurrentlyInactive = true;
-                    this.updateMyStatus('away', false, true);
-                }
-            }, 5000);
-        });
-
-        // Inicializar el temporizador al cargar
-        resetInactivityTimer();
     }
 
     // ========================================

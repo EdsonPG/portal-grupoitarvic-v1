@@ -172,13 +172,34 @@ class AuthSystem {
     // Función isConsultorPassword eliminada para permitir cualquier formato
 
 
-    logout() {
+    async logout() {
         try {
             if (this.currentUser) {
                 this.logActivity('logout', `Usuario ${this.currentUser.id} cerró sesión`);
+                
+                // Avisar al servidor que nos desconectamos
+                try {
+                    const token = localStorage.getItem('arvic_token');
+                    const apiBase = (window.PortalDB && window.PortalDB.API_URL) 
+                        ? window.PortalDB.API_URL.replace(/\/api\/?$/, '') 
+                        : '';
+                    if (token) {
+                        await fetch(`${apiBase}/api/chat/status`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ status: 'offline' })
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error al notificar logout al chat:', err);
+                }
             }
             
             localStorage.removeItem(this.sessionKey);
+            localStorage.removeItem('arvic_token');
             this.currentUser = null;
             
             // Redirigir al login
