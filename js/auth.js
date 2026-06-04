@@ -7,6 +7,7 @@ class AuthSystem {
     constructor() {
         this.currentUser = null;
         this.sessionKey = 'arvic_current_session';
+        this.lastStorageUpdate = 0;
         this.loadCurrentSession();
     }
 
@@ -17,9 +18,23 @@ class AuthSystem {
             if (sessionData) {
                 const session = JSON.parse(sessionData);
                 
-                // Verificar si la sesión no ha expirado (24 horas)
-                const sessionTime = new Date(session.loginTime);
+                // Verificar si la sesión ha expirado por inactividad de 10 minutos (pestaña cerrada, etc.)
+                const lastActiveTime = session.lastActivity ? new Date(session.lastActivity) : new Date(session.loginTime);
                 const currentTime = new Date();
+                const minutesDiff = (currentTime - lastActiveTime) / (1000 * 60);
+                
+                if (minutesDiff >= 10) {
+                    console.log('⏳ Sesión expirada por inactividad de 10 minutos.');
+                    // Limpiar datos locales directamente antes de redireccionar
+                    localStorage.removeItem(this.sessionKey);
+                    localStorage.removeItem('arvic_token');
+                    this.currentUser = null;
+                    this.redirectToLogin();
+                    return false;
+                }
+
+                // Verificar si la sesión no ha expirado por fecha límite global (24 horas)
+                const sessionTime = new Date(session.loginTime);
                 const hoursDiff = (currentTime - sessionTime) / (1000 * 60 * 60);
                 
                 if (hoursDiff < 24) {
@@ -88,6 +103,11 @@ class AuthSystem {
 
     updateLastActivity() {
         try {
+            const now = Date.now();
+            // Throttling: evitar escrituras masivas en localStorage (máximo una escritura cada 10 segundos)
+            if (now - this.lastStorageUpdate < 10000) return;
+            this.lastStorageUpdate = now;
+
             const sessionData = localStorage.getItem(this.sessionKey);
             if (sessionData) {
                 const session = JSON.parse(sessionData);
@@ -457,19 +477,20 @@ class AuthSystem {
     // === AUTO LOGOUT POR INACTIVIDAD ===
     startInactivityTimer() {
         let inactivityTimer;
-        const INACTIVITY_TIME = 30 * 60 * 1000; // 30 minutos
+        const INACTIVITY_TIME = 10 * 60 * 1000; // 10 minutos de inactividad
 
         const resetTimer = () => {
+            // Actualizar timestamp en localStorage
+            this.updateLastActivity();
+            
             clearTimeout(inactivityTimer);
             inactivityTimer = setTimeout(() => {
-                alert('Su sesión expirará por inactividad en 5 minutos');
-                setTimeout(() => {
-                    this.logout();
-                }, 5 * 60 * 1000); // 5 minutos adicionales
+                console.log('⏳ Inactividad de 10 minutos alcanzada. Cerrando sesión automáticamente.');
+                this.logout();
             }, INACTIVITY_TIME);
         };
 
-        // Eventos que resetean el timer
+        // Eventos que resetean el timer e indican actividad
         ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(event => {
             document.addEventListener(event, resetTimer, true);
         });
