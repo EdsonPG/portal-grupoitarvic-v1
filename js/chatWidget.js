@@ -21,6 +21,7 @@ class ChatWidget {
         if (localStatus === 'away') chatStatus = 'away';
         if (localStatus === 'dnd') chatStatus = 'offline';
         this.userStatus = chatStatus;
+        this.preferredStatus = chatStatus;
         this.soundEnabled = true;
         this.unreadCounts = {};     // { senderId: count }
         this.contactsStatuses = {}; // { userId: status }
@@ -217,7 +218,11 @@ class ChatWidget {
         this.attachBtn.addEventListener('click', () => this.fileInput.click());
         this.fileInput.addEventListener('change', (e) => this.handleFileSelection(e));
         this.attachmentRemove.addEventListener('click', () => this.clearAttachment());
-        this.statusSelect.addEventListener('change', (e) => this.updateMyStatus(e.target.value));
+        this.statusSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            this.preferredStatus = val;
+            this.updateMyStatus(val, false, false);
+        });
 
         this.soundTogglebtn.addEventListener('click', () => {
             this.soundEnabled = !this.soundEnabled;
@@ -244,10 +249,10 @@ class ChatWidget {
 
         // Auto status on focus/blur
         window.addEventListener('focus', () => {
-            if (this.statusSelect.value === 'online') this.updateMyStatus('online');
+            if (this.preferredStatus === 'online') this.updateMyStatus('online', false, true);
         });
         window.addEventListener('blur', () => {
-            if (this.statusSelect.value === 'online') this.updateMyStatus('away');
+            if (this.preferredStatus === 'online') this.updateMyStatus('away', false, true);
         });
     }
 
@@ -969,11 +974,15 @@ class ChatWidget {
         }
     }
 
-    async updateMyStatus(status, avoidSync = false) {
+    async updateMyStatus(status, avoidSync = false, isAuto = false) {
         this.userStatus = status;
 
         if (this.statusSelect && this.statusSelect.value !== status) {
             this.statusSelect.value = status;
+        }
+
+        if (!isAuto) {
+            this.preferredStatus = status;
         }
 
         // Sync with settings-menu if available
@@ -982,9 +991,9 @@ class ChatWidget {
             if (status === 'away') settingsStatus = 'away';
             if (status === 'offline') settingsStatus = 'dnd';
             
-            window.setUserStatus(settingsStatus, true);
-        } else {
-            // Even if avoidSync is true, save to localStorage for session persistency
+            window.setUserStatus(settingsStatus, true, isAuto);
+        } else if (!isAuto) {
+            // Even if avoidSync is true, save to localStorage for session persistency only if manual
             let settingsStatus = 'online';
             if (status === 'away') settingsStatus = 'away';
             if (status === 'offline') settingsStatus = 'dnd';

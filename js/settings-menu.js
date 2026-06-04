@@ -70,7 +70,7 @@ document.addEventListener('keydown', function(e) {
 // ============================================
 // STATUS INDICATOR
 // ============================================
-function setUserStatus(status, avoidSync = false) {
+function setUserStatus(status, avoidSync = false, isAuto = false) {
     const badge = document.getElementById('userStatusBadge');
     if (badge) {
         badge.classList.remove('status-away', 'status-dnd');
@@ -86,7 +86,9 @@ function setUserStatus(status, avoidSync = false) {
         btn.classList.toggle('active', btn.dataset.status === status);
     });
 
-    localStorage.setItem('arvic_user_status', status);
+    if (!isAuto) {
+        localStorage.setItem('arvic_user_status', status);
+    }
 
     if (!avoidSync && window.chatWidget) {
         let chatStatus = 'online';
@@ -96,13 +98,13 @@ function setUserStatus(status, avoidSync = false) {
         if (window.chatWidget.statusSelect) {
             window.chatWidget.statusSelect.value = chatStatus;
         }
-        window.chatWidget.updateMyStatus(chatStatus, true);
+        window.chatWidget.updateMyStatus(chatStatus, true, isAuto);
     }
 }
 
 function loadUserStatus() {
-    const status = localStorage.getItem('arvic_user_status') || 'online';
-    setUserStatus(status);
+    // Al ingresar al portal o recargar, forzar el estado a 'online' (En línea) automáticamente
+    setUserStatus('online');
 }
 
 // ============================================
