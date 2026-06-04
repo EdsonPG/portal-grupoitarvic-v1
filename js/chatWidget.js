@@ -23,6 +23,7 @@ class ChatWidget {
         this.userStatus = chatStatus;
         this.soundEnabled = true;
         this.unreadCounts = {};     // { senderId: count }
+        this.contactsStatuses = {}; // { userId: status }
         this.lastMessages = {};     // { partnerId: { message, timestamp, senderId } }
         this.typingTimers = {};
         this.totalUnread = 0;
@@ -747,10 +748,11 @@ class ChatWidget {
                 timeStr = this.formatContactTime(lastMsg.lastTimestamp);
             }
 
+            const status = this.contactsStatuses[user.userId] || 'offline';
             div.innerHTML = `
                 <div class="contact-avatar-wrap">
                     <div class="contact-avatar">${avatarHTML}</div>
-                    <div class="contact-status-dot offline" data-status-id="${user.userId}"></div>
+                    <div class="contact-status-dot ${status}" data-status-id="${user.userId}"></div>
                 </div>
                 <div class="contact-text">
                     <div class="contact-top-row">
@@ -1005,6 +1007,7 @@ class ChatWidget {
     }
 
     updateContactUIStatus(userId, status) {
+        this.contactsStatuses[userId] = status;
         const marker = this.container.querySelector(`[data-status-id="${userId}"]`);
         if (marker) {
             marker.className = `contact-status-dot ${status}`;
