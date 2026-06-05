@@ -759,9 +759,10 @@ async function updateSidebarCounts() {
         const soporteCount = Object.values(supports).filter(s => s.isActive !== false).length;
         const moduloCount = Object.values(modules).filter(m => m.isActive !== false).length;
         const tarifarioCount = Object.keys(tarifario).length;
-        const assignCount = Object.keys(assignments).length;
+        const supportAssignCount = Object.keys(assignments).length;
         const projectAssignCount = Object.keys(projectAssignments).length;
         const taskCount = Object.values(taskAssignments).filter(t => t.isActive !== false).length;
+        const totalAssignmentsCount = supportAssignCount + projectAssignCount + taskCount;
         const pendingReports = Object.values(reports).filter(r => r.status === 'Pendiente').length;
         const timesheets = currentData.timesheets || {};
         const pendingTimesheets = Object.values(timesheets).filter(t => t.status === 'Pendiente').length;
@@ -783,7 +784,8 @@ async function updateSidebarCounts() {
         setEl('sidebarSoportesCount', soporteCount);
         setEl('sidebarModulosCount', moduloCount);
         setEl('sidebarTarifarioCount', tarifarioCount);
-        setEl('sidebarAssignmentsCount', assignCount);
+        setEl('sidebarAssignmentsCount', totalAssignmentsCount);
+        setEl('sidebarSupportAssignmentsCount', supportAssignCount);
         setEl('sidebarProjectAssignmentsCount', projectAssignCount);
         setEl('sidebarTaskCount', taskCount);
         setEl('sidebarReportsCount', pendingReports);
@@ -1659,7 +1661,10 @@ async function updateProjectAssignmentsList() {
     }
     
     // Obtener todas las asignaciones de proyecto
-    const assignments = Object.values(currentData.projectAssignments || {});
+    const assignments = Object.values(currentData.projectAssignments || {}).map(a => ({
+        ...a,
+        assignmentType: 'project'
+    }));
     
     console.log('📊 Proyectos asignados:', assignments.length);
     
@@ -1678,50 +1683,53 @@ async function updateProjectAssignmentsList() {
     // Limpiar contenedor
     container.innerHTML = '';
     
-    // Renderizar cada asignación de proyecto
+    // Renderizar cada asignación de proyecto usando el layout unificado
     assignments.forEach(assignment => {
-        // ✅ FIX: Usar projectAssignmentId (NO assignmentId)
-        const projectAssignmentId = assignment.projectAssignmentId;
-        const displayId = projectAssignmentId ? projectAssignmentId.slice(-6) : 'N/A';
-        
-        // Obtener datos relacionados
-        const project = currentData.projects[assignment.projectId];
-        const company = currentData.companies[assignment.companyId];
-        const module = currentData.modules[assignment.moduleId];
-        const consultor = currentData.users[assignment.consultorId];
-        
-        // Crear tarjeta de asignación
-        const assignmentDiv = document.createElement('div');
-        assignmentDiv.className = 'project-assignment-card';
-        
-        assignmentDiv.innerHTML = `
-            <div class="assignment-header">
-                <h3><i class="fa-solid fa-bullseye"></i> ${project?.name || 'Proyecto no encontrado'}</h3>
-                <span class="assignment-id">${displayId}</span>
-            </div>
-            
-            <div class="assignment-details">
-                <p><strong><i class="fa-solid fa-user"></i> Consultor:</strong> ${consultor?.name || 'No asignado'} (${assignment.consultorId || 'N/A'})</p>
-                <p><strong><i class="fa-solid fa-building"></i> Cliente:</strong> ${company?.name || 'No asignado'}</p>
-                <p><strong><i class="fa-solid fa-puzzle-piece"></i> Módulo:</strong> ${module?.name || 'No asignado'}</p>
-                <p><strong><i class="fa-solid fa-dollar-sign"></i> Tarifas:</strong> 
-                    Consultor: $${assignment.tarifaConsultor || 0}/hr | 
-                    Cliente: $${assignment.tarifaCliente || 0}/hr
-                </p>
-                <p><strong><i class="fa-solid fa-calendar"></i> Fecha de Asignación:</strong> ${window.DateUtils?.formatDate(assignment.createdAt) || 'N/A'}</p>
-            </div>
-            
-            <div class="assignment-actions">
-                <button class="btn btn-danger btn-sm" onclick="deleteProjectAssignment('${projectAssignmentId}')">
-                    <i class="fa-solid fa-trash"></i> Eliminar Asignación
-                </button>
-            </div>
-        `;
-        
-        container.appendChild(assignmentDiv);
+        container.appendChild(createAssignmentListCard(assignment));
     });
     
     console.log('✅ Lista de proyectos asignados actualizada');
+}
+
+async function updateSupportAssignmentsList() {
+    console.log('🔄 Actualizando lista de soportes asignados...');
+    await loadCurrentData();
+    const container = document.getElementById('supportAssignmentsList');
+    
+    if (!container) {
+        console.error('❌ Container supportAssignmentsList no encontrado');
+        return;
+    }
+    
+    // Obtener todas las asignaciones de soporte
+    const assignments = Object.values(currentData.assignments || {}).map(a => ({
+        ...a,
+        assignmentType: 'support'
+    }));
+    
+    console.log('📊 Soportes asignados:', assignments.length);
+    
+    // Si no hay asignaciones
+    if (assignments.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon"> <i class="fa-solid fa-headset"></i> </div>
+                <div class="empty-state-title">No hay soportes asignados</div>
+                <div class="empty-state-desc">Los soportes asignados aparecerán aquí</div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Limpiar contenedor
+    container.innerHTML = '';
+    
+    // Renderizar cada asignación de soporte usando el layout unificado
+    assignments.forEach(assignment => {
+        container.appendChild(createAssignmentListCard(assignment));
+    });
+    
+    console.log('✅ Lista de soportes asignados actualizada');
 }
 
 async function updateAssignmentsList() {
@@ -1804,95 +1812,8 @@ async function updateAssignmentsList() {
             `;
         } else {
             recentContainer.innerHTML = '';
-            
             recentAssignments.forEach(assignment => {
-                const assignmentDiv = document.createElement('div');
-                assignmentDiv.className = 'item hover-lift';
-                
-                if (assignment.assignmentType === 'support') {
-                    const user = currentData.users[assignment.userId];
-                    const company = currentData.companies[assignment.companyId];
-                    const support = currentData.supports[assignment.supportId];
-                    const module = currentData.modules[assignment.moduleId];
-                    
-                    if (user && company && support && module) {
-                        assignmentDiv.innerHTML = `
-                            <div>
-                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                                    <strong>${user.name}</strong>
-                                    <span class="custom-badge" style="background: #3498db20; color: #3498db; border: 1px solid #3498db;">
-                                        <i class="fa-solid fa-phone"></i> SOPORTE
-                                    </span>
-                                    <span class="custom-badge badge-success">
-                                        ${window.DateUtils?.formatRelativeTime(assignment.createdAt) || 'Reciente'}
-                                    </span>
-                                </div>
-                                <small style="color: #666;">
-                                    <i class="fa-solid fa-building"></i> ${company.name} | 
-                                    <i class="fa-solid fa-phone"></i> ${support.name} | 
-                                    <i class="fa-solid fa-puzzle-piece"></i> ${module.name}
-                                </small>
-                            </div>
-                        `;
-                        recentContainer.appendChild(assignmentDiv);
-                    }
-                    
-                } else if (assignment.assignmentType === 'project') {
-                    const consultor = currentData.users[assignment.consultorId];
-                    const company = currentData.companies[assignment.companyId];
-                    const project = currentData.projects[assignment.projectId];
-                    const module = currentData.modules[assignment.moduleId];
-                    
-                    if (consultor && company && project && module) {
-                        assignmentDiv.innerHTML = `
-                            <div>
-                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                                    <strong>${consultor.name}</strong>
-                                    <span class="custom-badge" style="background: #e74c3c20; color: #e74c3c; border: 1px solid #e74c3c;">
-                                        <i class="fa-solid fa-clipboard"></i> PROYECTO
-                                    </span>
-                                    <span class="custom-badge badge-success">
-                                        ${window.DateUtils?.formatRelativeTime(assignment.createdAt) || 'Reciente'}
-                                    </span>
-                                </div>
-                                <small style="color: #666;">
-                                    <i class="fa-solid fa-building"></i> ${company.name} | 
-                                    <i class="fa-solid fa-clipboard"></i> ${project.name} | 
-                                    <i class="fa-solid fa-puzzle-piece"></i> ${module.name}
-                                </small>
-                            </div>
-                        `;
-                        recentContainer.appendChild(assignmentDiv);
-                    }
-                    
-                } else if (assignment.assignmentType === 'task') {
-                    const consultor = currentData.users[assignment.consultorId];
-                    const company = currentData.companies[assignment.companyId];
-                    const support = currentData.supports[assignment.linkedSupportId];
-                    const module = currentData.modules[assignment.moduleId];
-                    
-                    if (consultor && company && module) {
-                        assignmentDiv.innerHTML = `
-                            <div>
-                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                                    <strong>${consultor.name}</strong>
-                                    <span class="custom-badge" style="background: #9b59b620; color: #9b59b6; border: 1px solid #9b59b6;">
-                                        <i class="fa-solid fa-tasks"></i> TAREA
-                                    </span>
-                                    <span class="custom-badge badge-success">
-                                        ${window.DateUtils?.formatRelativeTime(assignment.createdAt) || 'Reciente'}
-                                    </span>
-                                </div>
-                                <small style="color: #666;">
-                                    <i class="fa-solid fa-building"></i> ${company.name} | 
-                                    ${support ? `<i class="fa-solid fa-headset"></i> ${support.name} | ` : ''}
-                                    <i class="fa-solid fa-puzzle-piece"></i> ${module.name}
-                                </small>
-                            </div>
-                        `;
-                        recentContainer.appendChild(assignmentDiv);
-                    }
-                }
+                recentContainer.appendChild(createAssignmentListCard(assignment));
             });
         }
     }
@@ -1924,6 +1845,7 @@ function resolveAssignmentListModel(assignment) {
         typeIcon = 'fa-headset';
         typeClass = 'support';
         deleteHandler = `deleteAssignment('${assignmentId}')`;
+        editHandler = `editSupportAssignment('${assignmentId}')`;
     } else if (assignment.assignmentType === 'project') {
         assignmentId = assignment.projectAssignmentId;
         consultor = currentData.users?.[assignment.consultorId];
@@ -1936,6 +1858,7 @@ function resolveAssignmentListModel(assignment) {
         typeIcon = 'fa-folder-open';
         typeClass = 'project';
         deleteHandler = `deleteProjectAssignment('${assignmentId}')`;
+        editHandler = `editProjectAssignment('${assignmentId}')`;
     } else if (assignment.assignmentType === 'task') {
         assignmentId = assignment.taskAssignmentId;
         consultor = currentData.users?.[assignment.consultorId];
@@ -2007,6 +1930,7 @@ function createAssignmentListCard(assignment) {
                 </span>
                 <h3>${model.workName}</h3>
                 <span class="assignment-id-pill">${model.displayId}</span>
+                ${assignment.createdAt ? `<span class="assignment-time-badge" style="margin-left: 8px; font-size: 0.72rem; color: #10b981; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-clock"></i> ${window.DateUtils?.formatRelativeTime(assignment.createdAt) || 'Reciente'}</span>` : ''}
             </div>
             <div class="assignment-list-meta">
                 <span><i class="fa-solid fa-user"></i> ${model.consultorName} <em>(${model.consultorId})</em></span>
@@ -3533,6 +3457,10 @@ async function loadSectionData(sectionName) {
                 
             case 'asignar-proyectos':
                 await updateProjectAssignmentDropdowns();
+                break;
+                
+            case 'lista-soportes-asignados':
+                await updateSupportAssignmentsList();
                 break;
                 
             case 'lista-proyectos-asignados':
@@ -10449,6 +10377,256 @@ function closeTaskModal() {
     document.getElementById('taskModal').style.display = 'none';
 }
 
+// === MÓDULO DE EDICIÓN DE ASIGNACIONES (SOPORTE Y PROYECTO) ===
+
+async function loadEditSupportModalOptions() {
+    const currentData = {
+        companies: await window.PortalDB.getCompanies(),
+        users: await window.PortalDB.getUsers(),
+        supports: await window.PortalDB.getSupports(),
+        modules: await window.PortalDB.getModules()
+    };
+    
+    const consultorSelect = document.getElementById('editSupportUser');
+    consultorSelect.innerHTML = '<option value="">Seleccionar consultor...</option>';
+    Object.values(currentData.users)
+        .filter(u => u.role === 'Consultor' || u.role === 'consultor')
+        .forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.userId;
+            option.textContent = user.name;
+            consultorSelect.appendChild(option);
+        });
+
+    const companySelect = document.getElementById('editSupportCompany');
+    companySelect.innerHTML = '<option value="">Seleccionar cliente...</option>';
+    Object.values(currentData.companies).forEach(company => {
+        const option = document.createElement('option');
+        option.value = company.companyId;
+        option.textContent = company.name;
+        companySelect.appendChild(option);
+    });
+
+    const supportSelect = document.getElementById('editSupportSupport');
+    supportSelect.innerHTML = '<option value="">Seleccionar Soporte...</option>';
+    Object.values(currentData.supports).forEach(support => {
+        const option = document.createElement('option');
+        option.value = support.supportId;
+        option.textContent = support.name;
+        supportSelect.appendChild(option);
+    });
+
+    const moduleSelect = document.getElementById('editSupportModule');
+    moduleSelect.innerHTML = '<option value="">Seleccionar módulo...</option>';
+    Object.values(currentData.modules).forEach(module => {
+        const option = document.createElement('option');
+        option.value = module.moduleId;
+        option.textContent = module.name;
+        moduleSelect.appendChild(option);
+    });
+}
+
+async function loadEditProjectModalOptions() {
+    const currentData = {
+        companies: await window.PortalDB.getCompanies(),
+        users: await window.PortalDB.getUsers(),
+        projects: await window.PortalDB.getProjects(),
+        modules: await window.PortalDB.getModules()
+    };
+    
+    const consultorSelect = document.getElementById('editProjectConsultor');
+    consultorSelect.innerHTML = '<option value="">Seleccionar consultor...</option>';
+    Object.values(currentData.users)
+        .filter(u => u.role === 'Consultor' || u.role === 'consultor')
+        .forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.userId;
+            option.textContent = user.name;
+            consultorSelect.appendChild(option);
+        });
+
+    const projectSelect = document.getElementById('editProjectProject');
+    projectSelect.innerHTML = '<option value="">Seleccionar proyecto...</option>';
+    Object.values(currentData.projects).forEach(project => {
+        const option = document.createElement('option');
+        option.value = project.projectId;
+        option.textContent = project.name;
+        projectSelect.appendChild(option);
+    });
+
+    const companySelect = document.getElementById('editProjectCompany');
+    companySelect.innerHTML = '<option value="">Seleccionar cliente...</option>';
+    Object.values(currentData.companies).forEach(company => {
+        const option = document.createElement('option');
+        option.value = company.companyId;
+        option.textContent = company.name;
+        companySelect.appendChild(option);
+    });
+
+    const moduleSelect = document.getElementById('editProjectModule');
+    moduleSelect.innerHTML = '<option value="">Seleccionar módulo...</option>';
+    Object.values(currentData.modules).forEach(module => {
+        const option = document.createElement('option');
+        option.value = module.moduleId;
+        option.textContent = module.name;
+        moduleSelect.appendChild(option);
+    });
+}
+
+async function editSupportAssignment(assignmentId) {
+    console.log('✏️ Editando asignación de soporte:', assignmentId);
+    
+    await loadCurrentData();
+    const assignment = currentData.assignments[assignmentId];
+    if (!assignment) {
+        window.NotificationUtils.error('Asignación de soporte no encontrada');
+        return;
+    }
+
+    await loadEditSupportModalOptions();
+
+    document.getElementById('editSupportAssignmentId').value = assignmentId;
+    document.getElementById('editSupportUser').value = assignment.userId;
+    document.getElementById('editSupportCompany').value = assignment.companyId;
+    document.getElementById('editSupportSupport').value = assignment.supportId;
+    document.getElementById('editSupportModule').value = assignment.moduleId;
+    document.getElementById('editSupportTarifaConsultor').value = assignment.tarifaConsultor || assignment.costoConsultor || 0;
+    document.getElementById('editSupportTarifaCliente').value = assignment.tarifaCliente || assignment.costoCliente || 0;
+
+    calculateEditSupportMargen();
+    document.getElementById('editSupportAssignmentModal').style.display = 'flex';
+}
+
+function closeEditSupportAssignmentModal() {
+    document.getElementById('editSupportAssignmentModal').style.display = 'none';
+}
+
+function calculateEditSupportMargen() {
+    const tConsultor = parseFloat(document.getElementById('editSupportTarifaConsultor').value) || 0;
+    const tCliente = parseFloat(document.getElementById('editSupportTarifaCliente').value) || 0;
+    const margin = tCliente - tConsultor;
+    const marginPercent = tCliente > 0 ? Math.round((margin / tCliente) * 100) : 0;
+    
+    const marginEl = document.getElementById('editSupportMargen');
+    const percentEl = document.getElementById('editSupportMargenPorcentaje');
+    if (marginEl) {
+        marginEl.textContent = `$${margin.toFixed(2)}`;
+        marginEl.className = margin >= 0 ? 'positive' : 'negative';
+    }
+    if (percentEl) {
+        percentEl.textContent = `(${marginPercent}%)`;
+    }
+}
+
+async function saveEditSupportAssignment(event) {
+    event.preventDefault();
+    const assignmentId = document.getElementById('editSupportAssignmentId').value;
+    const updates = {
+        userId: document.getElementById('editSupportUser').value,
+        companyId: document.getElementById('editSupportCompany').value,
+        supportId: document.getElementById('editSupportSupport').value,
+        moduleId: document.getElementById('editSupportModule').value,
+        tarifaConsultor: parseFloat(document.getElementById('editSupportTarifaConsultor').value) || 0,
+        tarifaCliente: parseFloat(document.getElementById('editSupportTarifaCliente').value) || 0
+    };
+
+    if (updates.tarifaConsultor <= 0 || updates.tarifaCliente <= 0) {
+        window.NotificationUtils.error('Las tarifas deben ser mayores a 0');
+        return;
+    }
+
+    const result = await window.PortalDB.updateAssignment(assignmentId, updates);
+    if (result.success) {
+        window.NotificationUtils.success('Asignación de soporte actualizada correctamente');
+        closeEditSupportAssignmentModal();
+        await loadAllData();
+        if (currentSection === 'lista-asignaciones') {
+            await updateAssignmentsList();
+        } else if (currentSection === 'lista-soportes-asignados') {
+            await updateSupportAssignmentsList();
+        }
+    } else {
+        window.NotificationUtils.error('Error al actualizar: ' + result.message);
+    }
+}
+
+async function editProjectAssignment(assignmentId) {
+    console.log('✏️ Editando asignación de proyecto:', assignmentId);
+    
+    await loadCurrentData();
+    const assignment = currentData.projectAssignments[assignmentId];
+    if (!assignment) {
+        window.NotificationUtils.error('Asignación de proyecto no encontrada');
+        return;
+    }
+
+    await loadEditProjectModalOptions();
+
+    document.getElementById('editProjectAssignmentId').value = assignmentId;
+    document.getElementById('editProjectConsultor').value = assignment.consultorId;
+    document.getElementById('editProjectProject').value = assignment.projectId;
+    document.getElementById('editProjectCompany').value = assignment.companyId;
+    document.getElementById('editProjectModule').value = assignment.moduleId;
+    document.getElementById('editProjectTarifaConsultor').value = assignment.tarifaConsultor || assignment.costoConsultor || 0;
+    document.getElementById('editProjectTarifaCliente').value = assignment.tarifaCliente || assignment.costoCliente || 0;
+
+    calculateEditProjectMargen();
+    document.getElementById('editProjectAssignmentModal').style.display = 'flex';
+}
+
+function closeEditProjectAssignmentModal() {
+    document.getElementById('editProjectAssignmentModal').style.display = 'none';
+}
+
+function calculateEditProjectMargen() {
+    const tConsultor = parseFloat(document.getElementById('editProjectTarifaConsultor').value) || 0;
+    const tCliente = parseFloat(document.getElementById('editProjectTarifaCliente').value) || 0;
+    const margin = tCliente - tConsultor;
+    const marginPercent = tCliente > 0 ? Math.round((margin / tCliente) * 100) : 0;
+    
+    const marginEl = document.getElementById('editProjectMargen');
+    const percentEl = document.getElementById('editProjectMargenPorcentaje');
+    if (marginEl) {
+        marginEl.textContent = `$${margin.toFixed(2)}`;
+        marginEl.className = margin >= 0 ? 'positive' : 'negative';
+    }
+    if (percentEl) {
+        percentEl.textContent = `(${marginPercent}%)`;
+    }
+}
+
+async function saveEditProjectAssignment(event) {
+    event.preventDefault();
+    const assignmentId = document.getElementById('editProjectAssignmentId').value;
+    const updates = {
+        consultorId: document.getElementById('editProjectConsultor').value,
+        projectId: document.getElementById('editProjectProject').value,
+        companyId: document.getElementById('editProjectCompany').value,
+        moduleId: document.getElementById('editProjectModule').value,
+        tarifaConsultor: parseFloat(document.getElementById('editProjectTarifaConsultor').value) || 0,
+        tarifaCliente: parseFloat(document.getElementById('editProjectTarifaCliente').value) || 0
+    };
+
+    if (updates.tarifaConsultor <= 0 || updates.tarifaCliente <= 0) {
+        window.NotificationUtils.error('Las tarifas deben ser mayores a 0');
+        return;
+    }
+
+    const result = await window.PortalDB.updateProjectAssignment(assignmentId, updates);
+    if (result.success) {
+        window.NotificationUtils.success('Asignación de proyecto actualizada correctamente');
+        closeEditProjectAssignmentModal();
+        await loadAllData();
+        if (currentSection === 'lista-asignaciones') {
+            await updateAssignmentsList();
+        } else if (currentSection === 'lista-proyectos-asignados') {
+            await updateProjectAssignmentsList();
+        }
+    } else {
+        window.NotificationUtils.error('Error al actualizar: ' + result.message);
+    }
+}
+
 /**
  * Editar tarea
  */
@@ -10906,6 +11084,15 @@ window.createAssignment = createAssignment;
 window.deleteAssignment = deleteAssignment;
 window.createProjectAssignment = createProjectAssignment;
 window.deleteProjectAssignment = deleteProjectAssignment;
+window.editSupportAssignment = editSupportAssignment;
+window.closeEditSupportAssignmentModal = closeEditSupportAssignmentModal;
+window.calculateEditSupportMargen = calculateEditSupportMargen;
+window.saveEditSupportAssignment = saveEditSupportAssignment;
+window.editProjectAssignment = editProjectAssignment;
+window.closeEditProjectAssignmentModal = closeEditProjectAssignmentModal;
+window.calculateEditProjectMargen = calculateEditProjectMargen;
+window.saveEditProjectAssignment = saveEditProjectAssignment;
+window.updateSupportAssignmentsList = updateSupportAssignmentsList;
 window.updateProjectAssignmentDropdowns = updateProjectAssignmentDropdowns;
 window.approveReport = approveReport;
 window.rejectReport = rejectReport;

@@ -434,6 +434,11 @@
                                 <span class="menu-badge" id="sidebarAssignmentsCount">0</span>
                             </div>
                             
+                            <div class="sidebar-menu-item" data-section="lista-soportes-asignados">
+                                <span class="menu-text">Soportes Asignados</span>
+                                <span class="menu-badge" id="sidebarSupportAssignmentsCount">0</span>
+                            </div>
+                            
                             <div class="sidebar-menu-item" data-section="asignaciones-recientes">
                                 <span class="menu-text">Asignaciones Recientes</span>
                             </div>
@@ -1007,13 +1012,28 @@
                         </div>
                     </div>
 
+                    <!-- Sección de Lista de Soportes Asignados -->
+                    <div id="lista-soportes-asignados-section" class="content-section">
+                        <div class="section-header">
+                            <h2 class="section-title">Soportes Asignados</h2>
+                        </div>
+                        
+                        <div id="supportAssignmentsList" class="assignments-list">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"> <i class="fa-solid fa-headset"></i> </div>
+                                <div class="empty-state-title">No hay soportes asignados</div>
+                                <div class="empty-state-desc">Los soportes asignados a consultores aparecerán aquí</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Sección de Lista de Proyectos Asignados -->
                     <div id="lista-proyectos-asignados-section" class="content-section">
                         <div class="section-header">
                             <h2 class="section-title">Proyectos Asignados</h2>
                         </div>
                         
-                        <div id="projectAssignmentsList" class="project-assignments-container">
+                        <div id="projectAssignmentsList" class="assignments-list">
                             <div class="empty-state">
                                 <div class="empty-state-icon"> <i class="fa-solid fa-bullseye"></i> </div>
                                 <div class="empty-state-title">No hay proyectos asignados</div>
@@ -2034,6 +2054,202 @@
             
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('taskDetailsModal').style.display='none'">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Editar Asignación de Soporte -->
+    <div id="editSupportAssignmentModal" class="modal" style="display: none;">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-headset"></i> Editar Asignación de Soporte</h3>
+                <button class="modal-close" onclick="closeEditSupportAssignmentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editSupportAssignmentForm" onsubmit="saveEditSupportAssignment(event)">
+                    <input type="hidden" id="editSupportAssignmentId" value="">
+                    
+                    <div class="form-section">
+                        <h4><i class="fa-solid fa-info-circle"></i> Información Básica</h4>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="editSupportUser">Usuario Consultor *</label>
+                                <select id="editSupportUser" class="form-control" required>
+                                    <option value="">Seleccionar consultor...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editSupportCompany">Empresa Cliente *</label>
+                                <select id="editSupportCompany" class="form-control" required>
+                                    <option value="">Seleccionar cliente...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="editSupportSupport">Soporte *</label>
+                                <select id="editSupportSupport" class="form-control" required>
+                                    <option value="">Seleccionar Soporte...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editSupportModule">Módulo *</label>
+                                <select id="editSupportModule" class="form-control" required>
+                                    <option value="">Seleccionar módulo...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4><i class="fa-solid fa-money-bill"></i> Tarifas</h4>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="editSupportTarifaConsultor">Tarifa Consultor ($/hr) *</label>
+                                <input 
+                                    type="number" 
+                                    id="editSupportTarifaConsultor" 
+                                    class="form-control" 
+                                    required
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="300.00"
+                                    oninput="calculateEditSupportMargen()"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="editSupportTarifaCliente">Tarifa Cliente ($/hr) *</label>
+                                <input 
+                                    type="number" 
+                                    id="editSupportTarifaCliente" 
+                                    class="form-control" 
+                                    required
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="500.00"
+                                    oninput="calculateEditSupportMargen()"
+                                >
+                            </div>
+                        </div>
+                        
+                        <div class="margen-display">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span>Margen:</span>
+                            <strong id="editSupportMargen">$0.00</strong>
+                            <span id="editSupportMargenPorcentaje">(0%)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditSupportAssignmentModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-save"></i> Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Editar Asignación de Proyecto -->
+    <div id="editProjectAssignmentModal" class="modal" style="display: none;">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-folder-open"></i> Editar Asignación de Proyecto</h3>
+                <button class="modal-close" onclick="closeEditProjectAssignmentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editProjectAssignmentForm" onsubmit="saveEditProjectAssignment(event)">
+                    <input type="hidden" id="editProjectAssignmentId" value="">
+                    
+                    <div class="form-section">
+                        <h4><i class="fa-solid fa-info-circle"></i> Información Básica</h4>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="editProjectConsultor">Consultor *</label>
+                                <select id="editProjectConsultor" class="form-control" required>
+                                    <option value="">Seleccionar consultor...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editProjectProject">Proyecto *</label>
+                                <select id="editProjectProject" class="form-control" required>
+                                    <option value="">Seleccionar proyecto...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="editProjectCompany">Empresa Cliente *</label>
+                                <select id="editProjectCompany" class="form-control" required>
+                                    <option value="">Seleccionar empresa...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editProjectModule">Módulo *</label>
+                                <select id="editProjectModule" class="form-control" required>
+                                    <option value="">Seleccionar módulo...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4><i class="fa-solid fa-money-bill"></i> Tarifas</h4>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="editProjectTarifaConsultor">Tarifa Consultor ($/hr) *</label>
+                                <input 
+                                    type="number" 
+                                    id="editProjectTarifaConsultor" 
+                                    class="form-control" 
+                                    required
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="300.00"
+                                    oninput="calculateEditProjectMargen()"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="editProjectTarifaCliente">Tarifa Cliente ($/hr) *</label>
+                                <input 
+                                    type="number" 
+                                    id="editProjectTarifaCliente" 
+                                    class="form-control" 
+                                    required
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="500.00"
+                                    oninput="calculateEditProjectMargen()"
+                                >
+                            </div>
+                        </div>
+                        
+                        <div class="margen-display">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span>Margen:</span>
+                            <strong id="editProjectMargen">$0.00</strong>
+                            <span id="editProjectMargenPorcentaje">(0%)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditProjectAssignmentModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-save"></i> Guardar Cambios
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
