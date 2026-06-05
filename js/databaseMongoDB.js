@@ -123,6 +123,7 @@ class PortalDatabase {
         this.token = null;
         localStorage.removeItem('arvic_token');
         localStorage.removeItem('arvic_current_session');
+        sessionStorage.removeItem('arvic_support_bot_history'); // Limpiar el historial del bot de soporte al cerrar sesión
         console.log('✅ Sesión cerrada');
     }
 

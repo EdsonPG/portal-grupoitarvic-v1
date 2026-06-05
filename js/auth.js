@@ -220,6 +220,7 @@ class AuthSystem {
             
             localStorage.removeItem(this.sessionKey);
             localStorage.removeItem('arvic_token');
+            sessionStorage.removeItem('arvic_support_bot_history'); // Limpiar el historial del bot de soporte al cerrar sesión
             this.currentUser = null;
             
             // Redirigir al login

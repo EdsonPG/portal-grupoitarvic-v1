@@ -144,12 +144,17 @@ class SupportChatBot {
             try {
                 const parsed = JSON.parse(stored);
                 
+                // Verificar si el historial pertenece al usuario actual
+                const currentUserId = this.currentUser ? (this.currentUser.userId || this.currentUser.id) : null;
+                const historyUserId = parsed.userId || null;
+                const historyUserMatches = (currentUserId && historyUserId && String(currentUserId) === String(historyUserId));
+                
                 // Verificar inactividad de 24 horas (86,400,000 milisegundos)
                 const lastInteraction = parsed.lastInteractionTime || 0;
                 const isExpired = lastInteraction > 0 && (Date.now() - lastInteraction > 24 * 60 * 60 * 1000);
                 
-                if (isExpired) {
-                    console.log('Historial del bot de soporte expirado por inactividad de más de 24 horas.');
+                if (isExpired || !historyUserMatches) {
+                    console.log('Historial del bot de soporte expirado por inactividad o pertenece a otro usuario.');
                     sessionStorage.removeItem('arvic_support_bot_history');
                 } else {
                     this.chatHistory = parsed.history || [];
@@ -171,7 +176,7 @@ class SupportChatBot {
             }
         }
 
-        // Historial vacío o expirado por inactividad: Inicializar bienvenida
+        // Historial vacío o expirado por inactividad/usuario: Inicializar bienvenida
         this.messagesArea.innerHTML = '';
         const namePart = this.currentUser.name ? `, ${this.currentUser.name}` : '';
         this.addSystemMessage(`¡Hola${namePart}! Soy tu asistente virtual de Soporte ARVIC 🤖. Estoy aquí para ayudarte a resolver cualquier duda sobre el portal. ¿Qué deseas consultar hoy?`);
@@ -182,6 +187,7 @@ class SupportChatBot {
     saveSessionHistory(quickReplies = []) {
         try {
             const dataToStore = {
+                userId: this.currentUser ? (this.currentUser.userId || this.currentUser.id) : null,
                 history: this.chatHistory,
                 localRetryCount: this.localRetryCount,
                 htmlContent: this.messagesArea.innerHTML,
