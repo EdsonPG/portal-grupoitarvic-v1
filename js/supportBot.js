@@ -41,7 +41,7 @@ class SupportChatBot {
         this.container.innerHTML = `
             <div class="support-bot-header">
                 <div class="support-bot-title">
-                    <div class="bot-avatar">🤖</div>
+                    <div class="bot-avatar"><i class="fa-solid fa-robot"></i></div>
                     <div class="bot-info">
                         <h3>Soporte ARVIC</h3>
                         <span id="botSubTitle">Asistente Virtual IA</span>
@@ -285,7 +285,7 @@ class SupportChatBot {
         const content = isHtml ? text : this.escapeHTML(text);
         
         msgDiv.innerHTML = `
-            <div class="bot-avatar-small">🤖</div>
+            <div class="bot-avatar-small"><i class="fa-solid fa-robot"></i></div>
             <div class="bot-msg-bubble">${content}</div>
         `;
         this.messagesArea.appendChild(msgDiv);
@@ -304,7 +304,7 @@ class SupportChatBot {
         const typingDiv = document.createElement('div');
         typingDiv.className = 'bot-msg-row system bot-typing';
         typingDiv.innerHTML = `
-            <div class="bot-avatar-small">🤖</div>
+            <div class="bot-avatar-small"><i class="fa-solid fa-robot"></i></div>
             <div class="bot-msg-bubble">
                 <div class="typing-dots"><span></span><span></span><span></span></div>
             </div>
