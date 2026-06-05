@@ -8260,3 +8260,105 @@ body.dark-mode .help-info-value {
     min-width: 800px !important;
 }
 
+/* Estilos para detalles de tareas (Modal Detalles) */
+.detail-value {
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.detail-description {
+    margin-top: 4px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #334155;
+    line-height: 1.5;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+}
+
+.detail-rates-card {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.detail-rates-card .rate-label {
+    color: #166534;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    display: block;
+}
+
+.detail-rates-card .rate-value {
+    font-family: monospace;
+    font-size: 1rem;
+    color: #14532d;
+    display: block;
+    margin-top: 2px;
+}
+
+.detail-rates-card .margin-value-highlight {
+    font-size: 1.1rem;
+    color: #16a34a;
+}
+
+/* --- OVERRIDES DE MODO OSCURO (DARK MODE) --- */
+body.dark-mode .crud-table-header {
+    background: #1e293b !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+body.dark-mode .crud-table-title {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .crud-table-info {
+    background: #0f172a !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .modal-footer {
+    background: #1e293b !important;
+    border-top: 1px solid #334155 !important;
+}
+
+body.dark-mode .detail-value {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .detail-description {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .detail-rates-card {
+    background: rgba(16, 185, 129, 0.1) !important;
+    border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+body.dark-mode .detail-rates-card .rate-divider {
+    border-left-color: rgba(16, 185, 129, 0.2) !important;
+    border-right-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+body.dark-mode .detail-rates-card .rate-label {
+    color: #86efac !important;
+}
+
+body.dark-mode .detail-rates-card .rate-value {
+    color: #a7f3d0 !important;
+}
+
+body.dark-mode .detail-rates-card .margin-value-highlight {
+    color: #34d399 !important;
+}
+

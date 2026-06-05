@@ -1977,14 +1977,14 @@
                         <small style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Consultor</small>
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
                             <i class="fa-solid fa-user-tie" style="color: #64748b;"></i>
-                            <span id="detailTaskConsultor" style="font-weight: 500; color: #1e293b;"></span>
+                            <span id="detailTaskConsultor" class="detail-value"></span>
                         </div>
                     </div>
                     <div>
                         <small style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Cliente (Empresa)</small>
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
                             <i class="fa-solid fa-building" style="color: #64748b;"></i>
-                            <span id="detailTaskCompany" style="font-weight: 500; color: #1e293b;"></span>
+                            <span id="detailTaskCompany" class="detail-value"></span>
                         </div>
                     </div>
                 </div>
@@ -1994,14 +1994,14 @@
                         <small style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Soporte Padre</small>
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
                             <i class="fa-solid fa-headset" style="color: #64748b;"></i>
-                            <span id="detailTaskSupport" style="font-weight: 500; color: #1e293b;"></span>
+                            <span id="detailTaskSupport" class="detail-value"></span>
                         </div>
                     </div>
                     <div>
                         <small style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Módulo</small>
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
                             <i class="fa-solid fa-puzzle-piece" style="color: #64748b;"></i>
-                            <span id="detailTaskModule" style="font-weight: 500; color: #1e293b;"></span>
+                            <span id="detailTaskModule" class="detail-value"></span>
                         </div>
                     </div>
                 </div>
@@ -2010,29 +2010,29 @@
 
                 <div>
                     <small style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Descripción de la Tarea</small>
-                    <div id="detailTaskDescription" style="margin-top: 4px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; color: #334155; line-height: 1.5; font-size: 0.9rem; white-space: pre-wrap;"></div>
+                    <div id="detailTaskDescription" class="detail-description"></div>
                 </div>
 
                 <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 0.5rem 0;">
 
                 <!-- Rates and Margin Section -->
-                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: center;">
+                <div class="detail-rates-card">
                     <div style="text-align: center;">
-                        <small style="color: #166534; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; display: block;">Tarifa Consultor</small>
-                        <strong id="detailTaskTarifaConsultor" style="font-family: monospace; font-size: 1rem; color: #14532d; display: block; margin-top: 2px;"></strong>
+                        <small class="rate-label">Tarifa Consultor</small>
+                        <strong id="detailTaskTarifaConsultor" class="rate-value"></strong>
                     </div>
-                    <div style="text-align: center; border-left: 1px solid #bbf7d0; border-right: 1px solid #bbf7d0;">
-                        <small style="color: #166534; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; display: block;">Tarifa Cliente</small>
-                        <strong id="detailTaskTarifaCliente" style="font-family: monospace; font-size: 1rem; color: #14532d; display: block; margin-top: 2px;"></strong>
+                    <div style="text-align: center; border-left: 1px solid #bbf7d0; border-right: 1px solid #bbf7d0;" class="rate-divider">
+                        <small class="rate-label">Tarifa Cliente</small>
+                        <strong id="detailTaskTarifaCliente" class="rate-value"></strong>
                     </div>
                     <div style="text-align: center;">
-                        <small style="color: #166534; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; display: block;">Margen Real</small>
-                        <strong id="detailTaskMargen" style="font-family: monospace; font-size: 1.1rem; color: #16a34a; display: block; margin-top: 2px;"></strong>
+                        <small class="rate-label">Margen Real</small>
+                        <strong id="detailTaskMargen" class="rate-value margin-value-highlight"></strong>
                     </div>
                 </div>
             </div>
             
-            <div class="modal-footer" style="padding: 1rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; background: #f8fafc;">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('taskDetailsModal').style.display='none'">Cerrar</button>
             </div>
         </div>
