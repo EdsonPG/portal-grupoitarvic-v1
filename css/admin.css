@@ -8362,3 +8362,9 @@ body.dark-mode .detail-rates-card .margin-value-highlight {
     color: #34d399 !important;
 }
 
+/* Hacer que los botones de guardar y cancelar de los modales no se queden fijos/estáticos al hacer scroll */
+.modal-footer {
+    position: relative !important;
+    bottom: auto !important;
+}
+
