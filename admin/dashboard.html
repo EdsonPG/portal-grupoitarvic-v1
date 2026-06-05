@@ -429,6 +429,14 @@
                                 <span class="menu-text">Asignar Soportes</span>
                             </div>
 
+                            <div class="sidebar-menu-item" data-section="asignar-proyectos">
+                                <span class="menu-text">Asignar Proyectos</span>
+                            </div>
+
+                            <div class="sidebar-menu-item" data-section="asignaciones-recientes">
+                                <span class="menu-text">Asignaciones Recientes</span>
+                            </div>
+
                             <div class="sidebar-menu-item" data-section="lista-asignaciones">
                                 <span class="menu-text">Todas las Asignaciones</span>
                                 <span class="menu-badge" id="sidebarAssignmentsCount">0</span>
@@ -438,19 +446,13 @@
                                 <span class="menu-text">Soportes Asignados</span>
                                 <span class="menu-badge" id="sidebarSupportAssignmentsCount">0</span>
                             </div>
-                            
-                            <div class="sidebar-menu-item" data-section="asignaciones-recientes">
-                                <span class="menu-text">Asignaciones Recientes</span>
-                            </div>
 
-                            <div class="sidebar-menu-item" data-section="asignar-proyectos">
-                                <span class="menu-text">Asignar Proyectos</span>
-                            </div>
                             <div class="sidebar-menu-item" data-section="lista-proyectos-asignados">
                                 <span class="menu-text">Proyectos Asignados</span>
                                 <span class="menu-badge" id="sidebarProjectAssignmentsCount">0</span>
                             </div>
-                             <div class="sidebar-menu-item" data-section="taskAssignments">
+
+                            <div class="sidebar-menu-item" data-section="taskAssignments">
                                 <span class="menu-text">Asignaciones de Tareas</span>
                                 <span class="menu-badge" id="sidebarTaskCount">0</span>
                             </div>
@@ -1018,6 +1020,13 @@
                             <h2 class="section-title">Soportes Asignados</h2>
                         </div>
                         
+                        <div class="assignment-list-toolbar" style="margin-bottom: 16px;">
+                            <div class="search-box assignment-search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchSupportAssignments" placeholder="Buscar soportes asignados..." oninput="filterAssignmentsInContainer('supportAssignmentsList', this.value)">
+                            </div>
+                        </div>
+                        
                         <div id="supportAssignmentsList" class="assignments-list">
                             <div class="empty-state">
                                 <div class="empty-state-icon"> <i class="fa-solid fa-headset"></i> </div>
@@ -1031,6 +1040,13 @@
                     <div id="lista-proyectos-asignados-section" class="content-section">
                         <div class="section-header">
                             <h2 class="section-title">Proyectos Asignados</h2>
+                        </div>
+                        
+                        <div class="assignment-list-toolbar" style="margin-bottom: 16px;">
+                            <div class="search-box assignment-search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchProjectAssignments" placeholder="Buscar proyectos asignados..." oninput="filterAssignmentsInContainer('projectAssignmentsList', this.value)">
+                            </div>
                         </div>
                         
                         <div id="projectAssignmentsList" class="assignments-list">
@@ -1188,7 +1204,15 @@
                         <div class="section-header">
                             <h2 class="section-title">Asignaciones Recientes</h2>
                         </div>
-                        <div class="items-list" id="recentAssignments">
+                        
+                        <div class="assignment-list-toolbar" style="margin-bottom: 16px;">
+                            <div class="search-box assignment-search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" id="searchRecentAssignments" placeholder="Buscar asignaciones recientes..." oninput="filterAssignmentsInContainer('recentAssignments', this.value)">
+                            </div>
+                        </div>
+                        
+                        <div class="assignments-list" id="recentAssignments">
                             <div class="empty-state">
                                 <div class="empty-state-icon"> <i class="fa-solid fa-bullseye"></i> </div>
                                 <div class="empty-state-title">Sin asignaciones</div>

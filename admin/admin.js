@@ -1652,6 +1652,8 @@ function updateConsultorsList() {
 
 async function updateProjectAssignmentsList() {
     console.log('🔄 Actualizando lista de proyectos asignados...');
+    const searchInput = document.getElementById('searchProjectAssignments');
+    if (searchInput) searchInput.value = '';
     await loadCurrentData(); 
     const container = document.getElementById('projectAssignmentsList');
     
@@ -1693,6 +1695,8 @@ async function updateProjectAssignmentsList() {
 
 async function updateSupportAssignmentsList() {
     console.log('🔄 Actualizando lista de soportes asignados...');
+    const searchInput = document.getElementById('searchSupportAssignments');
+    if (searchInput) searchInput.value = '';
     await loadCurrentData();
     const container = document.getElementById('supportAssignmentsList');
     
@@ -1734,6 +1738,8 @@ async function updateSupportAssignmentsList() {
 
 async function updateAssignmentsList() {
     console.log('🔄 Actualizando lista de asignaciones...');
+    const searchRecentInput = document.getElementById('searchRecentAssignments');
+    if (searchRecentInput) searchRecentInput.value = '';
     await loadCurrentData();
     const container = document.getElementById('assignmentsList');
     const recentContainer = document.getElementById('recentAssignments');
@@ -1958,6 +1964,41 @@ function normalizeAssignmentSearchText(value) {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .trim();
+}
+
+function filterAssignmentsInContainer(containerId, query) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const normalizedQuery = normalizeAssignmentSearchText(query);
+    const cards = Array.from(container.querySelectorAll('.assignment-list-card'));
+    let matchCount = 0;
+    
+    cards.forEach(card => {
+        const searchable = card.dataset.searchable || '';
+        const matches = !normalizedQuery || searchable.includes(normalizedQuery);
+        card.style.display = matches ? 'grid' : 'none';
+        if (matches) matchCount++;
+    });
+    
+    let noResults = container.querySelector('.assignment-no-results');
+    if (matchCount === 0 && cards.length > 0) {
+        if (!noResults) {
+            noResults = document.createElement('div');
+            noResults.className = 'assignment-no-results';
+            noResults.innerHTML = `
+                <div class="empty-state" style="padding: 20px;">
+                    <div class="empty-state-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+                    <div class="empty-state-title">Sin coincidencias</div>
+                    <div class="empty-state-desc">Intenta con otros términos de búsqueda</div>
+                </div>
+            `;
+            container.appendChild(noResults);
+        }
+        noResults.style.display = 'block';
+    } else if (noResults) {
+        noResults.style.display = 'none';
+    }
 }
 
 function updateAssignmentsFilterCounts(assignments) {
@@ -11093,6 +11134,7 @@ window.closeEditProjectAssignmentModal = closeEditProjectAssignmentModal;
 window.calculateEditProjectMargen = calculateEditProjectMargen;
 window.saveEditProjectAssignment = saveEditProjectAssignment;
 window.updateSupportAssignmentsList = updateSupportAssignmentsList;
+window.filterAssignmentsInContainer = filterAssignmentsInContainer;
 window.updateProjectAssignmentDropdowns = updateProjectAssignmentDropdowns;
 window.approveReport = approveReport;
 window.rejectReport = rejectReport;
