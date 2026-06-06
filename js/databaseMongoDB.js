@@ -2448,23 +2448,30 @@ async getTarifario() {
         }
     }
 
-    // === VIDEOCONFERENCIAS ===
-    async createVideoRoom(isPrivate = false, type = 'video') {
-        try {
-            const response = await fetch(`${this.API_URL}/video/create-room`, {
-                method: 'POST',
-                headers: this.getHeaders(),
-                body: JSON.stringify({ isPrivate, type })
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Error creando sala de video:', error);
-            return { success: false, message: 'Error de conexión' };
-        }
-    }
-
     reconstructTimesheetsFromReports(reportsArray) {
         if (!reportsArray || !Array.isArray(reportsArray)) return;
+
+        // Helper local para decodificar descripción
+        const deserializeDescription = (description) => {
+            const match = description?.match(/^\[TICKET:(.*?)\] (.*)$/);
+            if (match) {
+                return {
+                    ticket: match[1],
+                    detail: match[2]
+                };
+            }
+            const matchOnly = description?.match(/^\[TICKET:(.*?)\]$/);
+            if (matchOnly) {
+                return {
+                    ticket: matchOnly[1],
+                    detail: ''
+                };
+            }
+            return {
+                ticket: '',
+                detail: description || ''
+            };
+        };
 
         // Group reports by userId and weekStart
         const groups = {};
@@ -2552,15 +2559,20 @@ async getTarifario() {
                 totalWeekHours += hours;
                 
                 const assignmentId = report.assignmentId;
-                if (!entriesMap[assignmentId]) {
+                const { ticket, detail } = deserializeDescription(report.description);
+                const groupKey = `${assignmentId}_${ticket}`;
+                
+                if (!entriesMap[groupKey]) {
                     let label = report.title || assignmentId;
                     if (label.includes(' — ')) {
                         label = label.split(' — ')[1];
                     }
-                    entriesMap[assignmentId] = {
+                    entriesMap[groupKey] = {
+                        rowId: `row_${assignmentId}_${ticket.replace(/[^a-zA-Z0-9]/g, '')}`,
                         assignmentId,
                         assignmentType: report.assignmentType || 'support',
                         assignmentLabel: label,
+                        ticket: ticket,
                         days: {
                             mon: { hours: 0, detail: '' },
                             tue: { hours: 0, detail: '' },
@@ -2578,11 +2590,11 @@ async getTarifario() {
                 const dayIndex = repDate.getDay();
                 const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayIndex];
                 
-                entriesMap[assignmentId].days[dayKey].hours = hours;
-                const rawDesc = report.description || '';
+                entriesMap[groupKey].days[dayKey].hours = hours;
+                const rawDesc = detail || '';
                 const cleanDesc = (rawDesc === 'JUSTIFICACION_PENDIENTE' || rawDesc.startsWith('Horas registradas:')) ? '' : rawDesc;
-                entriesMap[assignmentId].days[dayKey].detail = cleanDesc;
-                entriesMap[assignmentId].totalHours += hours;
+                entriesMap[groupKey].days[dayKey].detail = cleanDesc;
+                entriesMap[groupKey].totalHours += hours;
             });
             
             let status = 'Borrador';

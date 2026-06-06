@@ -2998,3 +2998,144 @@ body.dark-mode .consultor-header .notif-icon.type-system { background: #1e293b !
     min-width: 800px !important;
 }
 
+
+/* ==========================================================
+   REDiseño de TIMESHEET: FILAS DINÁMICAS Y TICKETS
+   ========================================================== */
+
+.ts-ticket-col {
+    width: 110px;
+    min-width: 100px;
+}
+
+.ts-ticket-input {
+    width: 90px;
+    height: 38px;
+    border: 2px solid var(--gray-200);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.88em;
+    font-weight: 600;
+    color: var(--gray-800);
+    background: white;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.ts-ticket-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.ts-ticket-static {
+    font-weight: 600;
+    color: var(--gray-700);
+    font-size: 0.9em;
+}
+
+.ts-assignment-select {
+    width: 100%;
+    border: 2px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.85em;
+    font-weight: 500;
+    color: var(--gray-800);
+    background: white;
+    outline: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.ts-assignment-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.ts-actions-col {
+    width: 50px;
+}
+
+.ts-delete-row-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 8px;
+    font-size: 1.15em;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ts-delete-row-btn:hover {
+    background: #fef2f2;
+    transform: scale(1.1);
+}
+
+.timesheet-grid-footer-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.btn-add-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    color: #2563eb;
+    border: 1px dashed #2563eb;
+    padding: 8px 16px;
+    font-size: 0.85em;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-add-row:hover {
+    background: rgba(37, 99, 235, 0.05);
+    transform: translateY(-1px);
+}
+
+/* Modo oscuro overrides */
+body.dark-mode .ts-ticket-input {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .ts-ticket-input:focus {
+    border-color: #3b82f6 !important;
+}
+
+body.dark-mode .ts-ticket-static {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .ts-assignment-select {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .ts-assignment-select:focus {
+    border-color: #3b82f6 !important;
+}
+
+body.dark-mode .ts-delete-row-btn:hover {
+    background: rgba(239, 68, 68, 0.15) !important;
+}
+
+body.dark-mode .btn-add-row {
+    color: #60a5fa !important;
+    border-color: #60a5fa !important;
+}
+
+body.dark-mode .btn-add-row:hover {
+    background: rgba(96, 165, 250, 0.1) !important;
+}
+

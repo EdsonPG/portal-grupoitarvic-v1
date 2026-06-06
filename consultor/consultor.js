@@ -2101,9 +2101,38 @@ console.log('✅ Funciones del consultor exportadas globalmente');
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 let currentWeekStart = null; // Date object for Monday of current week
-let timesheetDraft = {}; // { assignmentId: { mon: {hours,detail}, tue: ... } }
+let timesheetDraft = {}; // { rowId: { rowId, assignmentId, ticket, days: { mon: {hours,detail}, ... } } }
 let activeDetailPopover = null;
 let activeDetailBackdrop = null;
+
+// Funciones de utilidad para codificar/decodificar tickets en la descripción del reporte de MongoDB
+function serializeDescription(ticket, detail) {
+    if (ticket && ticket.trim()) {
+        return `[TICKET:${ticket.trim()}] ${detail || ''}`;
+    }
+    return detail || '';
+}
+
+function deserializeDescription(description) {
+    const match = description?.match(/^\[TICKET:(.*?)\] (.*)$/);
+    if (match) {
+        return {
+            ticket: match[1],
+            detail: match[2]
+        };
+    }
+    const matchOnly = description?.match(/^\[TICKET:(.*?)\]$/);
+    if (matchOnly) {
+        return {
+            ticket: matchOnly[1],
+            detail: ''
+        };
+    }
+    return {
+        ticket: '',
+        detail: description || ''
+    };
+}
 
 /**
  * Get Monday of the week containing the given date
@@ -2258,47 +2287,75 @@ async function renderTimesheetGrid() {
     const tbody = document.getElementById('timesheetBody');
     if (!tbody) return;
     
-    if (userAssignments.length === 0) {
+    const rows = Object.values(timesheetDraft);
+    
+    if (rows.length === 0 && userAssignments.length === 0) {
         tbody.innerHTML = '';
         document.getElementById('timesheetTable').style.display = 'none';
         document.getElementById('timesheetEmptyState').style.display = 'block';
+        document.getElementById('timesheetGridFooterActions').style.display = 'none';
         document.getElementById('timesheetActions').style.display = 'none';
         return;
     }
     
     document.getElementById('timesheetTable').style.display = '';
     document.getElementById('timesheetEmptyState').style.display = 'none';
+    document.getElementById('timesheetGridFooterActions').style.display = '';
     document.getElementById('timesheetActions').style.display = '';
+    
+    // Hide Add Row button if read-only
+    const btnAddRow = document.getElementById('btnAddRow');
+    if (btnAddRow) {
+        btnAddRow.style.display = isReadOnly ? 'none' : 'flex';
+    }
     
     let html = '';
     const todayIdx = getTodayDayIndex();
     
-    for (const assignment of userAssignments) {
-        const aId = assignment.assignmentId || assignment.projectAssignmentId || assignment.taskAssignmentId;
-        const aType = assignment.assignmentType;
+    for (const row of rows) {
+        const { rowId, assignmentId, ticket, days } = row;
         
-        // Get display info
-        const company = await window.PortalDB.getCompany(assignment.companyId);
-        const module = await window.PortalDB.getModule(assignment.moduleId);
-        const moduleText = module ? (window.convertModuleToAcronym(module.name) || module.name) : 'GENERAL';
-
+        const assignment = userAssignments.find(a => 
+            (a.assignmentId === assignmentId || a.projectAssignmentId === assignmentId || a.taskAssignmentId === assignmentId)
+        );
+        
+        let companyName = '';
         let entityName = '';
+        let aType = 'support';
+        let moduleText = 'GENERAL';
         let icon = 'fa-headset';
         
-        if (aType === 'support') {
-            const support = await window.PortalDB.getSupport(assignment.supportId);
-            entityName = support?.name || 'Soporte';
-            icon = 'fa-headset';
-        } else if (aType === 'project') {
-            const project = await window.PortalDB.getProject(assignment.projectId);
-            entityName = project?.name || 'Proyecto';
-            icon = 'fa-folder-open';
-        } else if (aType === 'task') {
-            entityName = assignment.descripcion || 'Tarea';
-            icon = 'fa-tasks';
+        if (assignment) {
+            aType = assignment.assignmentType;
+            const company = await window.PortalDB.getCompany(assignment.companyId);
+            companyName = company?.name || '';
+            const module = await window.PortalDB.getModule(assignment.moduleId);
+            moduleText = module ? (window.convertModuleToAcronym(module.name) || module.name) : 'GENERAL';
+            
+            if (aType === 'support') {
+                const support = await window.PortalDB.getSupport(assignment.supportId);
+                entityName = support?.name || 'Soporte';
+                icon = 'fa-headset';
+            } else if (aType === 'project') {
+                const project = await window.PortalDB.getProject(assignment.projectId);
+                entityName = project?.name || 'Proyecto';
+                icon = 'fa-folder-open';
+            } else if (aType === 'task') {
+                entityName = assignment.descripcion || 'Tarea';
+                icon = 'fa-tasks';
+            }
+        } else {
+            // Fallback for historical/existing timesheet entries
+            const entry = existingTs?.entries?.find(e => e.assignmentId === assignmentId || e.rowId === rowId);
+            const label = entry?.assignmentLabel || '';
+            const parts = label.split(' — ');
+            entityName = parts[0] || 'Asignación';
+            companyName = parts[1] || '';
+            aType = entry?.assignmentType || 'support';
+            icon = aType === 'support' ? 'fa-headset' : aType === 'project' ? 'fa-folder-open' : 'fa-tasks';
         }
         
-        const draft = timesheetDraft[aId] || {};
+        const draft = days || {};
         let rowTotal = 0;
         
         let dayCells = '';
@@ -2331,18 +2388,18 @@ async function renderTimesheetGrid() {
                         class="${inputClass}" 
                         value="${hours || ''}" 
                         min="0" max="24" step="0.5"
-                        data-assignment="${aId}" 
+                        data-row-id="${rowId}" 
                         data-day="${dayKey}"
                         ${!editable ? 'disabled' : ''}
                         onchange="onHourChange(this)"
                         onfocus="onHourFocus(this)"
-                        ondblclick="if(parseFloat(this.value) > 0) window.showDetailPopover(this, '${aId}', '${dayKey}')"
+                        ondblclick="if(parseFloat(this.value) > 0) window.showDetailPopover(this, '${rowId}', '${dayKey}')"
                         title="${detail ? 'Detalle: ' + detail : (editable ? 'Clic para ingresar horas' : 'Día bloqueado')}"
                     >
                     <span class="${indicatorClass}" 
-                        data-assignment="${aId}" 
+                        data-row-id="${rowId}" 
                         data-day="${dayKey}"
-                        onclick="if(${editable}) window.showDetailPopover(this.parentNode.querySelector('input'), '${aId}', '${dayKey}')"
+                        onclick="if(${editable}) window.showDetailPopover(this.parentNode.querySelector('input'), '${rowId}', '${dayKey}')"
                         style="cursor:pointer;"
                         title="${hasDetailText ? 'Detalle: ' + detail : (hours > 0 ? 'Falta justificación obligatoria (Clic para escribir)' : 'Clic para ingresar horas')}"
                     ></span>
@@ -2350,25 +2407,91 @@ async function renderTimesheetGrid() {
             `;
         }
         
-        html += `
-            <tr data-assignment-id="${aId}">
-                <td class="ts-assignment-cell">
-                    <div class="ts-assignment-label">
-                        <div class="ts-assignment-icon ${aType}">
-                            <i class="fa-solid ${icon}"></i>
-                        </div>
-                        <div>
-                            <div class="ts-assignment-name">${entityName}</div>
-                            <div class="ts-assignment-company">
-                                ${company?.name || ''} 
-                                <span class="ts-type-badge ${aType}">${aType === 'support' ? 'Soporte' : aType === 'project' ? 'Proyecto' : 'Tarea'}</span>
-                                <span class="ts-module-badge" title="Módulo: ${module?.name || 'General'}">${moduleText}</span>
-                            </div>
+        // Render assignment column: select dropdown if editable, static label if read-only
+        let assignmentDisplayHtml = '';
+        if (!isReadOnly && userAssignments.length > 0) {
+            assignmentDisplayHtml = `
+                <select class="ts-assignment-select" onchange="onAssignmentChange('${rowId}', this.value)" style="width: 100%; border: 1px solid var(--gray-200); border-radius: 6px; padding: 6px; font-size: 0.85em; background: white;">
+                    ${userAssignments.map(a => {
+                        const id = a.assignmentId || a.projectAssignmentId || a.taskAssignmentId;
+                        const compName = window.PortalDB.cache.companies?.[a.companyId]?.name || 'GENERAL';
+                        let asgName = '';
+                        if (a.assignmentType === 'support') {
+                            asgName = window.PortalDB.cache.supports?.[a.supportId]?.name || 'Soporte';
+                        } else if (a.assignmentType === 'project') {
+                            asgName = window.PortalDB.cache.projects?.[a.projectId]?.name || 'Proyecto';
+                        } else if (a.assignmentType === 'task') {
+                            asgName = a.descripcion || 'Tarea';
+                        }
+                        const selectLabel = `${asgName} — ${compName}`;
+                        
+                        return `<option value="${id}" ${id === assignmentId ? 'selected' : ''}>${selectLabel}</option>`;
+                    }).join('')}
+                </select>
+            `;
+        } else {
+            assignmentDisplayHtml = `
+                <div class="ts-assignment-label">
+                    <div class="ts-assignment-icon ${aType}">
+                        <i class="fa-solid ${icon}"></i>
+                    </div>
+                    <div>
+                        <div class="ts-assignment-name">${entityName}</div>
+                        <div class="ts-assignment-company">
+                            ${companyName} 
+                            <span class="ts-type-badge ${aType}">${aType === 'support' ? 'Soporte' : aType === 'project' ? 'Proyecto' : 'Tarea'}</span>
+                            ${assignment ? `<span class="ts-module-badge">${moduleText}</span>` : ''}
                         </div>
                     </div>
+                </div>
+            `;
+        }
+        
+        // Render ticket column cell
+        let ticketCellHtml = '';
+        if (!isReadOnly) {
+            ticketCellHtml = `
+                <td style="text-align:center; padding:6px;">
+                    <input type="text" 
+                        class="ts-ticket-input" 
+                        value="${ticket || ''}" 
+                        placeholder="Nº Ticket" 
+                        onchange="onTicketChange('${rowId}', this.value)"
+                        style="width: 90px; height: 38px; border: 2px solid var(--gray-200); border-radius: 8px; text-align: center; font-size: 0.88em; font-weight: 600; outline: none; background: white;"
+                    >
                 </td>
+            `;
+        } else {
+            ticketCellHtml = `
+                <td style="text-align:center;">
+                    <span class="ts-ticket-static" style="font-weight: 600; color: var(--gray-700);">${ticket || '<span style="color:#94a3b8; font-style:italic;">—</span>'}</span>
+                </td>
+            `;
+        }
+        
+        // Render delete button column
+        let actionCellHtml = '';
+        if (!isReadOnly) {
+            actionCellHtml = `
+                <td style="text-align:center;">
+                    <button type="button" class="ts-delete-row-btn" onclick="deleteRow('${rowId}')" title="Eliminar fila" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 6px; font-size: 1.1em; transition: transform 0.2s ease;">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
+            `;
+        } else {
+            actionCellHtml = `<td></td>`;
+        }
+        
+        html += `
+            <tr data-row-id="${rowId}">
+                <td class="ts-assignment-cell">
+                    ${assignmentDisplayHtml}
+                </td>
+                ${ticketCellHtml}
                 ${dayCells}
-                <td class="ts-row-total" id="rowTotal_${aId}">${rowTotal > 0 ? rowTotal.toFixed(1) : '0'}</td>
+                <td class="ts-row-total" id="rowTotal_${rowId}">${rowTotal > 0 ? rowTotal.toFixed(1) : '0'}</td>
+                ${actionCellHtml}
             </tr>
         `;
     }
@@ -2401,7 +2524,7 @@ async function renderTimesheetGrid() {
  * Handle hour input change — save draft and prompt for detail
  */
 function onHourChange(input) {
-    const aId = input.dataset.assignment;
+    const rowId = input.dataset.rowId;
     const dayKey = input.dataset.day;
     let hours = parseFloat(input.value) || 0;
     
@@ -2409,20 +2532,18 @@ function onHourChange(input) {
     if (hours > 24) hours = 24;
     input.value = hours || '';
     
-    // Initialize draft structure
-    if (!timesheetDraft[aId]) timesheetDraft[aId] = {};
-    if (!timesheetDraft[aId][dayKey]) timesheetDraft[aId][dayKey] = { hours: 0, detail: '' };
+    if (!timesheetDraft[rowId]) return;
     
-    timesheetDraft[aId][dayKey].hours = hours;
+    timesheetDraft[rowId].days[dayKey].hours = hours;
     
     // Update classes
     input.classList.toggle('has-value', hours > 0);
     
     // Update indicator classes
-    const indicator = document.querySelector(`.ts-detail-indicator[data-assignment="${aId}"][data-day="${dayKey}"]`);
+    const indicator = document.querySelector(`.ts-detail-indicator[data-row-id="${rowId}"][data-day="${dayKey}"]`);
     if (indicator) {
         indicator.className = 'ts-detail-indicator';
-        const detailText = timesheetDraft[aId][dayKey].detail || '';
+        const detailText = timesheetDraft[rowId].days[dayKey].detail || '';
         if (detailText.trim().length > 0) {
             indicator.classList.add('visible', 'populated');
             indicator.title = 'Detalle: ' + detailText;
@@ -2433,16 +2554,16 @@ function onHourChange(input) {
     }
 
     // Update row total
-    updateRowTotal(aId);
+    updateRowTotal(rowId);
     updateTimesheetTotals();
     saveTimesheetDraft();
     
     // Sincronizar con MongoDB en segundo plano
-    saveDraftCellToMongoDB(aId, dayKey, hours, timesheetDraft[aId][dayKey].detail || '');
+    saveDraftCellToMongoDB(rowId, dayKey, hours, timesheetDraft[rowId].days[dayKey].detail || '');
     
     // If hours > 0 and no detail yet, prompt for detail
-    if (hours > 0 && (!timesheetDraft[aId][dayKey].detail || !timesheetDraft[aId][dayKey].detail.trim())) {
-        showDetailPopover(input, aId, dayKey);
+    if (hours > 0 && (!timesheetDraft[rowId].days[dayKey].detail || !timesheetDraft[rowId].days[dayKey].detail.trim())) {
+        showDetailPopover(input, rowId, dayKey);
     }
 }
 
@@ -2457,10 +2578,10 @@ function onHourFocus(input) {
 /**
  * Show detail popover for entering work description
  */
-function showDetailPopover(anchor, aId, dayKey) {
+function showDetailPopover(anchor, rowId, dayKey) {
     closeDetailPopover();
     
-    const currentDetail = timesheetDraft[aId]?.[dayKey]?.detail || '';
+    const currentDetail = timesheetDraft[rowId]?.days?.[dayKey]?.detail || '';
     const dayNames = { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes', sat: 'Sábado', sun: 'Domingo' };
     
     const popover = document.createElement('div');
@@ -2474,7 +2595,7 @@ function showDetailPopover(anchor, aId, dayKey) {
             <button class="btn btn-secondary" style="padding:6px 14px; font-size:0.82em;" onclick="closeDetailPopover()">
                 Cerrar
             </button>
-            <button class="btn btn-primary" style="padding:6px 14px; font-size:0.82em;" onclick="saveDetail('${aId}','${dayKey}')">
+            <button class="btn btn-primary" style="padding:6px 14px; font-size:0.82em;" onclick="saveDetail('${rowId}','${dayKey}')">
                 <i class="fa-solid fa-check"></i> Guardar
             </button>
         </div>
@@ -2520,21 +2641,18 @@ function closeDetailPopover() {
     }
 }
 
-function saveDetail(aId, dayKey) {
+function saveDetail(rowId, dayKey) {
     const textarea = document.getElementById('detailTextarea');
     if (!textarea) return;
     
-    if (!timesheetDraft[aId]) timesheetDraft[aId] = {};
-    if (!timesheetDraft[aId][dayKey]) timesheetDraft[aId][dayKey] = { hours: 0, detail: '' };
-    
-    timesheetDraft[aId][dayKey].detail = textarea.value.trim();
+    if (!timesheetDraft[rowId]) return;
     
     const val = textarea.value.trim();
-    timesheetDraft[aId][dayKey].detail = val;
+    timesheetDraft[rowId].days[dayKey].detail = val;
     
     // Update indicator
-    const indicator = document.querySelector(`.ts-detail-indicator[data-assignment="${aId}"][data-day="${dayKey}"]`);
-    const input = document.querySelector(`input[data-assignment="${aId}"][data-day="${dayKey}"]`);
+    const indicator = document.querySelector(`.ts-detail-indicator[data-row-id="${rowId}"][data-day="${dayKey}"]`);
+    const input = document.querySelector(`input[data-row-id="${rowId}"][data-day="${dayKey}"]`);
     const hours = parseFloat(input?.value) || 0;
 
     if (indicator) {
@@ -2555,7 +2673,7 @@ function saveDetail(aId, dayKey) {
     saveTimesheetDraft();
     
     // Sincronizar detalle con MongoDB en segundo plano
-    saveDraftCellToMongoDB(aId, dayKey, hours, val);
+    saveDraftCellToMongoDB(rowId, dayKey, hours, val);
     
     if (window.NotificationUtils) {
         window.NotificationUtils.success('Detalle guardado', 1500);
@@ -2565,12 +2683,12 @@ function saveDetail(aId, dayKey) {
 /**
  * Update row total for assignment
  */
-function updateRowTotal(aId) {
-    const draft = timesheetDraft[aId] || {};
+function updateRowTotal(rowId) {
+    const draft = timesheetDraft[rowId] || {};
     let total = 0;
-    DAY_KEYS.forEach(dk => { total += (draft[dk]?.hours || 0); });
+    DAY_KEYS.forEach(dk => { total += (draft.days?.[dk]?.hours || 0); });
     
-    const el = document.getElementById('rowTotal_' + aId);
+    const el = document.getElementById('rowTotal_' + rowId);
     if (el) el.textContent = total > 0 ? total.toFixed(1) : '0';
 }
 
@@ -2582,8 +2700,8 @@ function updateTimesheetTotals() {
     
     DAY_KEYS.forEach((dk, i) => {
         let dayTotal = 0;
-        Object.keys(timesheetDraft).forEach(aId => {
-            dayTotal += (timesheetDraft[aId]?.[dk]?.hours || 0);
+        Object.keys(timesheetDraft).forEach(rowId => {
+            dayTotal += (timesheetDraft[rowId]?.days?.[dk]?.hours || 0);
         });
         
         const el = document.getElementById('total' + ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]);
@@ -2613,7 +2731,7 @@ function saveTimesheetDraft() {
 /**
  * Guardar una celda individual de borrador en MongoDB Atlas
  */
-async function saveDraftCellToMongoDB(aId, dayKey, hours, detail) {
+async function saveDraftCellToMongoDB(rowId, dayKey, hours, detail) {
     if (!currentUser || !currentWeekStart || !window.PortalDB) return;
     
     const dayIndex = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].indexOf(dayKey);
@@ -2623,7 +2741,13 @@ async function saveDraftCellToMongoDB(aId, dayKey, hours, detail) {
     cellDate.setDate(cellDate.getDate() + dayIndex);
     const dateStr = toISODate(cellDate);
     
-    const reportId = `rep_draft_${currentUser.userId}_${aId}_${dateStr.replace(/-/g, '')}`;
+    const reportId = `rep_draft_${currentUser.userId}_${rowId}_${dateStr.replace(/-/g, '')}`;
+    
+    const row = timesheetDraft[rowId];
+    if (!row) return;
+    
+    const aId = row.assignmentId;
+    const ticket = row.ticket || '';
     
     try {
         const reports = await window.PortalDB.getReports();
@@ -2655,7 +2779,7 @@ async function saveDraftCellToMongoDB(aId, dayKey, hours, detail) {
             }
         }
         
-        const finalDescription = (detail && detail.trim()) ? detail.trim() : 'JUSTIFICACION_PENDIENTE';
+        const finalDescription = serializeDescription(ticket, detail);
 
         const reportData = {
             reportId,
@@ -2701,15 +2825,65 @@ function loadTimesheetDraft(weekStartStr, existingTs) {
     
     if (existingTs && existingTs.entries) {
         // Load from existing submitted timesheet
-        existingTs.entries.forEach(entry => {
-            timesheetDraft[entry.assignmentId] = { ...entry.days };
+        existingTs.entries.forEach((entry, index) => {
+            const ticket = entry.ticket || '';
+            const rowId = entry.rowId || `row_${entry.assignmentId}_${ticket.replace(/[^a-zA-Z0-9]/g, '')}_${index}`;
+            timesheetDraft[rowId] = {
+                rowId: rowId,
+                assignmentId: entry.assignmentId,
+                ticket: ticket,
+                days: { ...entry.days }
+            };
         });
     } else {
         // Load from localStorage draft
         const key = `ts_draft_${currentUser.userId}_${weekStartStr}`;
         const saved = localStorage.getItem(key);
         if (saved) {
-            try { timesheetDraft = JSON.parse(saved); } catch(e) { timesheetDraft = {}; }
+            try { 
+                const parsed = JSON.parse(saved); 
+                // Detect and migrate old format
+                const migrated = {};
+                Object.entries(parsed).forEach(([keyId, val]) => {
+                    const isOldFormat = !val.days && Object.keys(val).some(k => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].includes(k));
+                    if (isOldFormat) {
+                        const rowId = `row_${keyId}_default`;
+                        migrated[rowId] = {
+                            rowId: rowId,
+                            assignmentId: keyId,
+                            ticket: '',
+                            days: val
+                        };
+                    } else {
+                        migrated[keyId] = val;
+                    }
+                });
+                timesheetDraft = migrated;
+            } catch(e) { 
+                timesheetDraft = {}; 
+            }
+        }
+        
+        // Prefill default rows if empty and assignments exist
+        if (Object.keys(timesheetDraft).length === 0 && userAssignments.length > 0) {
+            userAssignments.forEach(a => {
+                const aId = a.assignmentId || a.projectAssignmentId || a.taskAssignmentId;
+                const rowId = `row_${aId}_default`;
+                timesheetDraft[rowId] = {
+                    rowId: rowId,
+                    assignmentId: aId,
+                    ticket: '',
+                    days: {
+                        mon: { hours: 0, detail: '' },
+                        tue: { hours: 0, detail: '' },
+                        wed: { hours: 0, detail: '' },
+                        thu: { hours: 0, detail: '' },
+                        fri: { hours: 0, detail: '' },
+                        sat: { hours: 0, detail: '' },
+                        sun: { hours: 0, detail: '' }
+                    }
+                };
+            });
         }
     }
 }
@@ -2757,6 +2931,125 @@ function clearWeekDraft() {
 }
 
 /**
+ * Add a new empty row to the timesheet draft
+ */
+function addEmptyRow() {
+    if (userAssignments.length === 0) {
+        if (window.NotificationUtils) {
+            window.NotificationUtils.error('No tienes asignaciones activas para agregar filas.');
+        }
+        return;
+    }
+    
+    const rowId = `row_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const defaultAssignmentId = userAssignments[0].assignmentId || userAssignments[0].projectAssignmentId || userAssignments[0].taskAssignmentId;
+    
+    timesheetDraft[rowId] = {
+        rowId: rowId,
+        assignmentId: defaultAssignmentId,
+        ticket: '',
+        days: {
+            mon: { hours: 0, detail: '' },
+            tue: { hours: 0, detail: '' },
+            wed: { hours: 0, detail: '' },
+            thu: { hours: 0, detail: '' },
+            fri: { hours: 0, detail: '' },
+            sat: { hours: 0, detail: '' },
+            sun: { hours: 0, detail: '' }
+        }
+    };
+    
+    saveTimesheetDraft();
+    renderTimesheetGrid();
+    
+    if (window.NotificationUtils) {
+        window.NotificationUtils.success('Fila agregada');
+    }
+}
+window.addEmptyRow = addEmptyRow;
+
+/**
+ * Delete a row from the timesheet draft
+ */
+async function deleteRow(rowId) {
+    if (!confirm('¿Seguro que deseas eliminar esta fila? Se borrarán las horas registradas en ella.')) {
+        return;
+    }
+    
+    const rowData = timesheetDraft[rowId];
+    if (rowData) {
+        // Eliminar borradores asociados a esta fila de MongoDB en segundo plano
+        if (window.PortalDB && currentUser && currentWeekStart) {
+            try {
+                const reports = await window.PortalDB.getReports();
+                for (let i = 0; i < 7; i++) {
+                    const cellDate = new Date(currentWeekStart);
+                    cellDate.setDate(cellDate.getDate() + i);
+                    const dateStr = toISODate(cellDate);
+                    const draftReportId = `rep_draft_${currentUser.userId}_${rowId}_${dateStr.replace(/-/g, '')}`;
+                    if (reports && reports[draftReportId]) {
+                        try {
+                            await window.PortalDB.deleteReport(draftReportId);
+                        } catch (e) { /* ignore if not found */ }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching reports for deletion:', err);
+            }
+        }
+        
+        delete timesheetDraft[rowId];
+        saveTimesheetDraft();
+        renderTimesheetGrid();
+        
+        if (window.NotificationUtils) {
+            window.NotificationUtils.info('Fila eliminada');
+        }
+    }
+}
+window.deleteRow = deleteRow;
+
+/**
+ * Handle changing assignment in an editable dropdown
+ */
+function onAssignmentChange(rowId, newAssignmentId) {
+    if (timesheetDraft[rowId]) {
+        timesheetDraft[rowId].assignmentId = newAssignmentId;
+        saveTimesheetDraft();
+        
+        // Sincronizar todos los borradores del día en MongoDB
+        DAY_KEYS.forEach(async (dayKey, dayIndex) => {
+            const cell = timesheetDraft[rowId].days[dayKey];
+            if (cell && cell.hours > 0) {
+                await saveDraftCellToMongoDB(rowId, dayKey, cell.hours, cell.detail || '');
+            }
+        });
+        
+        renderTimesheetGrid();
+    }
+}
+window.onAssignmentChange = onAssignmentChange;
+
+/**
+ * Handle changing ticket field in a row
+ */
+function onTicketChange(rowId, ticketVal) {
+    if (timesheetDraft[rowId]) {
+        timesheetDraft[rowId].ticket = ticketVal.trim();
+        saveTimesheetDraft();
+        
+        // Sincronizar todos los borradores del día en MongoDB
+        DAY_KEYS.forEach(async (dayKey, dayIndex) => {
+            const cell = timesheetDraft[rowId].days[dayKey];
+            if (cell && cell.hours > 0) {
+                await saveDraftCellToMongoDB(rowId, dayKey, cell.hours, cell.detail || '');
+            }
+        });
+    }
+}
+window.onTicketChange = onTicketChange;
+
+/**
  * Submit the weekly timesheet — generates individual reports for compatibility
  */
 async function submitWeeklyTimesheet() {
@@ -2779,14 +3072,16 @@ async function submitWeeklyTimesheet() {
     let entries = [];
     let hasDetail = true;
     
-    for (const aId of Object.keys(timesheetDraft)) {
-        const draft = timesheetDraft[aId];
+    for (const rowId of Object.keys(timesheetDraft)) {
+        const row = timesheetDraft[rowId];
+        const aId = row.assignmentId;
+        const ticket = row.ticket || '';
         let entryTotal = 0;
         const days = {};
         
         DAY_KEYS.forEach(dk => {
-            const h = draft[dk]?.hours || 0;
-            const d = draft[dk]?.detail || '';
+            const h = row.days?.[dk]?.hours || 0;
+            const d = row.days?.[dk]?.detail || '';
             days[dk] = { hours: h, detail: d };
             entryTotal += h;
             if (h > 0 && !d) hasDetail = false;
@@ -2813,9 +3108,11 @@ async function submitWeeklyTimesheet() {
             }
             
             entries.push({
+                rowId: rowId,
                 assignmentId: aId,
                 assignmentType: assignment?.assignmentType || 'support',
                 assignmentLabel: label,
+                ticket: ticket,
                 days,
                 totalHours: entryTotal
             });
@@ -2860,7 +3157,6 @@ async function submitWeeklyTimesheet() {
                     // Calcular horas consumidas a nivel proyecto
                     let consumedSoFar = 0;
                     Object.values(allTimesheets).forEach(ts => {
-                        // Omitir el actual si estamos re-enviando, y omitir rechazados
                         if (ts.timesheetId === existing?.timesheetId) return; 
                         if (ts.status === 'Rechazado') return;
                         
@@ -2901,18 +3197,21 @@ async function submitWeeklyTimesheet() {
     
     try {
         // 1. Eliminar borradores temporales correspondientes a esta semana en la BD
+        const reports = await window.PortalDB.getReports();
         for (const entry of entries) {
             for (let i = 0; i < 7; i++) {
                 const cellDate = new Date(currentWeekStart);
                 cellDate.setDate(cellDate.getDate() + i);
                 const dateStr = toISODate(cellDate);
-                const draftReportId = `rep_draft_${currentUser.userId}_${entry.assignmentId}_${dateStr.replace(/-/g, '')}`;
-                try {
-                    await window.PortalDB.deleteReport(draftReportId);
-                } catch (e) { /* ignore if draft doesn't exist */ }
+                const draftReportId = `rep_draft_${currentUser.userId}_${entry.rowId}_${dateStr.replace(/-/g, '')}`;
+                if (reports && reports[draftReportId]) {
+                    try {
+                        await window.PortalDB.deleteReport(draftReportId);
+                    } catch (e) { /* ignore if draft doesn't exist */ }
+                }
             }
         }
-
+ 
         // 2. Eliminar reportes antiguos asociados a este timesheet (en caso de re-envío)
         if (existing && existing.generatedReportIds && existing.generatedReportIds.length > 0) {
             for (const reportId of existing.generatedReportIds) {
@@ -2923,7 +3222,7 @@ async function submitWeeklyTimesheet() {
                 }
             }
         }
-
+ 
         // 3. Crear los nuevos reportes permanentes en MongoDB
         const generatedReportIds = [];
         
@@ -2944,6 +3243,7 @@ async function submitWeeklyTimesheet() {
                     
                     if (assignment) {
                         const reportId = 'REP' + Math.random().toString(36).substring(2, 6).toUpperCase() + Date.now().toString().slice(-4);
+                        const serializedDesc = serializeDescription(entry.ticket, dayData.detail);
                         
                         const reportData = {
                             reportId,
@@ -2953,7 +3253,7 @@ async function submitWeeklyTimesheet() {
                             companyId: assignment.companyId || 'GENERAL',
                             moduleId: assignment.moduleId || 'GENERAL',
                             title: `Timesheet ${DAY_LABELS[i]} ${formatShortDate(cellDate)} — ${entry.assignmentLabel}`,
-                            description: dayData.detail || `Horas registradas: ${dayData.hours}h`,
+                            description: serializedDesc,
                             hours: dayData.hours,
                             date: dateStr,
                             reportDate: dateStr,

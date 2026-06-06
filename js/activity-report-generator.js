@@ -36,7 +36,9 @@ class ActivityReportGenerator {
                 if (!projectName && resolved.projectName) projectName = resolved.projectName;
                 if (!clientName && resolved.clientName) clientName = resolved.clientName;
 
-                const ticketId = this._generateTicketId(entry.assignmentId, ts.weekStart);
+                const ticketId = entry.ticket && entry.ticket.trim() 
+                    ? entry.ticket.trim() 
+                    : this._generateTicketId(entry.assignmentId, ts.weekStart);
                 let daysWorked = 0;
                 for (let i = 0; i < 7; i++) {
                     if (entry.days?.[DAY_KEYS[i]]?.hours > 0) daysWorked++;
