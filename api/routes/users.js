@@ -1,55 +1,70 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const jwt = require('jsonwebtoken'); 
+const parsedMinPasswordLength = Number.parseInt(process.env.MIN_PASSWORD_LENGTH || '10', 10);
+const MIN_PASSWORD_LENGTH = Number.isFinite(parsedMinPasswordLength) ? parsedMinPasswordLength : 10;
+
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function redactUserPayload(payload = {}) {
+  const safePayload = { ...payload };
+  if (safePayload.password) {
+    safePayload.password = '[REDACTED]';
+  }
+  if (safePayload.currentPassword) {
+    safePayload.currentPassword = '[REDACTED]';
+  }
+  if (safePayload.newPassword) {
+    safePayload.newPassword = '[REDACTED]';
+  }
+  if (safePayload.profilePhoto) {
+    safePayload.profilePhoto = `[BASE64:${String(safePayload.profilePhoto).length} chars]`;
+  }
+  return safePayload;
+}
+
+function validatePasswordLength(password) {
+  if (!password || String(password).length < MIN_PASSWORD_LENGTH) {
+    return `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`;
+  }
+  return null;
+}
 
 // GET todos los usuarios
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const users = isAdmin(req)
+      ? await User.find().select('-password')
+      : await User.find({ isActive: true }).select('userId name role isActive profilePhoto chatStatus');
+
     res.json({ success: true, data: users });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ✅ Endpoint DEDICADO para obtener contraseñas (solo validación)
+// Endpoint deshabilitado: nunca se deben exponer hashes o contraseñas al cliente.
 router.get('/passwords', async (req, res) => {
-  try {
-    // Solo admin puede acceder
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'No autorizado' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Solo administradores pueden validar contraseñas' 
-      });
-    }
-
-    // Solo devolver userId y password (mínimo necesario)
-    const users = await User.find({}, 'userId password');
-    const passwords = users
-      .filter(u => u.password)
-      .map(u => ({ userId: u.userId, password: u.password }));
-
-    res.json({ success: true, data: passwords });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  res.status(410).json({
+    success: false,
+    message: 'Endpoint deshabilitado por seguridad'
+  });
 });
 
 // ✅ GET individual SIN password de nuevo (más seguro)
 router.get('/:id', async (req, res) => {
   try {
+    const canViewFullUser = isAdmin(req) || req.user.userId === req.params.id;
     const user = await User.findOne({ userId: req.params.id })
-      .select('-password');  // ← Volver a excluir password
+      .select(canViewFullUser ? '-password' : 'userId name role isActive profilePhoto chatStatus');
     
     if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    if (!canViewFullUser && user.isActive === false) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     }
     
@@ -62,14 +77,14 @@ router.get('/:id', async (req, res) => {
 // POST crear usuario
 router.post('/', async (req, res) => {
   // Solo admin puede crear usuarios
-  if (req.user.role !== 'admin') {
+  if (!isAdmin(req)) {
     return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
   }
 
   try {
     const userData = req.body;
     
-    console.log('📥 Datos recibidos para crear usuario:', userData);
+    console.log('📥 Datos recibidos para crear usuario:', redactUserPayload(userData));
     
     // Validar campos requeridos
     if (!userData.userId) {
@@ -83,6 +98,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         message: 'El campo password es requerido' 
+      });
+    }
+
+    const passwordError = validatePasswordLength(userData.password);
+    if (passwordError) {
+      return res.status(400).json({
+        success: false,
+        message: passwordError
       });
     }
 
@@ -127,20 +150,31 @@ router.post('/', async (req, res) => {
 // PUT actualizar usuario
 router.put('/:id', async (req, res) => {
   // Solo admin puede modificar otros usuarios, los consultores solo pueden modificarse a sí mismos
-  if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
+  if (!isAdmin(req) && req.user.userId !== req.params.id) {
     return res.status(403).json({ success: false, message: 'Acceso denegado: No tienes permisos para modificar este usuario' });
   }
 
   // Si no es admin, no permitir escalar privilegios o cambiar estado activo
-  if (req.user.role !== 'admin') {
+  if (!isAdmin(req)) {
+    if (req.body.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usa el flujo de cambio de contraseña para actualizar tu contraseña'
+      });
+    }
     delete req.body.role;
     delete req.body.isActive;
+    delete req.body.password;
   }
 
   try {
     const updates = req.body;
     
-    console.log('📝 Actualizando usuario:', req.params.id, updates);
+    if (updates.password !== undefined && String(updates.password).trim() === '') {
+      delete updates.password;
+    }
+    
+    console.log('📝 Actualizando usuario:', req.params.id, redactUserPayload(updates));
     
     const mongoose = require('mongoose');
     const query = { 
@@ -152,6 +186,14 @@ router.put('/:id', async (req, res) => {
 
     // Si se actualiza la contraseña, necesita re-hash
     if (updates.password) {
+      const passwordError = validatePasswordLength(updates.password);
+      if (passwordError) {
+        return res.status(400).json({
+          success: false,
+          message: passwordError
+        });
+      }
+
       const user = await User.findOne(query);
       
       if (!user) {
@@ -211,7 +253,7 @@ router.put('/:id', async (req, res) => {
 // DELETE eliminar usuario
 router.delete('/:id', async (req, res) => {
   // Solo admin puede borrar usuarios
-  if (req.user.role !== 'admin') {
+  if (!isAdmin(req)) {
     return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
   }
 
@@ -302,7 +344,7 @@ router.delete('/:id/profile-photo', async (req, res) => {
 
 // PUT cambiar contraseña
 router.put('/:id/change-password', async (req, res) => {
-  if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
+  if (!isAdmin(req) && req.user.userId !== req.params.id) {
     return res.status(403).json({ success: false, message: 'Acceso denegado: No tienes permisos para modificar este usuario' });
   }
 
@@ -313,8 +355,9 @@ router.put('/:id/change-password', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Se requieren ambas contraseñas' });
     }
 
-    if (newPassword.length < 4) {
-      return res.status(400).json({ success: false, message: 'La nueva contraseña debe tener al menos 4 caracteres' });
+    const passwordError = validatePasswordLength(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ success: false, message: passwordError });
     }
 
     const mongoose = require('mongoose');

@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
@@ -13,33 +15,116 @@ const { authenticateToken } = require('./middleware/auth');
 const compression = require('compression');
 
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
+
+function parseList(value) {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeOrigin(origin) {
+  return origin ? origin.replace(/\/$/, '') : origin;
+}
+
+function readPositiveInt(value, fallback, min = 1) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < min) return fallback;
+  return parsed;
+}
+
+const configuredOrigins = [
+  process.env.APP_URL,
+  ...parseList(process.env.CORS_ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS)
+]
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
+const developmentOrigins = [
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://tsmjosem.github.io'
+];
+
+const allowedOrigins = new Set([
+  ...configuredOrigins,
+  ...(!isProduction ? developmentOrigins : [])
+].map(normalizeOrigin));
+
+const allowVercelPreviews = process.env.ALLOW_VERCEL_PREVIEWS === 'true';
+const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '10mb';
 
 // Middlewares
+app.set('trust proxy', 1);
 app.use(compression());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  hsts: isProduction ? undefined : false
+}));
 app.use(cors({
   origin: function (origin, callback) {
-    // Permitir requests sin origin (como Postman) y todos los dominios de Vercel
-    const allowedOrigins = [
-      'http://localhost:5500',
-      'http://127.0.0.1:5500',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'https://tsmjosem.github.io'
-    ];
-    
-    // Permitir cualquier dominio .vercel.app
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    if (!origin) {
+      return callback(null, !isProduction || process.env.CORS_ALLOW_NO_ORIGIN === 'true');
     }
+
+    const normalizedOrigin = normalizeOrigin(origin);
+    let hostname = '';
+    try {
+      hostname = new URL(normalizedOrigin).hostname;
+    } catch (error) {
+      return callback(null, false);
+    }
+
+    if (
+      allowedOrigins.has(normalizedOrigin) ||
+      (allowVercelPreviews && hostname.endsWith('.vercel.app'))
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control']
 }));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: readPositiveInt(process.env.API_RATE_LIMIT_MAX, 600),
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: req => req.method === 'OPTIONS',
+  message: {
+    success: false,
+    message: 'Demasiadas solicitudes. Intenta nuevamente en unos minutos.'
+  }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: readPositiveInt(process.env.AUTH_RATE_LIMIT_MAX, 25),
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  message: {
+    success: false,
+    message: 'Demasiados intentos. Intenta nuevamente en unos minutos.'
+  }
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
+app.use('/api', apiLimiter);
+
+app.use(express.json({ limit: requestBodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 
 // Sanitizar operadores NoSQL para evitar inyecciones de queries
 function sanitizeNoSQL(obj) {
@@ -124,9 +209,16 @@ async function connectToDatabase() {
 
   if (!cachedConnection) {
     console.log('📡 [DB] Conectando a MongoDB Atlas...');
+    const mongoOptions = {
+      maxPoolSize: readPositiveInt(process.env.MONGODB_MAX_POOL_SIZE, 10),
+      minPoolSize: readPositiveInt(process.env.MONGODB_MIN_POOL_SIZE, 0, 0),
+      maxIdleTimeMS: readPositiveInt(process.env.MONGODB_MAX_IDLE_TIME_MS, 30000),
+      serverSelectionTimeoutMS: readPositiveInt(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS, 8000),
+      socketTimeoutMS: readPositiveInt(process.env.MONGODB_SOCKET_TIMEOUT_MS, 45000)
+    };
+
     cachedConnection = mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 8000, // Tiempo límite para encontrar el servidor
-      socketTimeoutMS: 45000,
+      ...mongoOptions,
     });
   }
 
@@ -527,7 +619,7 @@ wss.on('connection', (ws) => {
           // Notify both parties
           const payload = JSON.stringify({ type: 'message_deleted', messageId: data.messageId });
           ws.send(payload);
-          const receiverWs = clients.get(receiverId);
+          const receiverWs = clients.get(msg.receiverId);
           if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
             receiverWs.send(payload);
           }

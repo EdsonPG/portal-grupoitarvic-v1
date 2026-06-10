@@ -2,17 +2,17 @@
 
 ## Endpoint `/api/users/passwords`
 
-Estado: pendiente
+Estado: resuelto en `codex/seguridad-estabilidad-produccion`
 
-El endpoint `GET /api/users/passwords` sigue activo para no romper el modulo actual de gestion de usuarios. Actualmente lo consume `js/modules/users/UserRepository.js` para validar datos que el frontend no puede resolver con `GET /api/users`, porque esa ruta excluye `password`.
+El endpoint `GET /api/users/passwords` quedo deshabilitado con respuesta `410 Gone`. El modulo actual de gestion de usuarios ya no consulta hashes para validar unicidad de contrasenas.
 
-Riesgo: aunque el endpoint requiere token de administrador, devuelve hashes de contrasenas al navegador. Ese dato no deberia salir del backend.
+Riesgo anterior: aunque el endpoint requeria token de administrador, devolvia hashes de contrasenas al navegador. Ese dato no debe salir del backend.
 
-Correccion recomendada:
+Correccion aplicada:
 
-1. Reemplazar las validaciones del frontend por endpoints de validacion del lado servidor.
-2. Evitar devolver hashes o contrasenas, incluso a usuarios administradores.
-3. Mantener respuestas booleanas o mensajes de validacion especificos.
-4. Eliminar `PortalDatabase.getPasswordsForValidation()` cuando el modulo de usuarios ya no lo necesite.
+1. Deshabilitar `/api/users/passwords`.
+2. Evitar que `UserRepository` consulte hashes de contrasenas.
+3. Quitar la validacion de unicidad de contrasenas desde el frontend.
+4. Mantener validaciones de formato y longitud minima.
 
 Nota: las credenciales de prueba se movieron fuera de `/js` para que no se carguen desde el portal publico. Si esas credenciales fueron usadas en una base real, deben rotarse.
