@@ -371,23 +371,43 @@ app.get('/api/all-data/consultor', authenticateToken, async (req, res) => {
     const Report = require('./models/Report');
 
     const [
-      companies,
-      supports,
-      modules,
-      projects,
       assignments,
       projectAssignments,
       taskAssignments,
       reports
     ] = await Promise.all([
-      Company.find(),
-      Support.find(),
-      Module.find(),
-      Project.find(),
-      Assignment.find({ userId: userId, isActive: { $ne: false } }),
-      ProjectAssignment.find({ $or: [{ consultorId: userId }, { userId: userId }], isActive: { $ne: false } }),
-      TaskAssignment.find({ $or: [{ consultorId: userId }, { userId: userId }], isActive: { $ne: false } }),
+      Assignment.find({ userId: userId, isActive: { $ne: false } }).select('-tarifaConsultor -tarifaCliente'),
+      ProjectAssignment.find({ $or: [{ consultorId: userId }, { userId: userId }], isActive: { $ne: false } }).select('-tarifaConsultor -tarifaCliente'),
+      TaskAssignment.find({ $or: [{ consultorId: userId }, { userId: userId }], isActive: { $ne: false } }).select('-tarifaConsultor -tarifaCliente'),
       Report.find({ userId: userId }).sort({ date: -1 })
+    ]);
+
+    const companyIds = [...new Set([
+      ...assignments.map(item => item.companyId),
+      ...projectAssignments.map(item => item.companyId),
+      ...taskAssignments.map(item => item.companyId)
+    ].filter(Boolean))];
+    const supportIds = [...new Set([
+      ...assignments.map(item => item.supportId),
+      ...taskAssignments.map(item => item.linkedSupportId)
+    ].filter(Boolean))];
+    const moduleIds = [...new Set([
+      ...assignments.map(item => item.moduleId),
+      ...projectAssignments.map(item => item.moduleId),
+      ...taskAssignments.map(item => item.moduleId)
+    ].filter(Boolean))];
+    const projectIds = [...new Set(projectAssignments.map(item => item.projectId).filter(Boolean))];
+
+    const [
+      companies,
+      supports,
+      modules,
+      projects
+    ] = await Promise.all([
+      Company.find({ companyId: { $in: companyIds } }),
+      Support.find({ supportId: { $in: supportIds } }),
+      Module.find({ moduleId: { $in: moduleIds } }),
+      Project.find({ projectId: { $in: projectIds } })
     ]);
 
     res.json({

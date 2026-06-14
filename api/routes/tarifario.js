@@ -2,8 +2,22 @@ const express = require('express');
 const router = express.Router();
 const Tarifario = require('../models/Tarifario');
 
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function requireAdmin(req, res) {
+  if (!isAdmin(req)) {
+    res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+    return false;
+  }
+  return true;
+}
+
 // GET todos los tarifarios
 router.get('/', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     const tarifarios = await Tarifario.find();
     res.json({ success: true, data: tarifarios });
@@ -13,8 +27,23 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET tarifarios por assignmentId
+router.get('/assignment/:assignmentId', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  try {
+    const tarifarios = await Tarifario.find({ assignmentId: req.params.assignmentId });
+    res.json({ success: true, data: tarifarios });
+  } catch (error) {
+    console.error('❌ Error obteniendo tarifarios por asignación:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET tarifario por ID
 router.get('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     const tarifario = await Tarifario.findOne({ tarifarioId: req.params.id });
     if (!tarifario) {
@@ -27,19 +56,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// GET tarifarios por assignmentId
-router.get('/assignment/:assignmentId', async (req, res) => {
-  try {
-    const tarifarios = await Tarifario.find({ assignmentId: req.params.assignmentId });
-    res.json({ success: true, data: tarifarios });
-  } catch (error) {
-    console.error('❌ Error obteniendo tarifarios por asignación:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
 // POST crear tarifario
 router.post('/', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     const tarifarioData = req.body;
     
@@ -93,6 +113,8 @@ router.post('/', async (req, res) => {
 
 // PUT actualizar tarifario
 router.put('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     const updates = req.body;
     updates.updatedAt = new Date();
@@ -145,6 +167,8 @@ router.put('/:id', async (req, res) => {
 
 // DELETE eliminar tarifario
 router.delete('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     console.log('🗑️ Eliminando tarifario:', req.params.id);
     

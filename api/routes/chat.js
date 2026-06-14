@@ -4,6 +4,21 @@ const ChatMessage = require('../models/ChatMessage');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function canAccessUser(req, userId) {
+  return isAdmin(req) || req.user?.userId === userId;
+}
+
+async function canAccessReport(req, reportId) {
+  if (!reportId) return true;
+  const Report = require('../models/Report');
+  const report = await Report.findOne({ reportId });
+  return !!report && (isAdmin(req) || report.userId === req.user.userId);
+}
+
 // ==========================================
 // SSE (Server-Sent Events) Infrastructure
 // ==========================================
@@ -97,8 +112,7 @@ router.get('/stream', authenticateToken, async (req, res) => {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'X-Accel-Buffering': 'no', // Disable nginx buffering
-    'Access-Control-Allow-Origin': '*'
+    'X-Accel-Buffering': 'no' // Disable nginx buffering
   });
   
   // Send initial connection event
@@ -238,6 +252,10 @@ router.get('/history/:contextId', authenticateToken, async (req, res) => {
     
     let query = {};
     if (isReport === 'true') {
+      const allowed = await canAccessReport(req, contextId);
+      if (!allowed) {
+        return res.status(403).json({ success: false, message: 'No tienes permisos para consultar este chat de reporte' });
+      }
       query.reportId = contextId;
     } else {
       const myUserId = req.user.userId;
@@ -262,6 +280,9 @@ router.get('/history/:contextId', authenticateToken, async (req, res) => {
 router.get('/unread-count/:userId', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
+    if (!canAccessUser(req, userId)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para consultar estos mensajes' });
+    }
     
     // Aggregate: count unread messages grouped by senderId
     const unreadCounts = await ChatMessage.aggregate([
@@ -347,6 +368,9 @@ router.put('/mark-read/:senderId', authenticateToken, async (req, res) => {
 router.get('/last-messages/:userId', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
+    if (!canAccessUser(req, userId)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para consultar estas conversaciones' });
+    }
 
     // Get last message per conversation partner
     const lastMessages = await ChatMessage.aggregate([
@@ -398,6 +422,13 @@ router.post('/send', authenticateToken, async (req, res) => {
     
     if (!receiverId) {
       return res.status(400).json({ success: false, message: 'Falta receiverId' });
+    }
+
+    if (reportId) {
+      const allowed = await canAccessReport(req, reportId);
+      if (!allowed) {
+        return res.status(403).json({ success: false, message: 'No tienes permisos para enviar mensajes sobre este reporte' });
+      }
     }
 
     const newMsg = new ChatMessage({

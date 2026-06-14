@@ -3,6 +3,37 @@ const router = express.Router();
 const CalendarEvent = require('../models/CalendarEvent');
 const jwt = require('jsonwebtoken');
 
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function visibleEventsFilter(req) {
+  if (isAdmin(req)) return {};
+  return {
+    $or: [
+      { createdBy: req.user.userId },
+      { 'attendees.userId': req.user.userId }
+    ]
+  };
+}
+
+function mergeWithAnd(...filters) {
+  const cleanFilters = filters.filter(filter => filter && Object.keys(filter).length > 0);
+  if (cleanFilters.length === 0) return {};
+  if (cleanFilters.length === 1) return cleanFilters[0];
+  return { $and: cleanFilters };
+}
+
+function canViewEvent(req, event) {
+  return isAdmin(req) ||
+    event.createdBy === req.user.userId ||
+    event.attendees.some(attendee => attendee.userId === req.user.userId);
+}
+
+function canManageEvent(req, event) {
+  return isAdmin(req) || event.createdBy === req.user.userId;
+}
+
 // Middleware para verificar token
 const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -23,37 +54,30 @@ const authenticateToken = (req, res, next) => {
 router.get('/events', authenticateToken, async (req, res) => {
   try {
     const { start, end, userId } = req.query;
-    const query = {};
+    const dateQuery = {};
 
     if (start && end) {
-      query.$or = [
+      dateQuery.$or = [
         { startDate: { $gte: new Date(start), $lte: new Date(end) } },
         { endDate: { $gte: new Date(start), $lte: new Date(end) } },
         { startDate: { $lte: new Date(start) }, endDate: { $gte: new Date(end) } }
       ];
     }
 
-    // If userId specified, only events where user is creator or attendee
+    let userFilter = {};
     if (userId) {
-      const userFilter = {
+      if (!isAdmin(req) && userId !== req.user.userId) {
+        return res.status(403).json({ success: false, message: 'No tienes permisos para consultar eventos de este usuario' });
+      }
+      userFilter = {
         $or: [
           { createdBy: userId },
           { 'attendees.userId': userId }
         ]
       };
-      // Merge with date query
-      if (query.$or) {
-        const dateOr = query.$or;
-        delete query.$or;
-        query.$and = [
-          { $or: dateOr },
-          userFilter
-        ];
-      } else {
-        Object.assign(query, userFilter);
-      }
     }
 
+    const query = mergeWithAnd(dateQuery, visibleEventsFilter(req), userFilter);
     const events = await CalendarEvent.find(query).sort({ startDate: 1 });
     res.json({ success: true, data: events });
   } catch (error) {
@@ -70,6 +94,9 @@ router.get('/events/:id', authenticateToken, async (req, res) => {
     const event = await CalendarEvent.findOne({ eventId: req.params.id });
     if (!event) {
       return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+    }
+    if (!canViewEvent(req, event)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para consultar este evento' });
     }
     res.json({ success: true, data: event });
   } catch (error) {
@@ -126,6 +153,9 @@ router.put('/events/:id', authenticateToken, async (req, res) => {
     if (!event) {
       return res.status(404).json({ success: false, message: 'Evento no encontrado' });
     }
+    if (!canManageEvent(req, event)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para modificar este evento' });
+    }
 
     const allowedFields = ['title', 'description', 'startDate', 'endDate', 'allDay', 'type', 'attendees', 'meetingLink', 'color', 'location', 'relatedProjectId', 'relatedCompanyId', 'notes'];
     
@@ -152,10 +182,15 @@ router.put('/events/:id', authenticateToken, async (req, res) => {
 // ==========================================
 router.delete('/events/:id', authenticateToken, async (req, res) => {
   try {
-    const result = await CalendarEvent.findOneAndDelete({ eventId: req.params.id });
-    if (!result) {
+    const event = await CalendarEvent.findOne({ eventId: req.params.id });
+    if (!event) {
       return res.status(404).json({ success: false, message: 'Evento no encontrado' });
     }
+    if (!canManageEvent(req, event)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para eliminar este evento' });
+    }
+
+    await CalendarEvent.deleteOne({ eventId: req.params.id });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting calendar event:', error);
@@ -178,17 +213,15 @@ router.post('/events/:id/rsvp', authenticateToken, async (req, res) => {
     if (!event) {
       return res.status(404).json({ success: false, message: 'Evento no encontrado' });
     }
+    if (!canViewEvent(req, event)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para responder a este evento' });
+    }
 
     const attendee = event.attendees.find(a => a.userId === req.user.userId);
     if (attendee) {
       attendee.status = status;
     } else {
-      event.attendees.push({
-        userId: req.user.userId,
-        name: req.user.name || req.user.userId,
-        email: req.user.email || '',
-        status
-      });
+      return res.status(403).json({ success: false, message: 'Solo los invitados pueden responder asistencia' });
     }
 
     await event.save();
@@ -212,24 +245,28 @@ router.get('/day-summary/:date', authenticateToken, async (req, res) => {
     endOfDay.setHours(23, 59, 59, 999);
 
     // Get events for that day
-    const events = await CalendarEvent.find({
+    const dateEventsQuery = {
       $or: [
         { startDate: { $gte: startOfDay, $lte: endOfDay } },
         { endDate: { $gte: startOfDay, $lte: endOfDay } },
         { startDate: { $lte: startOfDay }, endDate: { $gte: endOfDay } }
       ]
-    }).sort({ startDate: 1 });
+    };
+
+    const events = await CalendarEvent.find(mergeWithAnd(dateEventsQuery, visibleEventsFilter(req))).sort({ startDate: 1 });
 
     // Get reports/timesheets for that day
     let reports = [];
     try {
       const Report = require('../models/Report');
-      reports = await Report.find({
+      const reportDateQuery = {
         $or: [
-          { fecha: { $gte: startOfDay, $lte: endOfDay } },
+          { date: { $gte: startOfDay, $lte: endOfDay } },
           { createdAt: { $gte: startOfDay, $lte: endOfDay } }
         ]
-      }).sort({ createdAt: 1 });
+      };
+      const reportScope = isAdmin(req) ? {} : { userId: req.user.userId };
+      reports = await Report.find(mergeWithAnd(reportDateQuery, reportScope)).sort({ createdAt: 1 });
     } catch (e) {
       // Report model might not have fecha field, fallback silently
     }
@@ -287,6 +324,9 @@ router.post('/events/:id/invite', authenticateToken, async (req, res) => {
     const event = await CalendarEvent.findOne({ eventId: req.params.id });
     if (!event) {
       return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+    }
+    if (!canManageEvent(req, event)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para enviar invitaciones de este evento' });
     }
 
     // Create notifications for each attendee

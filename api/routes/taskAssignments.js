@@ -8,10 +8,30 @@ const Support = require('../models/Support');
 const Module = require('../models/Module');
 const User = require('../models/User');
 
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function requireAdmin(req, res) {
+  if (!isAdmin(req)) {
+    res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+    return false;
+  }
+  return true;
+}
+
+function scopeQuery(req, query = {}) {
+  return isAdmin(req) ? query : { ...query, consultorId: req.user.userId };
+}
+
 // GET todas las asignaciones de tarea
 router.get('/', async (req, res) => {
   try {
-    const taskAssignments = await TaskAssignment.find();
+    const query = TaskAssignment.find(scopeQuery(req));
+    if (!isAdmin(req)) {
+      query.select('-tarifaConsultor -tarifaCliente');
+    }
+    const taskAssignments = await query;
     res.json({ success: true, data: taskAssignments });
   } catch (error) {
     console.error('❌ Error obteniendo asignaciones de tarea:', error);
@@ -22,7 +42,11 @@ router.get('/', async (req, res) => {
 // GET asignación de tarea por ID
 router.get('/:id', async (req, res) => {
   try {
-    const taskAssignment = await TaskAssignment.findOne({ taskAssignmentId: req.params.id });
+    const query = TaskAssignment.findOne(scopeQuery(req, { taskAssignmentId: req.params.id }));
+    if (!isAdmin(req)) {
+      query.select('-tarifaConsultor -tarifaCliente');
+    }
+    const taskAssignment = await query;
     if (!taskAssignment) {
       return res.status(404).json({ success: false, message: 'Asignación de tarea no encontrada' });
     }
@@ -35,6 +59,8 @@ router.get('/:id', async (req, res) => {
 
 // POST crear asignación de tarea
 router.post('/', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     console.log('📝 Creando asignación de tarea:', req.body);
     
@@ -99,6 +125,8 @@ router.post('/', async (req, res) => {
 
 // PUT actualizar asignación de tarea
 router.put('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     const updates = req.body;
     updates.updatedAt = new Date();
@@ -133,6 +161,8 @@ router.put('/:id', async (req, res) => {
 
 // DELETE eliminar asignación de tarea
 router.delete('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     console.log('Eliminando asignación de tarea:', req.params.id);
     
