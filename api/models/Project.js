@@ -14,6 +14,10 @@ const projectSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  maxHours: {
+    type: Number, 
+    default: 0
+  },
   isActive: {
     type: Boolean,
     default: true

@@ -626,14 +626,14 @@ class PortalDatabase {
             const result = await response.json();
             
             if (result.success) {
-                console.log('✅ Empresa actualizada:', companyId);
+                console.log('Empresa actualizada:', companyId);
                 this.invalidateCache('companies');
                 return { success: true, company: result.data };
             }
             
             return { success: false, message: result.message };
         } catch (error) {
-            console.error('❌ Error actualizando empresa:', error);
+            console.error('Error actualizando empresa:', error);
             return { success: false, message: 'Error de conexión' };
         }
     }
@@ -1886,7 +1886,8 @@ async getTarifario() {
             const result = await response.json();
             
             if (result.success) {
-                console.log('✅ Entrada de tarifario actualizada:', tarifaId);
+                this.invalidateCache('tarifario');
+                console.log('Entrada de tarifario actualizada:', tarifaId);
                 return { success: true, tarifa: result.data };
             }
             

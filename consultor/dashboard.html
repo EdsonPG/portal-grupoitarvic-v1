@@ -339,18 +339,16 @@
     <main class="main-content" id="mainContent">
         <div class="container">
             <div class="content-wrapper">
-                <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+                <div class="sidebar-overlay" onclic="toggleMobileSidebar()"></div>
                 <!-- Sidebar -->
                 <div class="sidebar consultor-sidebar">
-                    <h2 class="sidebar-title"><i class="fa-solid fa-clock"></i> Timesheet</h2>
+                    <h2 class="sidebar-title"> Timesheet</h2>
                     <div class="sidebar-menu">
                         <div class="menu-item active" data-view="timesheet" onclick="switchConsultorView('timesheet')">
-                            <i class="fa-solid fa-table-columns"></i>
                             <span class="menu-text">Captura Semanal</span>
                             <span class="menu-badge" id="assignmentsCount">0</span>
                         </div>
                         <div class="menu-item" data-view="historial" onclick="switchConsultorView('historial')">
-                            <i class="fa-solid fa-clock-rotate-left"></i>
                             <span class="menu-text">Historial</span>
                         </div>
                     </div>
@@ -366,13 +364,21 @@
                 <div class="main-panel consultor-main">
                     <!-- === VISTA: TIMESHEET SEMANAL === -->
                     <div id="timesheetView" class="consultor-view active">
+                        <!-- Timesheet notice pending / data unsave -->
+                        <div id="pendingTimesheetAlert" class="info-display" style="display:none; margin-bottom: 16px; border-left-color: var(--primary-color);">
+                            <h4 style="margin: 0 0 6px 0; display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-circle-info"></i> <span id="pendingAlertTitle"></span>
+                            </h4>
+                            <p id="pendingAlertMessage" style="margin: 0 0 12px 0;"></p>
+                            <button class="btn btn-secondary" id="pendingAlertActionBtn" style="padding: 6px 14px; font-size: 0.82em;"></button>
+                        </div>
                         <!-- Week Navigator -->
                         <div class="week-navigator">
                             <button class="week-nav-btn" onclick="navigateWeek(-1)" title="Semana anterior">
                                 <i class="fa-solid fa-chevron-left"></i>
                             </button>
                             <div class="week-info">
-                                <span class="week-label"><i class="fa-solid fa-calendar-week"></i> Semana</span>
+                                <span class="week-label"> Semana</span>
                                 <span class="week-range" id="weekRangeDisplay">Cargando...</span>
                             </div>
                             <button class="week-nav-btn" onclick="navigateWeek(1)" title="Semana siguiente" id="weekNextBtn">
@@ -419,7 +425,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="ts-totals-row">
-                                        <td class="ts-totals-label"><strong><i class="fa-solid fa-calculator"></i> Total Diario</strong></td>
+                                        <td class="ts-totals-label"> Total Diario</strong></td>
                                         <td></td>
                                         <td id="totalMon">0</td>
                                         <td id="totalTue">0</td>
@@ -453,15 +459,18 @@
                         <div class="timesheet-actions" id="timesheetActions">
                             <div class="ts-actions-left">
                                 <span class="ts-autosave-status" id="autosaveStatus">
-                                    <i class="fa-solid fa-cloud-check"></i> Guardado automático
+                                    Cambios sin guardar
                                 </span>
                             </div>
                             <div class="ts-actions-right">
                                 <button class="btn btn-secondary" onclick="clearWeekDraft()" id="btnClearDraft">
-                                    <i class="fa-solid fa-eraser"></i> Limpiar
+                                    Limpiar
                                 </button>
-                                <button class="btn btn-primary ts-submit-btn" onclick="submitWeeklyTimesheet()" id="btnSubmitWeek">
-                                    <i class="fa-solid fa-paper-plane"></i> Enviar Semana
+                                <button class="btn btn-secondary" onclick="saveWeekDraft()" id="btnSaveDraft">
+                                    Guardar Borrador
+                                </button>
+                                <button class="btn btn-primary ts-submit-btn" onclick="confirmSubmitWeeklyTimesheet()" id="btnSubmitWeek">
+                                    Enviar Semana
                                 </button>
                             </div>
                         </div>
@@ -475,7 +484,7 @@
 
                     <!-- === VISTA: HISTORIAL === -->
                     <div id="historialView" class="consultor-view" style="display:none;">
-                        <h2 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Timesheets</h2>
+                        <h2 class="section-title">Historial de Timesheets</h2>
                         <div id="historialTableContainer">
                             <table class="crud-table">
                                 <thead>
@@ -627,6 +636,36 @@
             </div>
             <div id="reportsList">
                 <!-- Lista de reportes -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para enviar timesheet -->
+<div id="submitConfirmModal" class="modal">
+    <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-header">
+            <h2 class="modal-title"><i class="fa-solid fa-paper-plane"></i> Enviar a revisión</h2>
+            <button class="close" onclick="closeSubmitConfirmModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size: 1rem; color: var(--gray-700); margin-bottom: 16px;">
+                ¿Seguro que deseas enviar este timesheet a revisión?
+            </p>
+            <div class="info-display" style="margin-bottom: 16px;">
+                <p id="submitConfirmSummary" style="margin: 0; font-weight: 600;"></p>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--gray-600);">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i>
+                Una vez enviado, <strong>no podrás hacer cambios</strong> hasta que sea revisado por un administrador.
+            </p>
+            <div class="modal-actions" style="margin-top: 24px;">
+                <button class="btn btn-secondary" onclick="closeSubmitConfirmModal()">
+                    <i class="fa-solid fa-xmark"></i> Cancelar
+                </button>
+                <button class="btn btn-primary" onclick="executeConfirmedSubmit()">
+                    <i class="fa-solid fa-check"></i> Confirmar y enviar
+                </button>
             </div>
         </div>
     </div>

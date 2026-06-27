@@ -163,7 +163,8 @@ function renderNotifications(notifications) {
     };
 
     container.innerHTML = notifications.map(n => `
-        <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markNotificationRead('${n.notificationId}', this)">
+        <div class="notif-item ${n.read ? '' : 'unread'}" 
+        onclick="handleNotificationClick('${n.notificationId}', '${n.type}', '${n.relatedId || ''}', this)">
             <div class="notif-icon type-${n.type}">
                 <i class="${iconMap[n.type] || 'fa-solid fa-bell'}"></i>
             </div>
@@ -195,7 +196,8 @@ function timeAgo(dateStr) {
     return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 }
 
-async function markNotificationRead(notifId, element) {
+async function handleNotificationClick(notifId, type, relatedId, element) {
+    // 1. Marcar como leída
     try {
         await window.PortalDB.markNotificationAsRead(notifId);
         if (element) {
@@ -207,12 +209,38 @@ async function markNotificationRead(notifId, element) {
     } catch (error) {
         console.error('Error marcando notificación:', error);
     }
+
+    // 2. Cerrar el panel de notificaciones
+    const panel = document.getElementById('notifPanel');
+    if (panel) panel.classList.remove('active');
+
+    // 3. Navegar a la sección correspondiente
+    const sectionMap = {
+        'report_created':      'reportes-pendientes',
+        'report_resubmitted':  'reportes-pendientes',
+        'report_approved':     'reportes-aprobados',
+        'report_rejected':     'reportes-aprobados',
+        'assignment_new':      'lista-asignaciones',
+        'user_registered':     'usuarios',
+        'system':              null
+    };
+
+    const section = sectionMap[type];
+    if (section) {
+        await showSection(section);
+    }
+}
+
+// Mantener compatibilidad por si se llama desde otro lado
+async function markNotificationRead(notifId, element) {
+    await handleNotificationClick(notifId, null, null, element);
 }
 
 async function markAllNotificationsRead() {
     const userId = notifCurrentUserId || 'admin';
     try {
         await window.PortalDB.markAllNotificationsAsRead(userId);
+        console.log('Todas las notificaciones marcadas como leídas');
         loadNotifications();
         updateNotificationBadge();
     } catch (error) {
@@ -1606,13 +1634,16 @@ async function updateProjectAssignmentDropdowns() {
             
             // Agregar opciones de datos
             if (config.data && config.data.length > 0) {
+                const seenIds = new Set();
                 config.data.forEach(item => {
+                    const id = item[config.valueField];
+                    if (seenIds.has(id)) return; // ← saltar duplicado
+                    seenIds.add(id);
                     const option = document.createElement('option');
-                    option.value = item[config.valueField];  // ✅ USAR EL CAMPO CORRECTO
+                    option.value = id;
                     option.textContent = config.getLabel(item);
                     element.appendChild(option);
                 });
-                console.log(`✅ ${config.id} actualizado con ${config.data.length} opciones`);
             }
         } catch (error) {
             console.error(`❌ Error actualizando ${config.id}:`, error);
@@ -2447,13 +2478,16 @@ function updateDropdowns() {
             console.log(`📊 Datos obtenidos para ${config.id}: ${data.length} elementos`);
             
             if (data && data.length > 0) {
+                const seenIds = new Set();
                 data.forEach(item => {
+                    const id = getItemId(item, config.type);
+                    if (seenIds.has(id)) return; // ← saltar duplicado
+                    seenIds.add(id);
                     const option = document.createElement('option');
-                    option.value = getItemId(item, config.type);  // ✅ CAMBIADO: Usa la función helper
+                    option.value = id;
                     option.textContent = config.getLabel(item);
                     element.appendChild(option);
                 });
-                console.log(`✅ ${config.id} actualizado con ${data.length} opciones`);
             } else {
                 console.log(`⚠️ ${config.id} actualizado pero sin datos`);
             }
@@ -4115,9 +4149,61 @@ function editCompany(companyId) {
     alert(`Editar empresa ${companyId}\n\n(Funcionalidad en desarrollo)`);
 }
 
-function editProject(projectId) {
-    alert(`Editar proyecto ${projectId}\n\n(Funcionalidad en desarrollo)`);
+async function editProject(projectId) {
+    const project = currentData.projects?.[projectId];
+    if (!project) {
+        alert('Proyecto no encontrado');
+        return;
+    }
+
+    // Poblar el modal con los datos actuales
+    document.getElementById('editProjectId').value = project.projectId;
+    document.getElementById('editProjectName').value = project.name || '';
+    document.getElementById('editProjectDescription').value = project.description || '';
+    document.getElementById('editProjectMaxHours').value = project.maxHours || '';
+
+    window.ModalUtils.open('editProjectModal');
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('editProjectForm');
+    if (form) {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const projectId = document.getElementById('editProjectId').value;
+            const name = document.getElementById('editProjectName').value.trim();
+            const description = document.getElementById('editProjectDescription').value.trim();
+            const maxHoursVal = document.getElementById('editProjectMaxHours').value;
+
+            if (!name) {
+                alert('El nombre del proyecto es requerido');
+                return;
+            }
+
+            try {
+                const result = await window.PortalDB.updateProject(projectId, {
+                    name,
+                    description,
+                    maxHours: maxHoursVal ? parseInt(maxHoursVal) : 0
+                });
+
+                if (result.success) {
+                    closeModal('editProjectModal');
+                    await loadAllData();
+                    if (window.NotificationUtils) {
+                        window.NotificationUtils.success('Proyecto actualizado correctamente');
+                    }
+                } else {
+                    alert('Error: ' + (result.message || 'No se pudo actualizar el proyecto'));
+                }
+            } catch (error) {
+                console.error('Error actualizando proyecto:', error);
+                alert('Error al actualizar proyecto: ' + error.message);
+            }
+        });
+    }
+});
 
 function editSupport(supportId) {
     alert(`Editar soporte ${supportId}\n\n(Funcionalidad en desarrollo)`);
@@ -10057,7 +10143,10 @@ async function loadTaskFilters() {
     const companyFilter = document.getElementById('taskFilterCompany');
     if (companyFilter) {
         companyFilter.innerHTML = '<option value="">Todos los clientes</option>';
+        const seenCompanies = new Set();
         Object.values(currentData.companies).forEach(company => {
+            if (seenCompanies.has(company.companyId)) return;
+            seenCompanies.add(company.companyId);
             const option = document.createElement('option');
             option.value = company.companyId;
             option.textContent = company.name;
@@ -10069,7 +10158,10 @@ async function loadTaskFilters() {
     const supportFilter = document.getElementById('taskFilterSupport');
     if (supportFilter) {
         supportFilter.innerHTML = '<option value="">Todos los soportes</option>';
+        const seenSupports = new Set();
         Object.values(currentData.supports).forEach(support => {
+            if (seenSupports.has(support.supportId)) return;
+            seenSupports.add(support.supportId);
             const option = document.createElement('option');
             option.value = support.supportId;
             option.textContent = support.name;
@@ -10081,12 +10173,17 @@ async function loadTaskFilters() {
     const consultorFilter = document.getElementById('taskFilterConsultor');
     if (consultorFilter) {
         consultorFilter.innerHTML = '<option value="">Todos los consultores</option>';
-       Object.values(currentData.users).filter(u => u.role === 'Consultor' || u.role === 'consultor').forEach(user => {
-            const option = document.createElement('option');
-            option.value = user.userId;
-            option.textContent = user.name;
-            consultorFilter.appendChild(option);
-        });
+        const seenUsers = new Set();
+        Object.values(currentData.users)
+            .filter(u => u.role === 'Consultor' || u.role === 'consultor')
+            .forEach(user => {
+                if (seenUsers.has(user.userId)) return;
+                seenUsers.add(user.userId);
+                const option = document.createElement('option');
+                option.value = user.userId;
+                option.textContent = user.name;
+                consultorFilter.appendChild(option);
+            });
     }
 }
 
@@ -12478,15 +12575,17 @@ document.addEventListener('DOMContentLoaded', () => {
 function editCompany(companyId) {
     const company = currentData.companies[companyId];
     if (!company) return;
-    openEditModal('Editar Empresa', company.name, (newName) => {
-        const result = window.PortalDB.updateCompany(companyId, { name: newName });
+    openEditModal('Editar Empresa', company.name, async (newName) => {
+        const result = await window.PortalDB.updateCompany(companyId, { name: newName });
         if (result.success) {
             window.NotificationUtils.success('Empresa actualizada');
-            loadAllData();
+            await loadAllData();
+        } else {
+            window.NotificationUtils.error(result.message || 'Error al actualizar');
         }
     });
 }
-
+/*
 function editProject(projectId) {
     const project = currentData.projects[projectId];
     if (!project) return;
@@ -12498,15 +12597,17 @@ function editProject(projectId) {
         }
     });
 }
-
+*/
 function editSupport(supportId) {
     const support = currentData.supports[supportId];
     if (!support) return;
-    openEditModal('Editar Soporte', support.name, (newName) => {
-        const result = window.PortalDB.updateSupport(supportId, { name: newName });
+    openEditModal('Editar Soporte', support.name, async (newName) => {
+        const result = await window.PortalDB.updateSupport(supportId, { name: newName });
         if (result.success) {
             window.NotificationUtils.success('Soporte actualizado');
-            loadAllData();
+            await loadAllData();
+        } else {
+            window.NotificationUtils.error(result.message || 'Error al actualizar');
         }
     });
 }
@@ -12514,11 +12615,13 @@ function editSupport(supportId) {
 function editModule(moduleId) {
     const module = currentData.modules[moduleId];
     if (!module) return;
-    openEditModal('Editar Módulo', module.name, (newName) => {
-        const result = window.PortalDB.updateModule(moduleId, { name: newName });
+    openEditModal('Editar Módulo', module.name, async (newName) => {
+        const result = await window.PortalDB.updateModule(moduleId, { name: newName });
         if (result.success) {
             window.NotificationUtils.success('Módulo actualizado');
-            loadAllData();
+            await loadAllData();
+        } else {
+            window.NotificationUtils.error(result.message || 'Error al actualizar');
         }
     });
 }
