@@ -1600,6 +1600,7 @@ class PortalDatabase {
 
             if (result.success) {
                 console.log('✅ Reporte eliminado');
+                this.invalidateCache('reports');
                 return { success: true };
             }
             
@@ -2561,7 +2562,17 @@ async getTarifario() {
                 
                 const assignmentId = report.assignmentId;
                 const { ticket, detail } = deserializeDescription(report.description);
-                const groupKey = `${assignmentId}_${ticket}`;
+
+                // Extraer el rowId real desde el reportId si tiene el formato de borrador
+                // rep_draft_${userId}_${rowId}_${YYYYMMDD}
+                let extractedRowId = null;
+                const draftMatch = reportId.match(/^rep_draft_.+?_(row_[^_]+_[^_]+)_\d{8}$/);
+                if (draftMatch) {
+                    extractedRowId = draftMatch[1];
+                }
+
+                // Usar rowId real si se pudo extraer; si no, agrupar por assignmentId+ticket (fallback legacy)
+                const groupKey = extractedRowId || `${assignmentId}_${ticket}`;
                 
                 if (!entriesMap[groupKey]) {
                     let label = report.title || assignmentId;
@@ -2569,7 +2580,7 @@ async getTarifario() {
                         label = label.split(' — ')[1];
                     }
                     entriesMap[groupKey] = {
-                        rowId: `row_${assignmentId}_${ticket.replace(/[^a-zA-Z0-9]/g, '')}`,
+                        rowId: extractedRowId || `row_${assignmentId}_${ticket.replace(/[^a-zA-Z0-9]/g, '')}`,
                         assignmentId,
                         assignmentType: report.assignmentType || 'support',
                         assignmentLabel: label,
@@ -2639,7 +2650,25 @@ async getTarifario() {
                 updatedAt: new Date().toISOString()
             };
         });
-        
+
+        // Limpiar timesheets "borrador" huérfanos: si un usuario ya no tiene
+        // NINGÚN reporte para una semana que antes sí tenía, limpiar sus entries
+        // para que no reaparezcan filas fantasma.
+        const usersInBatch = new Set(reportsArray.map(r => r.userId));
+
+        Object.keys(timesheets).forEach(tsId => {
+            const ts = timesheets[tsId];
+            if (!usersInBatch.has(ts.userId)) return; // fuera del alcance de este batch, no tocar
+            
+            const groupKey = `${ts.userId}_${ts.weekStart}`;
+            if (!groups[groupKey] && ts.status === 'Borrador') {
+                // Ya no hay reportes para esta semana → limpiar entries fantasma
+                ts.entries = [];
+                ts.totalWeekHours = 0;
+                ts.generatedReportIds = [];
+                ts.updatedAt = new Date().toISOString();
+            }
+        });
         localStorage.setItem('arvic_timesheets', JSON.stringify(timesheets));
     }
 

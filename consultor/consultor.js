@@ -5,6 +5,7 @@
 
 let pendingSubmitData = null;
 let isSavingTimesheet = false;
+let currentDraftWeek = null; // semana para la que está cargado timesheetDraft
 
 // === PANEL DE AYUDA ===
 function toggleHelpPanel() {
@@ -2315,8 +2316,11 @@ async function renderTimesheetGrid() {
         statusBadge.querySelector('.week-status-text').textContent = weekStatus;
     }
     
-    // Load draft data from existing timesheet or localStorage
-    loadTimesheetDraft(weekStartStr, existingTs);
+    // Solo recargar si es una semana diferente a la que ya tenemos en memoria
+    if (currentDraftWeek !== weekStartStr) {
+        loadTimesheetDraft(weekStartStr, existingTs);
+        currentDraftWeek = weekStartStr;
+    }
     
     // Build table body
     const tbody = document.getElementById('timesheetBody');
@@ -2919,6 +2923,8 @@ function saveTimesheetDraft() {
     if (status) {
         status.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Guardado ' + new Date().toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
     }
+
+    currentDraftWeek = null; // ← resetear para que el próximo render recargue limpio
 }
 
 /**
@@ -3154,7 +3160,10 @@ function addEmptyRow() {
         }
     };
     
-    saveTimesheetDraft();
+    // Guardar en localStorage SIN resetear currentDraftWeek (mismo patrón que deleteRow)
+    const key = `ts_draft_${currentUser.userId}_${toISODate(currentWeekStart)}`;
+    localStorage.setItem(key, JSON.stringify(timesheetDraft));
+    
     renderTimesheetGrid();
     
     if (window.NotificationUtils) {
@@ -3176,7 +3185,9 @@ async function deleteRow(rowId) {
 
     // 1. Actualizar UI inmediatamente — no esperar a MongoDB
     delete timesheetDraft[rowId];
-    saveTimesheetDraft();
+    // Guardar en localStorage SIN resetear currentDraftWeek
+    const key = `ts_draft_${currentUser.userId}_${toISODate(currentWeekStart)}`;
+    localStorage.setItem(key, JSON.stringify(timesheetDraft));
     renderTimesheetGrid();
     
     if (window.NotificationUtils) {
