@@ -4,6 +4,16 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { sendPasswordResetEmail } = require('../utils/mailer');
+const parsedMinPasswordLength = Number.parseInt(process.env.MIN_PASSWORD_LENGTH || '10', 10);
+const MIN_PASSWORD_LENGTH = Number.isFinite(parsedMinPasswordLength) ? parsedMinPasswordLength : 10;
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 // Login
 router.post('/login', async (req, res) => {
@@ -19,11 +29,13 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    const loginIdentifier = String(userId).trim();
+
     // Buscar usuario por userId o email (de forma insensible a mayúsculas/minúsculas)
     const user = await User.findOne({ 
       $or: [
-        { userId: { $regex: new RegExp('^' + userId + '$', 'i') } },
-        { email: userId.toLowerCase() }
+        { userId: { $regex: new RegExp('^' + escapeRegExp(loginIdentifier) + '$', 'i') } },
+        { email: loginIdentifier.toLowerCase() }
       ]
     });
 
@@ -150,14 +162,15 @@ router.post('/forgot-password', async (req, res) => {
       });
     }
 
-    console.log('📧 Solicitud de recuperación para:', email);
+    const normalizedEmail = String(email).trim().toLowerCase();
+    console.log('📧 Solicitud de recuperación para:', normalizedEmail);
 
     // Buscar usuario por email
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       // Respuesta genérica para no revelar si el email existe
-      console.log('⚠️ Email no encontrado:', email);
+      console.log('⚠️ Email no encontrado:', normalizedEmail);
       return res.json({
         success: true,
         message: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.'
@@ -175,7 +188,7 @@ router.post('/forgot-password', async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString('hex');
 
     // Guardar token y expiración (1 hora)
-    user.resetPasswordToken = resetToken;
+    user.resetPasswordToken = hashResetToken(resetToken);
     user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
     await user.save();
 
@@ -192,7 +205,7 @@ router.post('/forgot-password', async (req, res) => {
     }
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
-    console.log('🔗 Reset URL generada:', resetUrl);
+    console.log('🔗 Reset URL generada para recuperación de contraseña');
     console.log('📌 APP_URL env:', process.env.APP_URL || '(no definida)');
 
     // Enviar email
@@ -226,18 +239,21 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
       return res.status(400).json({
         success: false,
-        message: 'La contraseña debe tener al menos 6 caracteres'
+        message: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`
       });
     }
 
-    console.log('🔐 Intento de reset con token:', token.substring(0, 8) + '...');
+    console.log('🔐 Intento de reset de contraseña');
 
-    // Buscar usuario con token válido y no expirado
+    const hashedToken = hashResetToken(token);
+
+    // Buscar usuario con token valido y no expirado.
+    // Se acepta el token legado sin hash para no invalidar enlaces emitidos antes de este cambio.
     const user = await User.findOne({
-      resetPasswordToken: token,
+      resetPasswordToken: { $in: [hashedToken, token] },
       resetPasswordExpires: { $gt: new Date() }
     });
 

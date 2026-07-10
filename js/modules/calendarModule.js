@@ -79,6 +79,15 @@
         refresh();
     }
 
+    /**
+     * Extrae la fecha (YYYY-MM-DD) de un objeto Date usando componentes LOCALES,
+     * evitando el corrimiento de día que causa toISOString() al cruzar la medianoche UTC.
+     */
+    function toLocalDateStr(date) {
+        const pad = n => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+    }
+
     function navigateMonth(dir) {
         if (currentView === 'month') {
             currentDate.setMonth(currentDate.getMonth() + dir);
@@ -161,8 +170,8 @@
             const dayEvents = isCurrentMonth ? getEventsForDate(cellDate) : [];
 
             html += `<div class="cal-cell ${isCurrentMonth ? '' : 'cal-cell-other'} ${isToday ? 'cal-cell-today' : ''}" 
-                          data-date="${cellDate.toISOString().split('T')[0]}"
-                          onclick="window._calClickDay('${cellDate.toISOString().split('T')[0]}')">`;
+                          data-date="${toLocalDateStr(cellDate)}"
+                          onclick="window._calClickDay('${toLocalDateStr(cellDate)}')">`;
             html += `<div class="cal-cell-header"><span class="cal-cell-num ${isToday ? 'today-badge' : ''}">${isCurrentMonth ? dayNum : ''}</span></div>`;
             
             if (dayEvents.length > 0) {
@@ -202,7 +211,7 @@
             d.setDate(d.getDate() + i);
             const isToday = d.toDateString() === today.toDateString();
             html += `<div class="cal-week-day-col ${isToday ? 'cal-week-today' : ''}" 
-                          onclick="window._calClickDay('${d.toISOString().split('T')[0]}')">
+                          onclick="window._calClickDay('${toLocalDateStr(d)}')">
                         <span class="cal-week-day-name">${d.toLocaleDateString('es-MX', { weekday: 'short' })}</span>
                         <span class="cal-week-day-num ${isToday ? 'today-badge' : ''}">${d.getDate()}</span>
                     </div>`;
@@ -218,7 +227,7 @@
                 const d = new Date(weekStart);
                 d.setDate(d.getDate() + i);
                 const dayEvents = getEventsForDateAndHour(d, h);
-                html += `<div class="cal-week-cell" data-date="${d.toISOString().split('T')[0]}" data-hour="${h}">`;
+                html += `<div class="cal-week-cell" data-date="${toLocalDateStr(d)}" data-hour="${h}">`;
                 dayEvents.forEach(ev => {
                     html += `<div class="cal-event-block" style="background:${ev.color || '#0ea5e9'}" 
                                   onclick="event.stopPropagation(); window._calEditEvent('${ev.eventId}')"
@@ -235,11 +244,10 @@
     }
 
     function getEventsForDate(date) {
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = toLocalDateStr(date);
         return events.filter(ev => {
-            const start = new Date(ev.startDate).toISOString().split('T')[0];
-            const end = new Date(ev.endDate).toISOString().split('T')[0];
-            return dateStr >= start && dateStr <= end;
+            const start = toLocalDateStr(new Date(ev.startDate));
+            return start === dateStr;
         });
     }
 

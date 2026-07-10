@@ -8,10 +8,30 @@ const Project = require('../models/Project');
 const Module = require('../models/Module');
 const User = require('../models/User');
 
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function requireAdmin(req, res) {
+  if (!isAdmin(req)) {
+    res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+    return false;
+  }
+  return true;
+}
+
+function scopeQuery(req, query = {}) {
+  return isAdmin(req) ? query : { ...query, consultorId: req.user.userId };
+}
+
 // GET todas las asignaciones de proyecto
 router.get('/', async (req, res) => {
   try {
-    const projectAssignments = await ProjectAssignment.find();
+    const query = ProjectAssignment.find(scopeQuery(req));
+    if (!isAdmin(req)) {
+      query.select('-tarifaConsultor -tarifaCliente');
+    }
+    const projectAssignments = await query;
     res.json({ success: true, data: projectAssignments });
   } catch (error) {
     console.error('❌ Error obteniendo asignaciones de proyecto:', error);
@@ -22,7 +42,11 @@ router.get('/', async (req, res) => {
 // GET asignación de proyecto por ID
 router.get('/:id', async (req, res) => {
   try {
-    const projectAssignment = await ProjectAssignment.findOne({ projectAssignmentId: req.params.id });
+    const query = ProjectAssignment.findOne(scopeQuery(req, { projectAssignmentId: req.params.id }));
+    if (!isAdmin(req)) {
+      query.select('-tarifaConsultor -tarifaCliente');
+    }
+    const projectAssignment = await query;
     if (!projectAssignment) {
       return res.status(404).json({ success: false, message: 'Asignación de proyecto no encontrada' });
     }
@@ -35,6 +59,8 @@ router.get('/:id', async (req, res) => {
 
 // POST crear asignación de proyecto
 router.post('/', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     console.log('📝 Creando asignación de proyecto:', req.body);
     
@@ -99,6 +125,8 @@ router.post('/', async (req, res) => {
 
 // PUT actualizar asignación de proyecto
 router.put('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     const updates = req.body;
 
@@ -132,6 +160,8 @@ router.put('/:id', async (req, res) => {
 
 // DELETE eliminar asignación de proyecto
 router.delete('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     console.log('Eliminando asignación de proyecto:', req.params.id);
     

@@ -55,39 +55,11 @@ window.UserRepository = class UserRepository {
     }
 
     /**
-     * ⭐ NUEVO: Obtener contraseña del usuario para validación
-     * Solo debe usarse internamente para validar contraseñas
-     * 
-     * @param {string} userId - ID del usuario
-     * @returns {Promise<string|null>} Password del usuario o null
+     * Endpoint deshabilitado por seguridad.
+     * Las contraseñas y sus hashes no deben salir del backend.
      */
     async getPasswordForValidation(userId) {
-        try {
-            if (!userId) {
-                console.error('getPasswordForValidation: userId es requerido');
-                return null;
-            }
-
-            console.log(`getPasswordForValidation: ${userId}`);
-
-            // Usar el endpoint especial /passwords que SÍ devuelve contraseñas
-            const passwordData = await this.db.getPasswordsForValidation();
-            
-            // Buscar la contraseña del usuario específico
-            const userPasswordData = passwordData.find(item => item.userId === userId);
-            
-            if (userPasswordData && userPasswordData.password) {
-                console.log(`Contraseña encontrada para ${userId}`);
-                return userPasswordData.password;
-            }
-
-            console.log(`Contraseña no encontrada para ${userId}`);
-            return null;
-            
-        } catch (error) {
-            console.error(`Error en getPasswordForValidation:`, error);
-            return null;
-        }
+        return null;
     }
 
     /**
@@ -210,39 +182,11 @@ window.UserRepository = class UserRepository {
     }
 
     /**
-     * Obtener todas las contraseñas existentes (para validar unicidad)
-     * 
-     * IMPORTANTE: Este método hace llamadas individuales a getById() 
-     * porque GET /users excluye passwords por seguridad,
-     * pero GET /users/:id SÍ incluye password
-     * 
-     * @param {string} excludeUserId - ID de usuario a excluir (opcional)
-     * @returns {Promise<Array<string>>} Array de contraseñas
+     * Método conservado por compatibilidad, pero ya no consulta contraseñas.
+     * Validar unicidad de contraseñas entre usuarios no aporta seguridad real
+     * y obliga a exponer secretos al cliente.
      */
     async getAllPasswords(excludeUserId = null) {
-        try {
-            //Usar endpoint dedicado
-            const passwordData = await this.db.getPasswordsForValidation();
-            
-            //console.log('🔍 getAllPasswords - Diagnóstico:');
-            //console.log('  Contraseñas obtenidas:', passwordData.length);
-            
-            const passwords = passwordData
-                .filter(item => {
-                    if (excludeUserId && item.userId === excludeUserId) {
-                        console.log(`Usuario ${item.userId}: excluido`);
-                        return false;
-                    }
-                    return item.password && item.password !== 'undefined';
-                })
-                .map(item => item.password);
-            
-            //console.log('  Contraseñas válidas:', passwords.length);
-            return passwords;
-            
-        } catch (error) {
-            console.error('Error en getAllPasswords:', error);
-            return [];
-        }
+        return [];
     }
 }

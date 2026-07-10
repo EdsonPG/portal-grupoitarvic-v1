@@ -111,10 +111,10 @@ window.UserValidator = class UserValidator {
 
         const trimmedPassword = password.trim();
 
-        if (trimmedPassword.length < 6) {
+        if (trimmedPassword.length < 10) {
             return {
                 valid: false,
-                message: 'La contraseña debe tener al menos 6 caracteres.\n\n' +
+                message: 'La contraseña debe tener al menos 10 caracteres.\n\n' +
                         'Use el botón "Generar" para crear una automáticamente.'
             };
         }
@@ -183,47 +183,15 @@ window.UserValidator = class UserValidator {
     }
 
     /**
-     * VALIDACIÓN CLAVE: Verificar que la contraseña NO esté duplicada
-     * Esta es la otra validación que estaba fallando
+     * Las contraseñas ya no se comparan contra las de otros usuarios.
+     * Esa validación obligaba a consultar secretos desde el cliente.
      * 
      * @param {string} password - Contraseña a validar
      * @param {string} excludeUserId - ID de usuario a excluir (para edición)
      * @returns {Promise<Object>} { valid: boolean, message: string }
      */
     async validatePasswordUnique(password, excludeUserId = null) {
-        if (!password || password.trim() === '') {
-            return { valid: true, message: '' };
-        }
-
-        try {
-            // Obtener todas las contraseñas existentes, excluyendo el usuario actual
-            const existingPasswords = await this.repository.getAllPasswords(excludeUserId);
-
-            console.log('Validando unicidad de contraseña...');
-            //console.log('Nueva contraseña:', password);
-            console.log('Usuario excluido:', excludeUserId);
-            //console.log('  Contraseñas existentes:', existingPasswords.length);
-            //console.log('  📋 ARRAY COMPLETO:', existingPasswords);
-
-            if (existingPasswords.includes(password.trim())) {
-                return {
-                    valid: false,
-                    message: 'Esta contraseña ya está en uso por otro consultor.\n\n' +
-                            'Por seguridad y trazabilidad, cada consultor debe tener una contraseña única.\n\n' +
-                            'Use el botón "Generar" para crear una nueva contraseña automáticamente.'
-                };
-            }
-
-            console.log('Contraseña única - validación pasada');
-            return { valid: true, message: '' };
-
-        } catch (error) {
-            console.error('Error validando unicidad de contraseña:', error);
-            return {
-                valid: false,
-                message: 'Error al validar contraseña: ' + error.message
-            };
-        }
+        return { valid: true, message: '' };
     }
 
     /**

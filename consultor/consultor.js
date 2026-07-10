@@ -3,6 +3,10 @@
  * Solo maneja asignaciones y reportes de horas
  */
 
+let pendingSubmitData = null;
+let isSavingTimesheet = false;
+let currentDraftWeek = null; // semana para la que está cargado timesheetDraft
+
 // === PANEL DE AYUDA ===
 function toggleHelpPanel() {
     const panel = document.getElementById('helpPanel');
@@ -373,6 +377,7 @@ async function initializeConsultor() {
         setupConsultorPanel();
         setupEventListeners();
         await loadUserAssignments();
+        await checkPendingTimesheet();
         
         isInitialized = true;
         
@@ -420,7 +425,7 @@ function setupEventListeners() {
         
         // Auto-refresh en segundo plano cada 10 segundos
         setInterval(() => {
-            if (isInitialized && !isUserInteracting()) {
+            if (isInitialized && !isUserInteracting() && !isSavingTimesheet) {
                 if (pendingRealtimeRefresh) {
                     console.log('🔄 Ejecutando refresco en tiempo real pospuesto...');
                     pendingRealtimeRefresh = false;
@@ -441,7 +446,7 @@ function setupEventListeners() {
             const isMassUpdate = data.action === 'mass-update' || !data.userId;
             
             if (isCurrentUser || isMassUpdate) {
-                if (!isUserInteracting()) {
+                if (!isUserInteracting() && !isSavingTimesheet) {
                     console.log('🔄 Actualizando grid de timesheet de inmediato via SSE...');
                     pendingRealtimeRefresh = false;
                     await silentDataRefresh();
@@ -2164,6 +2169,15 @@ function formatShortDate(date) {
 }
 
 /**
+ * Genera un rowId único e inmutable para una fila del timesheet.
+ * No debe depender de ningún dato mutable (ticket, assignmentId, etc.)
+ * para evitar que cambie de identidad mientras el usuario edita la fila.
+ */
+function generateRowId() {
+    return `row_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+}
+
+/**
  * Format date as YYYY-MM-DD
  */
 function toISODate(date) {
@@ -2228,6 +2242,28 @@ function navigateWeek(direction) {
 }
 
 /**
+ * Navega directamente a una semana específica (a diferencia de navigateWeek,
+ * que es relativo +1/-1). Usado por el aviso de timesheet pendiente.
+ */
+function goToWeek(targetDate) {
+    const targetMonday = getMonday(targetDate);
+
+    // No permitir ir a semanas futuras (misma regla que navigateWeek)
+    const thisMonday = getMonday(new Date());
+    if (targetMonday > thisMonday) return;
+
+    // Guardar el draft de la semana actual antes de saltar
+    saveTimesheetDraft();
+
+    currentWeekStart = targetMonday;
+    renderTimesheetGrid();
+
+    // Ocultar el aviso una vez que el consultor ya fue llevado a la semana
+    const alertBox = document.getElementById('pendingTimesheetAlert');
+    if (alertBox) alertBox.style.display = 'none';
+}
+
+/**
  * Main render function for the timesheet grid
  */
 async function renderTimesheetGrid() {
@@ -2280,8 +2316,11 @@ async function renderTimesheetGrid() {
         statusBadge.querySelector('.week-status-text').textContent = weekStatus;
     }
     
-    // Load draft data from existing timesheet or localStorage
-    loadTimesheetDraft(weekStartStr, existingTs);
+    // Solo recargar si es una semana diferente a la que ya tenemos en memoria
+    if (currentDraftWeek !== weekStartStr) {
+        loadTimesheetDraft(weekStartStr, existingTs);
+        currentDraftWeek = weekStartStr;
+    }
     
     // Build table body
     const tbody = document.getElementById('timesheetBody');
@@ -2558,9 +2597,6 @@ function onHourChange(input) {
     updateTimesheetTotals();
     saveTimesheetDraft();
     
-    // Sincronizar con MongoDB en segundo plano
-    saveDraftCellToMongoDB(rowId, dayKey, hours, timesheetDraft[rowId].days[dayKey].detail || '');
-    
     // If hours > 0 and no detail yet, prompt for detail
     if (hours > 0 && (!timesheetDraft[rowId].days[dayKey].detail || !timesheetDraft[rowId].days[dayKey].detail.trim())) {
         showDetailPopover(input, rowId, dayKey);
@@ -2672,9 +2708,6 @@ function saveDetail(rowId, dayKey) {
     closeDetailPopover();
     saveTimesheetDraft();
     
-    // Sincronizar detalle con MongoDB en segundo plano
-    saveDraftCellToMongoDB(rowId, dayKey, hours, val);
-    
     if (window.NotificationUtils) {
         window.NotificationUtils.success('Detalle guardado', 1500);
     }
@@ -2714,6 +2747,170 @@ function updateTimesheetTotals() {
     if (el) el.textContent = grandTotal > 0 ? grandTotal.toFixed(1) : '0';
 }
 
+async function validateTimesheetForSubmit() {
+    let totalHours = 0;
+    let entries = [];
+    let hasDetail = true;
+
+    for (const rowId of Object.keys(timesheetDraft)) {
+        const row = timesheetDraft[rowId];
+        const aId = row.assignmentId;
+        const ticket = row.ticket || '';
+        let entryTotal = 0;
+        const days = {};
+
+        DAY_KEYS.forEach(dk => {
+            const h = row.days?.[dk]?.hours || 0;
+            const d = row.days?.[dk]?.detail || '';
+            days[dk] = { hours: h, detail: d };
+            entryTotal += h;
+            if (h > 0 && !d) hasDetail = false;
+        });
+
+        if (entryTotal > 0) {
+            const assignment = userAssignments.find(a => {
+                return (a.assignmentId === aId || a.projectAssignmentId === aId || a.taskAssignmentId === aId);
+            });
+
+            // Build label (igual que en la versión original de submitWeeklyTimesheet)
+            let label = aId;
+            if (assignment) {
+                const company = await window.PortalDB.getCompany(assignment.companyId);
+                if (assignment.assignmentType === 'support') {
+                    const support = await window.PortalDB.getSupport(assignment.supportId);
+                    label = (support?.name || 'Soporte') + ' — ' + (company?.name || '');
+                } else if (assignment.assignmentType === 'project') {
+                    const project = await window.PortalDB.getProject(assignment.projectId);
+                    label = (project?.name || 'Proyecto') + ' — ' + (company?.name || '');
+                } else {
+                    label = (assignment.descripcion || 'Tarea') + ' — ' + (company?.name || '');
+                }
+            }
+
+            entries.push({
+                rowId: rowId,
+                assignmentId: aId,
+                assignmentType: assignment?.assignmentType || 'support',
+                assignmentLabel: label,
+                ticket: ticket,
+                days,
+                totalHours: entryTotal
+            });
+            totalHours += entryTotal;
+        }
+    }
+
+    if (totalHours === 0) {
+        return { valid: false, errorMessage: 'Debes ingresar al menos una hora antes de enviar' };
+    }
+
+    if (!hasDetail) {
+        return { valid: false, errorMessage: 'Todos los días con horas registradas deben tener una justificación/detalle obligatorio.' };
+    }
+
+    return { valid: true, entries, totalHours };
+}
+
+async function confirmSubmitWeeklyTimesheet() {
+    if (!currentUser || !currentWeekStart) return;
+
+    const weekStartStr = toISODate(currentWeekStart);
+    const existing = window.PortalDB.getTimesheetByWeek(currentUser.userId, weekStartStr);
+    if (existing && (existing.status === 'Pendiente' || existing.status === 'Aprobado')) {
+        if (window.NotificationUtils) {
+            window.NotificationUtils.error('Esta semana ya fue enviada y está ' + existing.status.toLowerCase());
+        }
+        return;
+    }
+
+    const validation = await validateTimesheetForSubmit(); // ← await agregado aquí
+    if (!validation.valid) {
+        if (window.NotificationUtils) {
+            window.NotificationUtils.error(validation.errorMessage);
+        } else {
+            alert(validation.errorMessage);
+        }
+        return;
+    }
+
+    pendingSubmitData = { entries: validation.entries, totalHours: validation.totalHours };
+    showSubmitConfirmModal(validation.totalHours, validation.entries.length);
+}
+
+function showSubmitConfirmModal(totalHours, entryCount) {
+    const summaryEl = document.getElementById('submitConfirmSummary');
+    if (summaryEl) {
+        summaryEl.textContent = `Total: ${totalHours.toFixed(1)} horas en ${entryCount} asignación(es)`;
+    }
+    if (window.ModalUtils) {
+        window.ModalUtils.open('submitConfirmModal');
+    }
+}
+
+function closeSubmitConfirmModal() {
+    if (window.ModalUtils) {
+        window.ModalUtils.close('submitConfirmModal');
+    }
+    pendingSubmitData = null;
+}
+
+async function executeConfirmedSubmit() {
+    const dataToSubmit = pendingSubmitData;
+    closeSubmitConfirmModal();
+    if (!dataToSubmit) return;
+
+    await submitWeeklyTimesheet(dataToSubmit.entries, dataToSubmit.totalHours);
+    pendingSubmitData = null;
+}
+
+async function saveWeekDraft() {
+    if (!currentUser || !currentWeekStart) return;
+
+    isSavingTimesheet = true; // ← bloquear refresh automático
+
+    const btn = document.getElementById('btnSaveDraft');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+    }
+
+    try {
+        for (const rowId of Object.keys(timesheetDraft)) {
+            const row = timesheetDraft[rowId];
+            if (!row) continue; // protección extra por si acaso
+            for (const dayKey of DAY_KEYS) {
+                const cell = row.days?.[dayKey];
+                const hours = cell?.hours || 0;
+                const detail = cell?.detail || '';
+                await saveDraftCellToMongoDB(rowId, dayKey, hours, detail);
+            }
+        }
+
+        saveTimesheetDraft();
+
+        const status = document.getElementById('autosaveStatus');
+        if (status) {
+            status.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Borrador guardado ' + 
+                new Date().toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+        }
+
+        if (window.NotificationUtils) {
+            window.NotificationUtils.success('Borrador guardado correctamente');
+        }
+    } catch (error) {
+        console.error('Error guardando borrador:', error);
+        if (window.NotificationUtils) {
+            window.NotificationUtils.error('Error al guardar borrador: ' + error.message);
+        }
+    } finally {
+        isSavingTimesheet = false; // ← liberar el bloqueo
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Borrador';
+        }
+    }
+}
+
 /**
  * Save draft to localStorage
  */
@@ -2726,6 +2923,8 @@ function saveTimesheetDraft() {
     if (status) {
         status.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Guardado ' + new Date().toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
     }
+
+    currentDraftWeek = null; // ← resetear para que el próximo render recargue limpio
 }
 
 /**
@@ -2825,13 +3024,15 @@ function loadTimesheetDraft(weekStartStr, existingTs) {
     
     if (existingTs && existingTs.entries) {
         // Load from existing submitted timesheet
-        existingTs.entries.forEach((entry, index) => {
-            const ticket = entry.ticket || '';
-            const rowId = entry.rowId || `row_${entry.assignmentId}_${ticket.replace(/[^a-zA-Z0-9]/g, '')}_${index}`;
+        existingTs.entries.forEach((entry) => {
+            // El rowId debe venir ya guardado del envío original.
+            // Solo si por alguna razón un entry viejo no lo tiene (datos legacy),
+            // se genera uno nuevo — nunca basado en ticket o assignmentId.
+            const rowId = entry.rowId || generateRowId();
             timesheetDraft[rowId] = {
                 rowId: rowId,
                 assignmentId: entry.assignmentId,
-                ticket: ticket,
+                ticket: entry.ticket || '',
                 days: { ...entry.days }
             };
         });
@@ -2847,7 +3048,7 @@ function loadTimesheetDraft(weekStartStr, existingTs) {
                 Object.entries(parsed).forEach(([keyId, val]) => {
                     const isOldFormat = !val.days && Object.keys(val).some(k => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].includes(k));
                     if (isOldFormat) {
-                        const rowId = `row_${keyId}_default`;
+                        const rowId = generateRowId();
                         migrated[rowId] = {
                             rowId: rowId,
                             assignmentId: keyId,
@@ -2868,7 +3069,7 @@ function loadTimesheetDraft(weekStartStr, existingTs) {
         if (Object.keys(timesheetDraft).length === 0 && userAssignments.length > 0) {
             userAssignments.forEach(a => {
                 const aId = a.assignmentId || a.projectAssignmentId || a.taskAssignmentId;
-                const rowId = `row_${aId}_default`;
+                const rowId = generateRowId();
                 timesheetDraft[rowId] = {
                     rowId: rowId,
                     assignmentId: aId,
@@ -2941,7 +3142,7 @@ function addEmptyRow() {
         return;
     }
     
-    const rowId = `row_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const rowId = generateRowId();
     const defaultAssignmentId = userAssignments[0].assignmentId || userAssignments[0].projectAssignmentId || userAssignments[0].taskAssignmentId;
     
     timesheetDraft[rowId] = {
@@ -2959,7 +3160,10 @@ function addEmptyRow() {
         }
     };
     
-    saveTimesheetDraft();
+    // Guardar en localStorage SIN resetear currentDraftWeek (mismo patrón que deleteRow)
+    const key = `ts_draft_${currentUser.userId}_${toISODate(currentWeekStart)}`;
+    localStorage.setItem(key, JSON.stringify(timesheetDraft));
+    
     renderTimesheetGrid();
     
     if (window.NotificationUtils) {
@@ -2977,34 +3181,34 @@ async function deleteRow(rowId) {
     }
     
     const rowData = timesheetDraft[rowId];
-    if (rowData) {
-        // Eliminar borradores asociados a esta fila de MongoDB en segundo plano
-        if (window.PortalDB && currentUser && currentWeekStart) {
-            try {
-                const reports = await window.PortalDB.getReports();
-                for (let i = 0; i < 7; i++) {
-                    const cellDate = new Date(currentWeekStart);
-                    cellDate.setDate(cellDate.getDate() + i);
-                    const dateStr = toISODate(cellDate);
-                    const draftReportId = `rep_draft_${currentUser.userId}_${rowId}_${dateStr.replace(/-/g, '')}`;
-                    if (reports && reports[draftReportId]) {
-                        try {
-                            await window.PortalDB.deleteReport(draftReportId);
-                        } catch (e) { /* ignore if not found */ }
-                    }
-                }
-            } catch (err) {
-                console.error('Error fetching reports for deletion:', err);
-            }
+    if (!rowData) return;
+
+    // 1. Actualizar UI inmediatamente — no esperar a MongoDB
+    delete timesheetDraft[rowId];
+    // Guardar en localStorage SIN resetear currentDraftWeek
+    const key = `ts_draft_${currentUser.userId}_${toISODate(currentWeekStart)}`;
+    localStorage.setItem(key, JSON.stringify(timesheetDraft));
+    renderTimesheetGrid();
+    
+    if (window.NotificationUtils) {
+        window.NotificationUtils.info('Fila eliminada');
+    }
+
+    // 2. Eliminar borradores en MongoDB en paralelo y en segundo plano
+    if (window.PortalDB && currentUser && currentWeekStart) {
+        const deletePromises = [];
+        for (let i = 0; i < 7; i++) {
+            const cellDate = new Date(currentWeekStart);
+            cellDate.setDate(cellDate.getDate() + i);
+            const dateStr = toISODate(cellDate);
+            const draftReportId = `rep_draft_${currentUser.userId}_${rowId}_${dateStr.replace(/-/g, '')}`;
+            deletePromises.push(
+                window.PortalDB.deleteReport(draftReportId).catch(() => { /* ignorar si no existe */ })
+            );
         }
-        
-        delete timesheetDraft[rowId];
-        saveTimesheetDraft();
-        renderTimesheetGrid();
-        
-        if (window.NotificationUtils) {
-            window.NotificationUtils.info('Fila eliminada');
-        }
+        Promise.all(deletePromises).catch(err => {
+            console.error('Error eliminando borradores de fila:', err);
+        });
     }
 }
 window.deleteRow = deleteRow;
@@ -3052,7 +3256,124 @@ window.onTicketChange = onTicketChange;
 /**
  * Submit the weekly timesheet — generates individual reports for compatibility
  */
-async function submitWeeklyTimesheet() {
+
+/**
+ * Revisa si hay un timesheet pendiente (Caso 1: borrador en BD)
+ * o datos sin guardar de una sesión anterior (Caso 2: localStorage huérfano)
+ */
+async function checkPendingTimesheet() {
+    if (!currentUser) return;
+
+    // ── CASO 2 primero: datos en localStorage que no se guardaron en BD ──
+    // Es más urgente porque se puede perder al seguir navegando
+    const orphanWeek = findOrphanLocalDraft();
+    if (orphanWeek) {
+        showPendingAlert({
+            type: 'orphan',
+            title: 'Tienes cambios sin guardar',
+            message: `Detectamos datos de tu sesión anterior para la semana del ${orphanWeek.label} que no se guardaron como borrador. ¿Deseas recuperarlos?`,
+            actionLabel: 'Recuperar y ver semana',
+            weekStart: orphanWeek.weekStart
+        });
+        return; // Mostrar solo uno a la vez
+    }
+
+    // ── CASO 1: borrador guardado en MongoDB sin enviar ──
+    try {
+        const allTimesheets = window.PortalDB.getTimesheets();
+        const myDrafts = Object.values(allTimesheets).filter(ts =>
+            ts.userId === currentUser.userId && ts.status === 'Borrador'
+        );
+
+        if (myDrafts.length > 0) {
+            // Quedarnos con el más reciente
+            myDrafts.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
+            const mostRecent = myDrafts[0];
+
+            showPendingAlert({
+                type: 'draft',
+                title: 'Tienes un timesheet pendiente',
+                message: `Tu timesheet de la semana del ${formatShortDate(parseISODate(mostRecent.weekStart))} sigue en borrador. Complétalo y envíalo a revisión.`,
+                actionLabel: 'Ir a esa semana',
+                weekStart: mostRecent.weekStart
+            });
+        }
+    } catch (error) {
+        console.error('Error revisando timesheets pendientes:', error);
+    }
+}
+
+/**
+ * Convierte un string 'YYYY-MM-DD' a un objeto Date en hora LOCAL (medianoche local),
+ * evitando el corrimiento de un día que provoca new Date('YYYY-MM-DD') por interpretarlo como UTC.
+ */
+function parseISODate(dateStr) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day); // mes es 0-indexado
+}
+
+/**
+ * Busca en localStorage algún draft de timesheet del usuario actual
+ * que no tenga su contraparte guardada en MongoDB como Borrador.
+ */
+function findOrphanLocalDraft() {
+    const prefix = `ts_draft_${currentUser.userId}_`;
+    const allTimesheets = window.PortalDB.getTimesheets();
+
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith(prefix)) continue;
+
+        const weekStartStr = key.substring(prefix.length);
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+
+        let localData;
+        try {
+            localData = JSON.parse(raw);
+        } catch (e) {
+            continue;
+        }
+
+        // ¿Hay contenido real en este draft local? (al menos una celda con horas)
+        const hasContent = Object.values(localData).some(row =>
+            row.days && Object.values(row.days).some(d => (d.hours || 0) > 0)
+        );
+        if (!hasContent) continue;
+
+        // ¿Existe ya un timesheet guardado en BD para esta semana?
+        const existingInDb = Object.values(allTimesheets).find(ts =>
+            ts.userId === currentUser.userId && ts.weekStart === weekStartStr
+        );
+
+        // Es "huérfano" si no existe en BD, o existe pero ya fue enviado/aprobado
+        // (en cuyo caso el localStorage es basura vieja, no datos por recuperar)
+        if (!existingInDb) {
+            return {
+                weekStart: weekStartStr,
+                label: formatShortDate(parseISODate(weekStartStr))
+            };
+        }
+    }
+
+    return null;
+}
+
+function showPendingAlert({ title, message, actionLabel, weekStart }) {
+    const alertBox = document.getElementById('pendingTimesheetAlert');
+    if (!alertBox) return;
+
+    document.getElementById('pendingAlertTitle').textContent = title;
+    document.getElementById('pendingAlertMessage').textContent = message;
+
+    const btn = document.getElementById('pendingAlertActionBtn');
+    btn.textContent = actionLabel;
+    btn.onclick = () => goToWeek(parseISODate(weekStart));
+
+    alertBox.style.display = 'block';
+}
+
+async function submitWeeklyTimesheet(entries, totalHours) {
     if (!currentUser || !currentWeekStart) return;
     
     const weekStartStr = toISODate(currentWeekStart);
@@ -3063,75 +3384,6 @@ async function submitWeeklyTimesheet() {
     if (existing && (existing.status === 'Pendiente' || existing.status === 'Aprobado')) {
         if (window.NotificationUtils) {
             window.NotificationUtils.error('Esta semana ya fue enviada y está ' + existing.status.toLowerCase());
-        }
-        return;
-    }
-    
-    // Validate: at least some hours entered
-    let totalHours = 0;
-    let entries = [];
-    let hasDetail = true;
-    
-    for (const rowId of Object.keys(timesheetDraft)) {
-        const row = timesheetDraft[rowId];
-        const aId = row.assignmentId;
-        const ticket = row.ticket || '';
-        let entryTotal = 0;
-        const days = {};
-        
-        DAY_KEYS.forEach(dk => {
-            const h = row.days?.[dk]?.hours || 0;
-            const d = row.days?.[dk]?.detail || '';
-            days[dk] = { hours: h, detail: d };
-            entryTotal += h;
-            if (h > 0 && !d) hasDetail = false;
-        });
-        
-        if (entryTotal > 0) {
-            const assignment = userAssignments.find(a => {
-                return (a.assignmentId === aId || a.projectAssignmentId === aId || a.taskAssignmentId === aId);
-            });
-            
-            // Build label
-            let label = aId;
-            if (assignment) {
-                const company = await window.PortalDB.getCompany(assignment.companyId);
-                if (assignment.assignmentType === 'support') {
-                    const support = await window.PortalDB.getSupport(assignment.supportId);
-                    label = (support?.name || 'Soporte') + ' — ' + (company?.name || '');
-                } else if (assignment.assignmentType === 'project') {
-                    const project = await window.PortalDB.getProject(assignment.projectId);
-                    label = (project?.name || 'Proyecto') + ' — ' + (company?.name || '');
-                } else {
-                    label = (assignment.descripcion || 'Tarea') + ' — ' + (company?.name || '');
-                }
-            }
-            
-            entries.push({
-                rowId: rowId,
-                assignmentId: aId,
-                assignmentType: assignment?.assignmentType || 'support',
-                assignmentLabel: label,
-                ticket: ticket,
-                days,
-                totalHours: entryTotal
-            });
-            totalHours += entryTotal;
-        }
-    }
-    
-    if (totalHours === 0) {
-        if (window.NotificationUtils) {
-            window.NotificationUtils.error('Debes ingresar al menos una hora antes de enviar');
-        }
-        return;
-    }
-    
-    if (!hasDetail) {
-        if (window.NotificationUtils) {
-            window.NotificationUtils.error('Todos los días con horas registradas deben tener una justificación/detalle obligatorio.');
-        } else {
-            alert('Todos los días con horas registradas deben tener una justificación/detalle obligatorio.');
         }
         return;
     }
@@ -3384,7 +3636,8 @@ async function reopenRejectedTimesheet(timesheetId) {
                 if (report) {
                     const dateStr = report.reportDate || report.date;
                     const aId = report.assignmentId;
-                    const draftReportId = `rep_draft_${currentUser.userId}_${aId}_${dateStr.split('T')[0].replace(/-/g, '')}`;
+                    const rowId = ts.entries?.find(e => e.assignmentId === aId)?.rowId || generateRowId();
+                    const draftReportId = `rep_draft_${currentUser.userId}_${rowId}_${dateStr.split('T')[0].replace(/-/g, '')}`;
                     
                     // Crear el borrador correspondiente en la BD
                     await window.PortalDB.createReport({

@@ -39,7 +39,8 @@ const reportSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true
+    required: false,
+    default: ''
   },
   hours: {
     type: Number,
@@ -56,7 +57,7 @@ const reportSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['Borrador', 'Pendiente', 'Aprobado', 'Rechazado', 'Resubmitted'],
-    default: 'Pendiente'
+    default: 'Borrador'
   },
   feedback: {
     type: String,

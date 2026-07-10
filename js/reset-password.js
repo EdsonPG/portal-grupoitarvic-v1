@@ -48,8 +48,8 @@ document.addEventListener('DOMContentLoaded', function() {
         hideMessages();
 
         // Validaciones
-        if (newPassword.length < 6) {
-            showError('La contraseña debe tener al menos 6 caracteres.');
+        if (newPassword.length < 10) {
+            showError('La contraseña debe tener al menos 10 caracteres.');
             return;
         }
 

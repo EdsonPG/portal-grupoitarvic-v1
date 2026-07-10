@@ -8,10 +8,30 @@ const Support = require('../models/Support');
 const Module = require('../models/Module');
 const User = require('../models/User');
 
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function requireAdmin(req, res) {
+  if (!isAdmin(req)) {
+    res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+    return false;
+  }
+  return true;
+}
+
+function scopeQuery(req, query = {}) {
+  return isAdmin(req) ? query : { ...query, userId: req.user.userId };
+}
+
 // GET todas las asignaciones
 router.get('/', async (req, res) => {
   try {
-    const assignments = await Assignment.find();
+    const query = Assignment.find(scopeQuery(req));
+    if (!isAdmin(req)) {
+      query.select('-tarifaConsultor -tarifaCliente');
+    }
+    const assignments = await query;
     res.json({ success: true, data: assignments });
   } catch (error) {
     console.error('Error obteniendo asignaciones:', error);
@@ -22,7 +42,11 @@ router.get('/', async (req, res) => {
 // GET asignación por ID
 router.get('/:id', async (req, res) => {
   try {
-    const assignment = await Assignment.findOne({ assignmentId: req.params.id });
+    const query = Assignment.findOne(scopeQuery(req, { assignmentId: req.params.id }));
+    if (!isAdmin(req)) {
+      query.select('-tarifaConsultor -tarifaCliente');
+    }
+    const assignment = await query;
     if (!assignment) {
       return res.status(404).json({ success: false, message: 'Asignación no encontrada' });
     }
@@ -35,6 +59,8 @@ router.get('/:id', async (req, res) => {
 
 // POST crear asignación de soporte
 router.post('/', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     console.log('Creando asignación de soporte:', req.body);
     
@@ -99,6 +125,8 @@ router.post('/', async (req, res) => {
 
 // PUT actualizar asignación
 router.put('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     const updates = req.body;
     
@@ -132,6 +160,8 @@ router.put('/:id', async (req, res) => {
 
 // DELETE eliminar asignación
 router.delete('/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   try {
     console.log('Eliminando asignación:', req.params.id);
     

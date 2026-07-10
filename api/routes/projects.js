@@ -1,11 +1,29 @@
 const express = require('express');
 const router = express.Router();
 const Project = require('../models/Project');
+const ProjectAssignment = require('../models/ProjectAssignment');
+
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+async function getVisibleProjectIds(req) {
+  if (isAdmin(req)) return null;
+
+  const projectAssignments = await ProjectAssignment.find({
+    $or: [{ consultorId: req.user.userId }, { userId: req.user.userId }],
+    isActive: { $ne: false }
+  }).select('projectId');
+
+  return [...new Set(projectAssignments.map(item => item.projectId).filter(Boolean))];
+}
 
 // GET todos los proyectos
 router.get('/', async (req, res) => {
   try {
-    const projects = await Project.find();
+    const visibleProjectIds = await getVisibleProjectIds(req);
+    const query = visibleProjectIds ? { projectId: { $in: visibleProjectIds } } : {};
+    const projects = await Project.find(query);
     res.json({ success: true, data: projects });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -14,6 +32,11 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
+    const visibleProjectIds = await getVisibleProjectIds(req);
+    if (visibleProjectIds && !visibleProjectIds.includes(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Proyecto no encontrado' });
+    }
+
     const project = await Project.findOne({ projectId: req.params.id });
     if (!project) return res.status(404).json({ success: false, message: 'Proyecto no encontrado' });
     res.json({ success: true, data: project });

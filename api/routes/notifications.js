@@ -2,9 +2,21 @@ const express = require('express');
 const router = express.Router();
 const Notification = require('../models/Notification');
 
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function canAccessUser(req, userId) {
+  return isAdmin(req) || req.user?.userId === userId;
+}
+
 // GET notificaciones por usuario
 router.get('/user/:userId', async (req, res) => {
   try {
+    if (!canAccessUser(req, req.params.userId)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para consultar estas notificaciones' });
+    }
+
     const notifications = await Notification.find({ userId: req.params.userId })
       .sort({ createdAt: -1 })
       .limit(50);
@@ -18,6 +30,10 @@ router.get('/user/:userId', async (req, res) => {
 // GET contar no leídas
 router.get('/user/:userId/unread-count', async (req, res) => {
   try {
+    if (!canAccessUser(req, req.params.userId)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para consultar estas notificaciones' });
+    }
+
     const count = await Notification.countDocuments({ 
       userId: req.params.userId, 
       read: false 
@@ -33,6 +49,13 @@ router.get('/user/:userId/unread-count', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const notifData = req.body;
+
+    if (!isAdmin(req)) {
+      const allowedConsultorTypes = ['report_created', 'report_resubmitted'];
+      if (notifData.userId !== 'admin' || !allowedConsultorTypes.includes(notifData.type)) {
+        return res.status(403).json({ success: false, message: 'No tienes permisos para crear esta notificación' });
+      }
+    }
     
     if (!notifData.notificationId) {
       notifData.notificationId = 'NOTIF' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -55,6 +78,14 @@ router.post('/', async (req, res) => {
 // PUT marcar una como leída
 router.put('/:id/read', async (req, res) => {
   try {
+    const existingNotification = await Notification.findOne({ notificationId: req.params.id });
+    if (!existingNotification) {
+      return res.status(404).json({ success: false, message: 'Notificación no encontrada' });
+    }
+    if (!canAccessUser(req, existingNotification.userId)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para modificar esta notificación' });
+    }
+
     const notification = await Notification.findOneAndUpdate(
       { notificationId: req.params.id },
       { read: true },
@@ -75,6 +106,10 @@ router.put('/:id/read', async (req, res) => {
 // PUT marcar todas como leídas para un usuario
 router.put('/user/:userId/read-all', async (req, res) => {
   try {
+    if (!canAccessUser(req, req.params.userId)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para modificar estas notificaciones' });
+    }
+
     const result = await Notification.updateMany(
       { userId: req.params.userId, read: false },
       { read: true }
@@ -93,8 +128,16 @@ router.put('/user/:userId/read-all', async (req, res) => {
 // DELETE eliminar notificación
 router.delete('/:id', async (req, res) => {
   try {
+    const existingNotification = await Notification.findOne({ notificationId: req.params.id });
+    if (!existingNotification) {
+      return res.status(404).json({ success: false, message: 'Notificación no encontrada' });
+    }
+    if (!canAccessUser(req, existingNotification.userId)) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para eliminar esta notificación' });
+    }
+
     const notification = await Notification.findOneAndDelete({ notificationId: req.params.id });
-    
+
     if (!notification) {
       return res.status(404).json({ success: false, message: 'Notificación no encontrada' });
     }

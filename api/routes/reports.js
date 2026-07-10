@@ -1,11 +1,51 @@
 const express = require('express');
 const router = express.Router();
 const Report = require('../models/Report');
+const ADMIN_STATUSES = ['Aprobado', 'Rechazado'];
+const CONSULTOR_EDITABLE_STATUSES = ['Borrador', 'Pendiente', 'Resubmitted'];
+
+function isAdmin(req) {
+  return req.user?.role === 'admin';
+}
+
+function ownsReport(req, report) {
+  return report?.userId === req.user?.userId;
+}
+
+function applyReportFilters(req, query, options = {}) {
+  const allowedFilters = options.allowUserFilter
+    ? ['userId', 'companyId', 'assignmentId', 'assignmentType', 'status']
+    : ['companyId', 'assignmentId', 'assignmentType', 'status'];
+
+  allowedFilters.forEach(filter => {
+    if (req.query[filter]) {
+      query[filter] = req.query[filter];
+    }
+  });
+  return query;
+}
+
+async function findScopedReport(req, reportId) {
+  const report = await Report.findOne({ reportId });
+  if (!report) return null;
+
+  if (!isAdmin(req) && !ownsReport(req, report)) {
+    const error = new Error('No tienes permisos para acceder a este reporte');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return report;
+}
 
 // GET todos los reportes
 router.get('/', async (req, res) => {
   try {
-    const reports = await Report.find().sort({ date: -1 });
+    const query = isAdmin(req)
+      ? applyReportFilters(req, {}, { allowUserFilter: true })
+      : applyReportFilters(req, { userId: req.user.userId });
+
+    const reports = await Report.find(query).sort({ date: -1 });
     res.json({ success: true, data: reports });
   } catch (error) {
     console.error('❌ Error obteniendo reportes:', error);
@@ -16,20 +56,24 @@ router.get('/', async (req, res) => {
 // GET reporte por ID
 router.get('/:id', async (req, res) => {
   try {
-    const report = await Report.findOne({ reportId: req.params.id });
+    const report = await findScopedReport(req, req.params.id);
     if (!report) {
       return res.status(404).json({ success: false, message: 'Reporte no encontrado' });
     }
     res.json({ success: true, data: report });
   } catch (error) {
     console.error('❌ Error obteniendo reporte:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }
 });
 
 // GET reportes por usuario
 router.get('/user/:userId', async (req, res) => {
   try {
+    if (!isAdmin(req) && req.user.userId !== req.params.userId) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para consultar reportes de este usuario' });
+    }
+
     const reports = await Report.find({ userId: req.params.userId }).sort({ date: -1 });
     res.json({ success: true, data: reports });
   } catch (error) {
@@ -41,6 +85,10 @@ router.get('/user/:userId', async (req, res) => {
 // GET reportes por compañía
 router.get('/company/:companyId', async (req, res) => {
   try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+    }
+
     const reports = await Report.find({ companyId: req.params.companyId }).sort({ date: -1 });
     res.json({ success: true, data: reports });
   } catch (error) {
@@ -53,6 +101,18 @@ router.get('/company/:companyId', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const reportData = req.body;
+
+    if (!isAdmin(req)) {
+      if (reportData.userId && reportData.userId !== req.user.userId) {
+        return res.status(403).json({ success: false, message: 'No puedes crear reportes para otro usuario' });
+      }
+
+      if (reportData.status && ADMIN_STATUSES.includes(reportData.status)) {
+        return res.status(403).json({ success: false, message: 'No puedes crear reportes con estado administrativo' });
+      }
+
+      reportData.userId = req.user.userId;
+    }
     
     console.log('📥 Datos recibidos para crear reporte:', reportData);
     
@@ -108,6 +168,10 @@ router.post('/', async (req, res) => {
 
 // PUT actualizar múltiples reportes
 router.put('/mass-update', async (req, res) => {
+  if (!isAdmin(req)) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
   try {
     const { reportIds, status } = req.body;
     
@@ -167,7 +231,22 @@ router.put('/mass-update', async (req, res) => {
 // PUT actualizar reporte
 router.put('/:id', async (req, res) => {
   try {
-    const updates = req.body;
+    const existingReport = await findScopedReport(req, req.params.id);
+    if (!existingReport) {
+      return res.status(404).json({ success: false, message: 'Reporte no encontrado' });
+    }
+
+    const updates = { ...req.body };
+
+    if (!isAdmin(req)) {
+      delete updates.userId;
+      delete updates.feedback;
+
+      if (updates.status && !CONSULTOR_EDITABLE_STATUSES.includes(updates.status)) {
+        return res.status(403).json({ success: false, message: 'No puedes asignar ese estado al reporte' });
+      }
+    }
+
     updates.updatedAt = new Date();
     
     // Si el reporte se está resubmitiendo, actualizar fecha
@@ -211,7 +290,7 @@ router.put('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error actualizando reporte:', error);
-    res.status(400).json({ 
+    res.status(error.statusCode || 400).json({ 
       success: false, 
       message: error.message || 'Error al actualizar reporte' 
     });
@@ -223,8 +302,17 @@ router.delete('/:id', async (req, res) => {
   try {
     console.log('🗑️ Eliminando reporte:', req.params.id);
     
+    const existingReport = await findScopedReport(req, req.params.id);
+    if (!existingReport) {
+      return res.status(404).json({ success: false, message: 'Reporte no encontrado' });
+    }
+
+    if (!isAdmin(req) && existingReport.status === 'Aprobado') {
+      return res.status(403).json({ success: false, message: 'No puedes eliminar reportes aprobados' });
+    }
+
     const report = await Report.findOneAndDelete({ reportId: req.params.id });
-    
+
     if (!report) {
       return res.status(404).json({ success: false, message: 'Reporte no encontrado' });
     }
@@ -251,7 +339,7 @@ router.delete('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error eliminando reporte:', error);
-    res.status(500).json({ 
+    res.status(error.statusCode || 500).json({ 
       success: false, 
       message: error.message || 'Error al eliminar reporte' 
     });
