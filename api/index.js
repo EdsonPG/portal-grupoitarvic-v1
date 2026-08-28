@@ -69,11 +69,6 @@ app.use(cors({
   origin: function (origin, callback) {
     if (!origin) {
       return callback(null, !isProduction || process.env.CORS_ALLOW_NO_ORIGIN === 'true');
-    }
-
-    const normalizedOrigin = normalizeOrigin(origin);
-    let hostname = '';
-    try {
       hostname = new URL(normalizedOrigin).hostname;
     } catch (error) {
       return callback(null, false);
@@ -145,7 +140,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// 👇 NUEVO: Servir archivos estáticos (CSS, JS, imágenes)
+// Servir favicon para evitar error 404 en consola
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'images', 'Logo Grupo IT Arvic 2.svg'));
+});
+
+// 👇 NUEVO: Servir archivos estáticos (HTML, CSS, JS, imágenes)
+app.use(express.static(path.join(__dirname, '..')));
 app.use('/css', express.static(path.join(__dirname, '..', 'css')));
 app.use('/js', express.static(path.join(__dirname, '..', 'js')));
 app.use('/images', express.static(path.join(__dirname, '..', 'images')));
@@ -208,6 +209,7 @@ async function connectToDatabase() {
 
   if (!cachedConnection) {
     console.log('📡 [DB] Conectando a MongoDB Atlas...');
+<<<<<<< HEAD
     const mongoOptions = {
       maxPoolSize: readPositiveInt(process.env.MONGODB_MAX_POOL_SIZE, 10),
       minPoolSize: readPositiveInt(process.env.MONGODB_MIN_POOL_SIZE, 0, 0),
@@ -218,6 +220,12 @@ async function connectToDatabase() {
 
     cachedConnection = mongoose.connect(process.env.MONGODB_URI, {
       ...mongoOptions,
+=======
+    const dbUri = process.env.MONGODB_URI || 'mongodb+srv://portalarvic:Portal123456@portal-arvic-cluster.nljgq6k.mongodb.net/arvic-preview?retryWrites=true&w=majority';
+    cachedConnection = mongoose.connect(dbUri, {
+      serverSelectionTimeoutMS: 8000, // Tiempo límite para encontrar el servidor
+      socketTimeoutMS: 45000,
+>>>>>>> d2470be (fix: corregir advertencias de consola, favicon y optimizar SSE para produccion)
     });
   }
 

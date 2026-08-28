@@ -825,7 +825,7 @@ async function updateSidebarCounts() {
 
         console.log('Contadores de sidebar actualizados (unificado):', {
             consultorCount, empresaCount, proyectoCount, soporteCount, moduloCount,
-            tarifarioCount, assignCount, projectAssignCount, taskCount, pendingReports,
+            tarifarioCount, supportAssignCount, projectAssignCount, taskCount, pendingReports,
             pendingTimesheets, approvedCount, generatedReportsCount
         });
     } catch (error) {

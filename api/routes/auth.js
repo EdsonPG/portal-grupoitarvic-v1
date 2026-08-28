@@ -73,13 +73,14 @@ router.post('/login', async (req, res) => {
     }
 
     // Generar token JWT
+    const jwtSecret = process.env.JWT_SECRET || '7e87715a68d0b18fd296808a354a372c3eb03378e63f9a0b82eab69f493b4f767a7e7a7338c3e0f4a180b2cf44fe78e211769d22f824cec2286a2278621f2316';
     const token = jwt.sign(
       { 
         userId: user.userId,    // Cambiado de 'id' a 'userId'
         email: user.email,
         role: user.role 
       },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn: '24h' }
     );
 

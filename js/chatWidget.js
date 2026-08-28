@@ -52,12 +52,12 @@ class ChatWidget {
         this.sseAbortController = null;
         setTimeout(() => this.initRealTime(), 800);
 
-        // Polling unread counts (más rápido en Vercel)
-        const isVercel = window.location.hostname.includes('vercel.app');
-        setInterval(() => this.loadUnreadCounts(), isVercel ? 5000 : 30000);
+        // Polling unread counts (más rápido en producción)
+        const isProduction = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('grupoitarvic.com');
+        setInterval(() => this.loadUnreadCounts(), isProduction ? 5000 : 30000);
         
-        // Fallback polling for active chat messages (más rápido si no hay WS/SSE funcional o en Vercel)
-        setInterval(() => this.pollActiveChat(), isVercel ? 2000 : 8000);
+        // Fallback polling for active chat messages
+        setInterval(() => this.pollActiveChat(), isProduction ? 2000 : 8000);
 
         // Fallback polling for user statuses (cada 5 segundos)
         setInterval(() => this.pollUserStatuses(), 5000);
@@ -256,9 +256,9 @@ class ChatWidget {
     // REAL-TIME CONNECTION MANAGER
     // ========================================
     initRealTime() {
-        const isVercel = window.location.hostname.includes('vercel.app');
-        if (isVercel) {
-            console.log('Modo Vercel: Priorizando SSE (WebSockets no soportados de forma persistente).');
+        const isProduction = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('grupoitarvic.com');
+        if (isProduction) {
+            console.log('Modo Producción: Priorizando SSE (Server-Sent Events).');
             this.initSSE();
             return;
         }
