@@ -68,7 +68,11 @@ app.use(helmet({
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) {
-      return callback(null, !isProduction || process.env.CORS_ALLOW_NO_ORIGIN === 'true');
+      return callback(null, true);
+    }
+    const normalizedOrigin = normalizeOrigin(origin);
+    let hostname = '';
+    try {
       hostname = new URL(normalizedOrigin).hostname;
     } catch (error) {
       return callback(null, false);
@@ -76,12 +80,13 @@ app.use(cors({
 
     if (
       allowedOrigins.has(normalizedOrigin) ||
-      (allowVercelPreviews && hostname.endsWith('.vercel.app'))
+      hostname.endsWith('.vercel.app') ||
+      hostname.includes('grupoitarvic.com')
     ) {
       return callback(null, true);
     }
 
-    return callback(null, false);
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
