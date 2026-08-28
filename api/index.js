@@ -209,7 +209,7 @@ async function connectToDatabase() {
 
   if (!cachedConnection) {
     console.log('📡 [DB] Conectando a MongoDB Atlas...');
-<<<<<<< HEAD
+    const dbUri = process.env.MONGODB_URI || 'mongodb+srv://portalarvic:Portal123456@portal-arvic-cluster.nljgq6k.mongodb.net/arvic-preview?retryWrites=true&w=majority';
     const mongoOptions = {
       maxPoolSize: readPositiveInt(process.env.MONGODB_MAX_POOL_SIZE, 10),
       minPoolSize: readPositiveInt(process.env.MONGODB_MIN_POOL_SIZE, 0, 0),
@@ -218,14 +218,8 @@ async function connectToDatabase() {
       socketTimeoutMS: readPositiveInt(process.env.MONGODB_SOCKET_TIMEOUT_MS, 45000)
     };
 
-    cachedConnection = mongoose.connect(process.env.MONGODB_URI, {
-      ...mongoOptions,
-=======
-    const dbUri = process.env.MONGODB_URI || 'mongodb+srv://portalarvic:Portal123456@portal-arvic-cluster.nljgq6k.mongodb.net/arvic-preview?retryWrites=true&w=majority';
     cachedConnection = mongoose.connect(dbUri, {
-      serverSelectionTimeoutMS: 8000, // Tiempo límite para encontrar el servidor
-      socketTimeoutMS: 45000,
->>>>>>> d2470be (fix: corregir advertencias de consola, favicon y optimizar SSE para produccion)
+      ...mongoOptions
     });
   }
 
