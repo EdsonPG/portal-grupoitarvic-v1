@@ -507,3 +507,24 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('password');
+    const icon = document.getElementById('togglePasswordIcon');
+    if (!passwordInput) return;
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        if (icon) {
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        }
+    } else {
+        passwordInput.type = 'password';
+        if (icon) {
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+}
+window.togglePasswordVisibility = togglePasswordVisibility;

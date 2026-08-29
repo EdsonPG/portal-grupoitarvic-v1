@@ -16,22 +16,26 @@
             <div class="logo">
                 <img src="images/Logo Grupo IT Arvic 2.svg" alt="GRUPO IT ARVIC" class="logo-svg-complete">
             </div>
-            <p class="welcome-text">Bienvenido al Portal de Gestión</p>
+            <p class="welcome-text">Portal de Gestión y Servicios</p>
         </div>
 
         <div class="error-message" id="errorMessage"></div>
         <div class="success-message" id="successMessage"></div>
 
         <form id="loginForm">
-
             <div class="form-group">
                 <label for="userId">Usuario / ID</label>
-                <input type="text" id="userId" placeholder="Ingrese su usuario o ID" required>
+                <input type="text" id="userId" placeholder="Ingrese su usuario o ID" required autocomplete="username">
             </div>
 
-            <div class="form-group">
+            <div class="form-group password-group">
                 <label for="password">Contraseña</label>
-                <input type="password" id="password" placeholder="Ingrese su contraseña" required>
+                <div class="input-password-wrapper">
+                    <input type="password" id="password" placeholder="Ingrese su contraseña" required autocomplete="current-password">
+                    <button type="button" class="password-toggle-btn" id="togglePasswordBtn" title="Mostrar/Ocultar contraseña" tabindex="-1" onclick="togglePasswordVisibility()">
+                        <i class="fa-solid fa-eye" id="togglePasswordIcon"></i>
+                    </button>
+                </div>
             </div>
 
             <button type="submit" class="login-btn">Iniciar Sesión</button>

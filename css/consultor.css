@@ -859,6 +859,7 @@
 .btn-info { background-color: #3498db; color: white; }
 .btn-info:hover { background-color: #5dade2; }
 
+
 .submit-btn {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: white;

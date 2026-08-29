@@ -116,6 +116,47 @@ body {
 }
 
 /* ==========================================
+   BÚSQUEDA RÁPIDA (NAVBAR SEARCH TRIGGER)
+   ========================================== */
+.nav-search-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    margin-right: auto;
+    margin-left: 20px;
+}
+
+.nav-search-trigger:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+.search-trigger-kbd {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.7rem;
+    font-family: inherit;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 768px) {
+    .nav-search-trigger {
+        display: none;
+    }
+}
+
+/* ==========================================
    BOTONES DE NAVEGACIÓN (lado derecho, junto al usuario)
    ========================================== */
 .nav-actions {

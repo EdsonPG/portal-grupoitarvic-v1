@@ -380,122 +380,29 @@
                 <!-- Overlay de menú móvil -->
                 <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
                 
-                <!-- Sidebar de Navegación -->
+                <!-- Sidebar de Navegación Simplificado (Texto Puro Minimalista) -->
                 <div class="admin-sidebar">
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-section-title">Administración</h3>
-                        <div class="sidebar-menu">
-                            <div class="sidebar-menu-item active" data-section="panel-general">
-                                <span class="menu-icon"><i class="fa-solid fa-gauge-high"></i></span>
-                                <span class="menu-text">Panel General</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="consultores">
-                                <span class="menu-icon"><i class="fa-solid fa-users"></i></span>
-                                <span class="menu-text">Consultores</span>
-                                <span class="menu-badge" id="sidebarConsultoresCount">0</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="empresas">
-                                <span class="menu-icon"><i class="fa-solid fa-building"></i></span>
-                                <span class="menu-text">Empresas</span>
-                                <span class="menu-badge" id="sidebarEmpresasCount">0</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="proyectos">
-                                <span class="menu-icon"><i class="fa-solid fa-folder-open"></i></span>
-                                <span class="menu-text">Proyectos</span>
-                                <span class="menu-badge" id="sidebarProyectosCount">0</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="soportes">
-                                <span class="menu-icon"><i class="fa-solid fa-headset"></i></span>
-                                <span class="menu-text">Soportes</span>
-                                <span class="menu-badge" id="sidebarSoportesCount">0</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="modulos">
-                                <span class="menu-icon"><i class="fa-solid fa-puzzle-piece"></i></span>
-                                <span class="menu-text">Módulos</span>
-                                <span class="menu-badge" id="sidebarModulosCount">0</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="tarifario">
-                                <span class="menu-icon"><i class="fa-solid fa-dollar-sign"></i></span>
-                                <span class="menu-text">Tarifario</span>
-                                <span class="menu-badge" id="sidebarTarifarioCount">0</span>
-                            </div>
+                    <div class="sidebar-menu main-nav-menu">
+                        <div class="sidebar-menu-item active" data-section="panel-general" data-hub="panel-general">
+                            <span class="menu-text">Panel General</span>
                         </div>
-                    </div>
 
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-section-title">Asignaciones</h3>
-                        <div class="sidebar-menu">
-                            <div class="sidebar-menu-item" data-section="crear-asignacion">
-                                <span class="menu-text">Asignar Soportes</span>
-                            </div>
-
-                            <div class="sidebar-menu-item" data-section="asignar-proyectos">
-                                <span class="menu-text">Asignar Proyectos</span>
-                            </div>
-
-                            <div class="sidebar-menu-item" data-section="asignaciones-recientes">
-                                <span class="menu-text">Asignaciones Recientes</span>
-                            </div>
-
-                            <div class="sidebar-menu-item" data-section="lista-asignaciones">
-                                <span class="menu-text">Todas las Asignaciones</span>
-                                <span class="menu-badge" id="sidebarAssignmentsCount">0</span>
-                            </div>
-                            
-                            <div class="sidebar-menu-item" data-section="lista-soportes-asignados">
-                                <span class="menu-text">Soportes Asignados</span>
-                                <span class="menu-badge" id="sidebarSupportAssignmentsCount">0</span>
-                            </div>
-
-                            <div class="sidebar-menu-item" data-section="lista-proyectos-asignados">
-                                <span class="menu-text">Proyectos Asignados</span>
-                                <span class="menu-badge" id="sidebarProjectAssignmentsCount">0</span>
-                            </div>
-
-                            <div class="sidebar-menu-item" data-section="taskAssignments">
-                                <span class="menu-text">Asignaciones de Tareas</span>
-                                <span class="menu-badge" id="sidebarTaskCount">0</span>
-                            </div>
+                        <div class="sidebar-menu-item" data-section="consultores" data-hub="catalogos">
+                            <span class="menu-text">Catálogos</span>
                         </div>
-                    </div>
 
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-section-title">Reportes</h3>
-                        <div class="sidebar-menu">
-                            <div class="sidebar-menu-item" data-section="timesheets-semanales">
-                                <span class="menu-icon"> <i class="fa-solid fa-table-columns"></i> </span>
-                                <span class="menu-text">Timesheets Semanales</span>
-                                <span class="menu-badge" id="sidebarTimesheetsCount">0</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="reportes-pendientes">
-                                <span class="menu-icon"> <i class="fa-solid fa-chart-bar"></i> </span>
-                                <span class="menu-text">Reportes Pendientes</span>
-                                <span class="menu-badge" id="sidebarReportsCount">0</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="reportes-aprobados">
-                                <span class="menu-icon"> <i class="fa-solid fa-check"></i> </span>
-                                <span class="menu-text">Reportes Aprobados</span>
-                                <span class="menu-badge" id="sidebarApprovedReportsCount">0</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="generar-reporte">
-                                <span class="menu-icon"> <i class="fa-solid fa-file-alt"></i> </span>
-                                <span class="menu-text">Sistema de Reportes</span>
-                            </div>
-                            <div class="sidebar-menu-item" data-section="historial-reportes">
-                                <span class="menu-icon"> <i class="fa-solid fa-scroll"></i> </span>
-                                <span class="menu-text">Historial de Reportes</span>
-                                <span class="menu-badge" id="sidebarGeneratedReportsCount">0</span>
-                            </div>
+                        <div class="sidebar-menu-item" data-section="lista-asignaciones" data-hub="asignaciones">
+                            <span class="menu-text">Asignaciones</span>
+                            <span class="menu-badge" id="sidebarAssignmentsCount">0</span>
                         </div>
-                    </div>
 
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-section-title">Herramientas</h3>
-                        <div class="sidebar-menu">
-                            <div class="sidebar-menu-item" data-section="calendario">
-                                <span class="menu-icon"> <i class="fa-solid fa-calendar-days"></i> </span>
-                                <span class="menu-text">Calendario</span>
-                            </div>
+                        <div class="sidebar-menu-item" data-section="timesheets-semanales" data-hub="reportes">
+                            <span class="menu-text">Reportes</span>
+                            <span class="menu-badge" id="sidebarReportsCount">0</span>
+                        </div>
+
+                        <div class="sidebar-menu-item" data-section="calendario" data-hub="calendario">
+                            <span class="menu-text">Calendario</span>
                         </div>
                     </div>
                 </div>
@@ -2308,6 +2215,22 @@
                     </div>
                 </form>
             </div>
+    <!-- Slide-over Drawer para Vista Rápida de Detalles -->
+    <div id="slideDrawerOverlay" class="slide-drawer-overlay" onclick="closeSlideDrawer()"></div>
+    <div id="sideDetailDrawer" class="slide-drawer">
+        <div class="slide-drawer-header">
+            <h3 class="slide-drawer-title" id="drawerTitle">
+                <i class="fa-solid fa-circle-info"></i> Detalle
+            </h3>
+            <button type="button" class="slide-drawer-close" onclick="closeSlideDrawer()" title="Cerrar (Esc)">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="slide-drawer-body" id="drawerBody">
+            <!-- Contenido dinámico -->
+        </div>
+        <div class="slide-drawer-footer" id="drawerFooter">
+            <button type="button" class="btn btn-secondary" onclick="closeSlideDrawer()">Cerrar</button>
         </div>
     </div>
 

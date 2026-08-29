@@ -3466,23 +3466,60 @@ async function showSection(sectionName) {
 }
 
 
+const SECTION_TO_HUB_MAP = {
+    'panel-general': 'panel-general',
+    'calendario': 'calendario',
+    
+    // Catálogos
+    'consultores': 'catalogos',
+    'empresas': 'catalogos',
+    'proyectos': 'catalogos',
+    'soportes': 'catalogos',
+    'modulos': 'catalogos',
+    'tarifario': 'catalogos',
+    
+    // Asignaciones
+    'lista-asignaciones': 'asignaciones',
+    'lista-soportes-asignados': 'asignaciones',
+    'lista-proyectos-asignados': 'asignaciones',
+    'taskAssignments': 'asignaciones',
+    'asignaciones-recientes': 'asignaciones',
+    'crear-asignacion': 'asignaciones',
+    'asignar-proyectos': 'asignaciones',
+    
+    // Reportes
+    'timesheets-semanales': 'reportes',
+    'reportes-pendientes': 'reportes',
+    'reportes-aprobados': 'reportes',
+    'generar-reporte': 'reportes',
+    'historial-reportes': 'reportes'
+};
+
 function updateActiveSidebarItem(activeSection) {
-    document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.getAttribute('data-section') === activeSection) {
+    const targetHub = SECTION_TO_HUB_MAP[activeSection] || activeSection;
+    
+    document.querySelectorAll('.admin-sidebar .sidebar-menu-item').forEach(item => {
+        const itemHub = item.getAttribute('data-hub') || item.getAttribute('data-section');
+        const itemSec = item.getAttribute('data-section');
+        
+        if (itemHub === targetHub || itemSec === activeSection) {
             item.classList.add('active');
-            
-            // Auto-expandir la sección que contiene el item activo
-            const section = item.closest('.sidebar-section');
-            if (section && section.classList.contains('collapsed')) {
-                section.classList.remove('collapsed');
-                const chevron = section.querySelector('.section-toggle-icon');
-                if (chevron) {
-                    chevron.style.transform = 'rotate(0deg)';
-                }
-            }
+        } else {
+            item.classList.remove('active');
         }
     });
+
+    // Actualizar pestaña activa en el banner superior
+    document.querySelectorAll('.hub-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const currentSectionEl = document.getElementById(`${activeSection}-section`);
+    if (currentSectionEl) {
+        const activeTab = currentSectionEl.querySelector(`.hub-tab-btn[data-tab-id="${activeSection}"]`);
+        if (activeTab) {
+            activeTab.classList.add('active');
+        }
+    }
 }
 
 async function loadSectionData(sectionName) {
@@ -12690,4 +12727,269 @@ window.toggleMobileSidebar = function() {
         wrapper.classList.toggle('sidebar-open');
     }
 };
+
+/* ==========================================================================
+   ENTERPRISE UX EXTENSIONS: HUB TABS, DRAWER & COMMAND PALETTE (CTRL+K)
+   ========================================================================== */
+
+// --- 1. HUB TABS MANAGEMENT ---
+const HUB_CONFIGS = {
+    asignaciones: {
+        sections: [
+            'lista-asignaciones',
+            'lista-soportes-asignados',
+            'lista-proyectos-asignados',
+            'taskAssignments',
+            'asignaciones-recientes',
+            'crear-asignacion',
+            'asignar-proyectos'
+        ],
+        tabs: [
+            { id: 'lista-asignaciones', label: 'Todas las Asignaciones', icon: 'fa-solid fa-list-check' },
+            { id: 'lista-soportes-asignados', label: 'Soportes Asignados', icon: 'fa-solid fa-headset' },
+            { id: 'lista-proyectos-asignados', label: 'Proyectos Asignados', icon: 'fa-solid fa-folder-open' },
+            { id: 'taskAssignments', label: 'Tareas', icon: 'fa-solid fa-tasks' },
+            { id: 'asignaciones-recientes', label: 'Recientes', icon: 'fa-solid fa-clock-rotate-left' },
+            { id: 'crear-asignacion', label: '+ Asignar Soporte', icon: 'fa-solid fa-plus' },
+            { id: 'asignar-proyectos', label: '+ Asignar Proyecto', icon: 'fa-solid fa-plus' }
+        ]
+    },
+    reportes: {
+        sections: [
+            'timesheets-semanales',
+            'reportes-pendientes',
+            'reportes-aprobados',
+            'generar-reporte',
+            'historial-reportes'
+        ],
+        tabs: [
+            { id: 'timesheets-semanales', label: 'Timesheets Semanales', icon: 'fa-solid fa-table-columns' },
+            { id: 'reportes-pendientes', label: 'Reportes Pendientes', icon: 'fa-solid fa-clock' },
+            { id: 'reportes-aprobados', label: 'Reportes Aprobados', icon: 'fa-solid fa-circle-check' },
+            { id: 'generar-reporte', label: 'Sistema de Reportes', icon: 'fa-solid fa-file-excel' },
+            { id: 'historial-reportes', label: 'Historial', icon: 'fa-solid fa-history' }
+        ]
+    },
+    catalogos: {
+        sections: [
+            'consultores',
+            'empresas',
+            'proyectos',
+            'soportes',
+            'modulos',
+            'tarifario'
+        ],
+        tabs: [
+            { id: 'consultores', label: 'Consultores', icon: 'fa-solid fa-users' },
+            { id: 'empresas', label: 'Empresas', icon: 'fa-solid fa-building' },
+            { id: 'proyectos', label: 'Proyectos', icon: 'fa-solid fa-folder-open' },
+            { id: 'soportes', label: 'Soportes', icon: 'fa-solid fa-headset' },
+            { id: 'modulos', label: 'Módulos', icon: 'fa-solid fa-puzzle-piece' },
+            { id: 'tarifario', label: 'Tarifario', icon: 'fa-solid fa-dollar-sign' }
+        ]
+    }
+};
+
+function initHubTabs() {
+    Object.keys(HUB_CONFIGS).forEach(hubKey => {
+        const config = HUB_CONFIGS[hubKey];
+        config.sections.forEach(sectionId => {
+            const sectionEl = document.getElementById(`${sectionId}-section`);
+            if (!sectionEl) return;
+            
+            // Si ya existe el contenedor de tabs, no duplicar
+            if (sectionEl.querySelector('.hub-tabs-container')) return;
+            
+            const tabsNav = document.createElement('div');
+            tabsNav.className = 'hub-tabs-container';
+            
+            config.tabs.forEach(tab => {
+                const tabBtn = document.createElement('button');
+                tabBtn.type = 'button';
+                tabBtn.className = `hub-tab-btn ${tab.id === sectionId ? 'active' : ''}`;
+                tabBtn.setAttribute('data-tab-id', tab.id);
+                tabBtn.innerHTML = `<span>${tab.label}</span>`;
+                tabBtn.onclick = () => {
+                    if (typeof showSection === 'function') {
+                        showSection(tab.id);
+                    }
+                };
+                tabsNav.appendChild(tabBtn);
+            });
+            
+            // Insertar arriba del header de la sección
+            const header = sectionEl.querySelector('.section-header');
+            if (header) {
+                sectionEl.insertBefore(tabsNav, header);
+            } else {
+                sectionEl.insertBefore(tabsNav, sectionEl.firstChild);
+            }
+        });
+    });
+}
+
+// --- 2. SLIDE-OVER DETAIL DRAWER ---
+function openSlideDrawer(title, contentHtml, footerHtml = null) {
+    const overlay = document.getElementById('slideDrawerOverlay');
+    const drawer = document.getElementById('sideDetailDrawer');
+    const titleEl = document.getElementById('drawerTitle');
+    const bodyEl = document.getElementById('drawerBody');
+    const footerEl = document.getElementById('drawerFooter');
+    
+    if (!drawer) return;
+    
+    if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${title}`;
+    if (bodyEl) bodyEl.innerHTML = contentHtml;
+    
+    if (footerEl) {
+        if (footerHtml) {
+            footerEl.innerHTML = footerHtml;
+        } else {
+            footerEl.innerHTML = `<button type="button" class="btn btn-secondary" onclick="closeSlideDrawer()">Cerrar</button>`;
+        }
+    }
+    
+    if (overlay) overlay.classList.add('active');
+    drawer.classList.add('active');
+}
+
+function closeSlideDrawer() {
+    const overlay = document.getElementById('slideDrawerOverlay');
+    const drawer = document.getElementById('sideDetailDrawer');
+    if (overlay) overlay.classList.remove('active');
+    if (drawer) drawer.classList.remove('active');
+}
+
+window.openSlideDrawer = openSlideDrawer;
+window.closeSlideDrawer = closeSlideDrawer;
+
+// --- 3. QUICK COMMAND PALETTE (CTRL+K) ---
+const SEARCH_NAV_ITEMS = [
+    { title: 'Panel General', section: 'panel-general', category: 'Navegación', icon: 'fa-solid fa-gauge-high' },
+    { title: 'Consultores', section: 'consultores', category: 'Catálogos', icon: 'fa-solid fa-users' },
+    { title: 'Empresas', section: 'empresas', category: 'Catálogos', icon: 'fa-solid fa-building' },
+    { title: 'Proyectos', section: 'proyectos', category: 'Catálogos', icon: 'fa-solid fa-folder-open' },
+    { title: 'Soportes', section: 'soportes', category: 'Catálogos', icon: 'fa-solid fa-headset' },
+    { title: 'Módulos', section: 'modulos', category: 'Catálogos', icon: 'fa-solid fa-puzzle-piece' },
+    { title: 'Tarifario', section: 'tarifario', category: 'Catálogos', icon: 'fa-solid fa-dollar-sign' },
+    { title: 'Todas las Asignaciones', section: 'lista-asignaciones', category: 'Asignaciones', icon: 'fa-solid fa-list-check' },
+    { title: 'Crear Asignación de Soporte', section: 'crear-asignacion', category: 'Asignaciones', icon: 'fa-solid fa-plus' },
+    { title: 'Crear Asignación de Proyecto', section: 'asignar-proyectos', category: 'Asignaciones', icon: 'fa-solid fa-plus' },
+    { title: 'Asignaciones de Tareas', section: 'taskAssignments', category: 'Asignaciones', icon: 'fa-solid fa-tasks' },
+    { title: 'Timesheets Semanales', section: 'timesheets-semanales', category: 'Reportes', icon: 'fa-solid fa-table-columns' },
+    { title: 'Reportes Pendientes', section: 'reportes-pendientes', category: 'Reportes', icon: 'fa-solid fa-clock' },
+    { title: 'Reportes Aprobados', section: 'reportes-aprobados', category: 'Reportes', icon: 'fa-solid fa-circle-check' },
+    { title: 'Sistema de Reportes (Excel)', section: 'generar-reporte', category: 'Reportes', icon: 'fa-solid fa-file-excel' },
+    { title: 'Historial de Reportes', section: 'historial-reportes', category: 'Reportes', icon: 'fa-solid fa-history' },
+    { title: 'Calendario', section: 'calendario', category: 'Herramientas', icon: 'fa-solid fa-calendar-days' }
+];
+
+function openCommandPalette() {
+    const overlay = document.getElementById('commandPaletteOverlay');
+    const input = document.getElementById('commandPaletteInput');
+    if (!overlay) return;
+    
+    overlay.classList.add('active');
+    if (input) {
+        input.value = '';
+        input.focus();
+        handleCommandPaletteSearch('');
+    }
+}
+
+function closeCommandPalette() {
+    const overlay = document.getElementById('commandPaletteOverlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function handleCommandPaletteOverlayClick(e) {
+    if (e.target.id === 'commandPaletteOverlay') {
+        closeCommandPalette();
+    }
+}
+
+function handleCommandPaletteSearch(query) {
+    const container = document.getElementById('commandPaletteResults');
+    if (!container) return;
+    
+    const q = (query || '').toLowerCase().trim();
+    
+    const filtered = SEARCH_NAV_ITEMS.filter(item => 
+        !q || item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
+    );
+    
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 24px; text-align: center; color: var(--gray-500); font-size: 0.85rem;">
+                <i class="fa-solid fa-magnifying-glass" style="font-size: 1.5rem; margin-bottom: 8px; display: block; opacity: 0.5;"></i>
+                No se encontraron resultados para "${query}"
+            </div>
+        `;
+        return;
+    }
+    
+    // Agrupar por categoría
+    const grouped = {};
+    filtered.forEach(item => {
+        if (!grouped[item.category]) grouped[item.category] = [];
+        grouped[item.category].push(item);
+    });
+    
+    let html = '';
+    Object.keys(grouped).forEach(category => {
+        html += `<div class="command-palette-group-title">${category}</div>`;
+        grouped[category].forEach(item => {
+            html += `
+                <div class="command-palette-item" onclick="triggerCommandPaletteNav('${item.section}')">
+                    <div class="command-palette-item-left">
+                        <i class="${item.icon}"></i>
+                        <span>${item.title}</span>
+                    </div>
+                    <span class="command-palette-item-sub">${category}</span>
+                </div>
+            `;
+        });
+    });
+    
+    container.innerHTML = html;
+}
+
+function triggerCommandPaletteNav(sectionId) {
+    closeCommandPalette();
+    if (typeof showSection === 'function') {
+        showSection(sectionId);
+    }
+}
+
+window.openCommandPalette = openCommandPalette;
+window.closeCommandPalette = closeCommandPalette;
+window.handleCommandPaletteOverlayClick = handleCommandPaletteOverlayClick;
+window.handleCommandPaletteSearch = handleCommandPaletteSearch;
+window.triggerCommandPaletteNav = triggerCommandPaletteNav;
+
+// --- 4. GLOBAL SHORTCUTS (CTRL+K, ESC) ---
+document.addEventListener('keydown', (e) => {
+    // Ctrl + K o Cmd + K
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const overlay = document.getElementById('commandPaletteOverlay');
+        if (overlay && overlay.classList.contains('active')) {
+            closeCommandPalette();
+        } else {
+            openCommandPalette();
+        }
+    }
+    
+    // ESC para cerrar modales/drawers
+    if (e.key === 'Escape') {
+        closeCommandPalette();
+        closeSlideDrawer();
+    }
+});
+
+// Inicializar Hub Tabs al cargar
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initHubTabs, 300);
+});
+
 
