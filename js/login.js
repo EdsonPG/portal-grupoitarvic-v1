@@ -33,9 +33,19 @@ function initializeLoginForm() {
 
 function setupEventListeners() {
     const form = document.getElementById('loginForm');
+    if (form) {
+        form.addEventListener('submit', handleLogin);
+    }
     
-    // Manejar envío del formulario
-    form.addEventListener('submit', handleLogin);
+    // Toggle visibilidad contraseña
+    const toggleBtn = document.getElementById('togglePasswordBtn');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            togglePasswordVisibility(e);
+        });
+    }
     
     // Enter key navigation (simplificado)
     setupKeyboardNavigation();
@@ -465,17 +475,14 @@ async function handleForgotPassword() {
 
 // === MANEJO DE ERRORES GLOBALES ===
 
-// Capturar errores no manejados
+// Capturar errores en consola sin bloquear la interfaz
 window.addEventListener('error', function(e) {
-    console.error('Error no manejado:', e.error);
-    showError('Se produjo un error inesperado. Por favor, recargue la página.');
+    console.error('Error no manejado en login:', e.error || e.message);
 });
 
-// Capturar promesas rechazadas no manejadas
+// Capturar promesas rechazadas no manejadas en consola
 window.addEventListener('unhandledrejection', function(e) {
-    console.error('Promesa rechazada no manejada:', e.reason);
-    showError('Error de conexión o procesamiento. Intente nuevamente.');
-    e.preventDefault();
+    console.error('Promesa rechazada en login:', e.reason);
 });
 
 // === ACCESIBILIDAD ===
@@ -490,6 +497,7 @@ document.addEventListener('keydown', function(e) {
     // F5 para refresh con confirmación si hay datos en el formulario
     if (e.key === 'F5') {
         const form = document.getElementById('loginForm');
+        if (!form) return;
         const formData = new FormData(form);
         let hasData = false;
         
@@ -508,7 +516,11 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-function togglePasswordVisibility() {
+function togglePasswordVisibility(e) {
+    if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+        e.stopPropagation();
+    }
     const passwordInput = document.getElementById('password');
     const icon = document.getElementById('togglePasswordIcon');
     if (!passwordInput) return;
@@ -516,14 +528,12 @@ function togglePasswordVisibility() {
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
         if (icon) {
-            icon.classList.remove('fa-eye');
-            icon.classList.add('fa-eye-slash');
+            icon.className = 'fa-solid fa-eye-slash';
         }
     } else {
         passwordInput.type = 'password';
         if (icon) {
-            icon.classList.remove('fa-eye-slash');
-            icon.classList.add('fa-eye');
+            icon.className = 'fa-solid fa-eye';
         }
     }
 }
