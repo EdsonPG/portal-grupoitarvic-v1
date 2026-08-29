@@ -1,7 +1,7 @@
 /* === ESTILOS ENTERPRISE PARA LA PÁGINA DE LOGIN - GRUPO IT ARVIC === */
 
 body {
-    background: #0f172a;
+    background: linear-gradient(135deg, #0a0f1d 0%, #0f172a 35%, #1e293b 70%, #172554 100%);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -13,7 +13,7 @@ body {
     font-family: var(--font-primary, 'Inter', sans-serif);
 }
 
-/* Patrón de cuadrícula de fondo corporativo sutil */
+/* Patrón de fondo corporativo con orbes y cuadrícula */
 body::before {
     content: '';
     position: absolute;
@@ -22,23 +22,27 @@ body::before {
     right: 0;
     bottom: 0;
     background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-    background-size: 32px 32px;
+        radial-gradient(circle at 15% 25%, rgba(37, 99, 235, 0.18) 0%, transparent 45%),
+        radial-gradient(circle at 85% 75%, rgba(30, 58, 138, 0.22) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
+        linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
     pointer-events: none;
 }
 
 /* Container principal del login */
 .login-container {
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
     border-radius: 12px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.4), 0 10px 15px -5px rgba(0, 0, 0, 0.2);
     padding: 36px 32px;
     width: 100%;
     max-width: 400px;
     text-align: center;
     position: relative;
-    border: 1px solid #334155;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     z-index: 1;
 }
 
@@ -110,34 +114,40 @@ body::before {
 
 /* Password input wrapper */
 .input-password-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
 }
 
 .input-password-wrapper input {
-    padding-right: 42px;
+    width: 100% !important;
+    padding-right: 44px !important;
+    box-sizing: border-box !important;
 }
 
 .password-toggle-btn {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: transparent;
-    border: none;
-    color: #64748b;
-    cursor: pointer;
-    padding: 6px;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: #64748b !important;
+    cursor: pointer !important;
+    padding: 6px 8px !important;
+    font-size: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 4px !important;
+    z-index: 5 !important;
 }
 
 .password-toggle-btn:hover {
-    color: #0f172a;
+    color: #0f172a !important;
 }
 
 /* Botón de login profesional */
