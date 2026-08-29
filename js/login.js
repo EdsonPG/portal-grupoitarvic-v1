@@ -525,12 +525,15 @@ function togglePasswordVisibility(e) {
     const icon = document.getElementById('togglePasswordIcon');
     if (!passwordInput) return;
     
-    if (passwordInput.type === 'password') {
+    const isPassword = (passwordInput.getAttribute('type') === 'password' || passwordInput.type === 'password');
+    if (isPassword) {
+        passwordInput.setAttribute('type', 'text');
         passwordInput.type = 'text';
         if (icon) {
             icon.className = 'fa-solid fa-eye-slash';
         }
     } else {
+        passwordInput.setAttribute('type', 'password');
         passwordInput.type = 'password';
         if (icon) {
             icon.className = 'fa-solid fa-eye';

@@ -146,6 +146,10 @@ body::before {
     z-index: 5 !important;
 }
 
+.password-toggle-btn i {
+    pointer-events: none !important;
+}
+
 .password-toggle-btn:hover {
     color: #0f172a !important;
 }
