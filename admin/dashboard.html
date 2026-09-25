@@ -7,11 +7,11 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Panel Administrador - Grupo It Arvic</title>
-    <link rel="stylesheet" href="../css/shared.css?v=60">
-    <link rel="stylesheet" href="../css/admin.css?v=60">
-    <link rel="stylesheet" href="../css/arvic-pdf-styles.css?v=60">
-    <link rel="stylesheet" href="../css/notifications.css?v=60">
-    <link rel="stylesheet" href="../css/activity-report.css?v=60">
+    <link rel="stylesheet" href="../css/shared.css?v=62">
+    <link rel="stylesheet" href="../css/admin.css?v=62">
+    <link rel="stylesheet" href="../css/arvic-pdf-styles.css?v=62">
+    <link rel="stylesheet" href="../css/notifications.css?v=62">
+    <link rel="stylesheet" href="../css/activity-report.css?v=62">
     <link rel="stylesheet" href="../css/account-tabs.css?v=43">
     <link rel="stylesheet" href="../css/billing.css?v=49">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -374,6 +374,12 @@
                 
                 <!-- Sidebar de Navegación Simplificado (Texto Puro Minimalista) -->
                 <div class="admin-sidebar">
+                    <div class="sidebar-mobile-header">
+                        <span><i class="fa-solid fa-compass"></i> Menú</span>
+                        <button type="button" class="sidebar-close-btn" onclick="toggleMobileSidebar()" aria-label="Cerrar menú">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
                     <div class="sidebar-menu main-nav-menu">
                         <div class="sidebar-menu-item active" data-section="panel-general" data-hub="panel-general">
                             <span class="menu-text">Panel General</span>

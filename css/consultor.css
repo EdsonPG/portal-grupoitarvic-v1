@@ -1409,8 +1409,8 @@ body.dark-mode .consultor-header .notif-icon.type-system { background: #1e293b !
     }
 }
 
-/* Móviles */
-@media (max-width: 768px) {
+/* Móviles, Tablets y Modo Horizontal */
+@media (max-width: 1024px), (max-height: 520px) and (orientation: landscape) {
     html, body, .consultor-layout {
         overflow-x: hidden !important;
         width: 100% !important;
@@ -1440,14 +1440,23 @@ body.dark-mode .consultor-header .notif-icon.type-system { background: #1e293b !
         -webkit-overflow-scrolling: touch !important;
     }
 
-    .consultor-logo-svg { height: 40px; }
+    .consultor-logo-svg { height: 32px !important; }
 
     .consultor-header .navbar {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        height: 80px !important;
-        padding: 0 16px !important;
-        gap: 12px !important;
+        height: 56px !important;
+        padding: 0 12px !important;
+        gap: 8px !important;
+    }
+
+    .consultor-header .nav-action-btn span {
+        display: none !important;
+    }
+
+    .consultor-header .nav-action-btn {
+        min-width: auto !important;
+        padding: 6px 8px !important;
     }
 
     .consultor-header .nav-right {
@@ -1458,6 +1467,12 @@ body.dark-mode .consultor-header .notif-icon.type-system { background: #1e293b !
 
     .consultor-header .user-info .user-name { display: none !important; }
     .consultor-header .user-info { padding: 4px !important; }
+
+    .consultor-sidebar {
+        top: 56px !important;
+        height: calc(100vh - 56px) !important;
+        height: calc(100dvh - 56px) !important;
+    }
 
     .consultor-header .help-panel,
     .consultor-header .notif-panel {

@@ -1465,7 +1465,7 @@ body.dark-mode .expediente-doc-details p strong {
    ADAPTABILIDAD MÓVIL PREMIUM — PORTAL CLIENTE (FASE 6)
    ========================================================================= */
 
-@media (max-width: 768px) {
+@media (max-width: 1024px), (max-height: 520px) and (orientation: landscape) {
     html, body, .cliente-layout, .cliente-layout-wrapper {
         overflow-x: hidden !important;
         width: 100% !important;
