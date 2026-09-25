@@ -13237,11 +13237,25 @@ async function renderMachotesSection() {
 
     try {
         const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        if (!token || (window.AuthSys && window.AuthSys.isTokenExpired(token))) {
+            if (window.AuthSys) {
+                window.AuthSys.handleSessionExpired('Tu sesión ha caducado. Redirigiendo al inicio de sesión...');
+                return;
+            }
+        }
+
         const apiUrl = window.getArvicApiUrl ? window.getArvicApiUrl('/api/expedientes/machotes') : '/api/expedientes/machotes';
         const res = await fetch(apiUrl, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
+
+        if (res.status === 401 || res.status === 403 || (json && json.message && json.message.toLowerCase().includes('token'))) {
+            if (window.AuthSys) {
+                window.AuthSys.handleSessionExpired('Tu sesión ha expirado por seguridad. Redirigiendo...');
+                return;
+            }
+        }
 
         if (!json.success || !json.data) {
             container.innerHTML = `

@@ -52,6 +52,9 @@ class PortalDatabase {
 
     // === CONFIGURACIÓN DE HEADERS ===
     getHeaders() {
+        if (!this.token) {
+            this.token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token') || null;
+        }
         const headers = {
             'Content-Type': 'application/json'
         };

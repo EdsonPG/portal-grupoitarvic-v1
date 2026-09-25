@@ -11,52 +11,113 @@ class AuthSystem {
         this.loadCurrentSession();
     }
 
+    // === UTILIDADES DE TOKEN JWT ===
+    isTokenExpired(token) {
+        if (!token || typeof token !== 'string') return true;
+        try {
+            const parts = token.split('.');
+            if (parts.length !== 3) return true;
+            // Decodificar Base64Url de JWT payload
+            const base64Url = parts[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            if (!payload || !payload.exp) return false;
+            // Si el tiempo de expiración (en ms) ya pasó con margen de 30 segundos
+            return (payload.exp * 1000) <= (Date.now() + 30000);
+        } catch (e) {
+            console.warn('⚠️ Error al decodificar token JWT:', e);
+            return true;
+        }
+    }
+
+    clearSession() {
+        localStorage.removeItem(this.sessionKey);
+        localStorage.removeItem('arvic_token');
+        localStorage.removeItem('arvic_admin_prefetched_data');
+        localStorage.removeItem('arvic_consultor_prefetched_data');
+        localStorage.removeItem('arvic_cliente_prefetched_data');
+        sessionStorage.removeItem('arvic_token');
+        sessionStorage.removeItem('arvic_support_bot_history');
+        this.currentUser = null;
+    }
+
+    handleSessionExpired(message = 'Tu sesión ha expirado por seguridad. Redirigiendo al inicio de sesión...') {
+        console.warn('⚠️ Sesión expirada o token inválido:', message);
+        this.clearSession();
+        if (window.Toast && typeof window.Toast.show === 'function') {
+            window.Toast.show(message, 'warning', 4000);
+        }
+        setTimeout(() => {
+            this.redirectToLogin();
+        }, 1000);
+    }
+
     // === GESTIÓN DE SESIONES ===
     loadCurrentSession() {
         try {
             const sessionData = localStorage.getItem(this.sessionKey);
-            if (sessionData) {
-                const session = JSON.parse(sessionData);
-                
-                // Verificar si la sesión ha expirado por inactividad de 10 minutos (pestaña cerrada, etc.)
-                const lastActiveTime = session.lastActivity ? new Date(session.lastActivity) : new Date(session.loginTime);
-                const currentTime = new Date();
-                const minutesDiff = (currentTime - lastActiveTime) / (1000 * 60);
-                
-                if (minutesDiff >= 10) {
-                    console.log('⏳ Sesión expirada por inactividad de 10 minutos.');
-                    // Limpiar datos locales directamente antes de redireccionar
-                    localStorage.removeItem(this.sessionKey);
-                    localStorage.removeItem('arvic_token');
-                    this.currentUser = null;
+            const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+
+            if (sessionData && token) {
+                // 1. Verificar si el token JWT ya caducó antes de intentar usarlo
+                if (this.isTokenExpired(token)) {
+                    console.log('⏳ Token JWT expirado detectado en cliente.');
+                    this.clearSession();
                     this.redirectToLogin();
                     return false;
                 }
 
-                // Verificar si la sesión no ha expirado por fecha límite global (24 horas)
-                const sessionTime = new Date(session.loginTime);
-                const hoursDiff = (currentTime - sessionTime) / (1000 * 60 * 60);
+                const session = JSON.parse(sessionData);
+                const currentTime = new Date();
                 
-                if (hoursDiff < 24) {
+                // 2. Margen de inactividad amigable para móviles y multi-dispositivo (24 horas)
+                const lastActiveTime = session.lastActivity ? new Date(session.lastActivity) : new Date(session.loginTime || currentTime);
+                const hoursInactive = (currentTime - lastActiveTime) / (1000 * 60 * 60);
+                
+                if (hoursInactive >= 24) {
+                    console.log('⏳ Sesión expirada por inactividad de más de 24 horas.');
+                    this.clearSession();
+                    this.redirectToLogin();
+                    return false;
+                }
+
+                // 3. Límite de sesión sincronizado con el token JWT (30 días)
+                const sessionTime = session.loginTime ? new Date(session.loginTime) : currentTime;
+                const daysDiff = (currentTime - sessionTime) / (1000 * 60 * 60 * 24);
+                
+                if (daysDiff < 30) {
                     this.currentUser = session.user;
-                    
-                    // 👇 NUEVO: Validar token con el servidor en segundo plano
-                    setTimeout(() => this.validateTokenWithServer(), 100);
-                    
+                    setTimeout(() => this.validateTokenWithServer(), 150);
                     return true;
                 } else {
-                    this.logout();
+                    console.log('⏳ Sesión superó el límite de 30 días.');
+                    this.handleSessionExpired('Tu sesión ha superado el tiempo máximo de 30 días.');
                 }
+            } else if (sessionData && !token) {
+                // Inconsistencia: sesión en caché pero sin token
+                this.clearSession();
             }
         } catch (error) {
             console.error('Error loading session:', error);
-            this.logout();
+            this.clearSession();
         }
         return false;
     }
 
     async validateTokenWithServer() {
-        if (!window.PortalDB || !localStorage.getItem('arvic_token')) return;
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        if (!window.PortalDB || !token) return;
+        
+        // Validación preventiva en cliente
+        if (this.isTokenExpired(token)) {
+            console.warn('⚠️ Token expirado según fecha de validez.');
+            this.handleSessionExpired();
+            return;
+        }
+
         try {
             const result = await window.PortalDB.validateToken();
             if (result && result.success && result.user) {
@@ -77,8 +138,8 @@ class AuthSystem {
                     }
                 }
             } else {
-                console.warn('⚠️ Token de sesión inválido en el servidor. Cerrando sesión...');
-                this.logout();
+                console.warn('⚠️ Token de sesión inválido en el servidor. Redirigiendo...');
+                this.handleSessionExpired();
             }
         } catch (e) {
             console.error('❌ Error al validar token con el servidor:', e);
@@ -503,7 +564,8 @@ class AuthSystem {
     // === AUTO LOGOUT POR INACTIVIDAD ===
     startInactivityTimer() {
         let inactivityTimer;
-        const INACTIVITY_TIME = 10 * 60 * 1000; // 10 minutos de inactividad
+        // 24 horas de inactividad en segundo plano (amigable para móviles, laptops y tablets)
+        const INACTIVITY_TIME = 24 * 60 * 60 * 1000;
 
         const resetTimer = () => {
             // Actualizar timestamp en localStorage
@@ -511,8 +573,8 @@ class AuthSystem {
             
             clearTimeout(inactivityTimer);
             inactivityTimer = setTimeout(() => {
-                console.log('⏳ Inactividad de 10 minutos alcanzada. Cerrando sesión automáticamente.');
-                this.logout();
+                console.log('⏳ Inactividad prolongada (24 horas). Cerrando sesión automáticamente.');
+                this.handleSessionExpired('Tu sesión ha expirado por inactividad prolongada.');
             }, INACTIVITY_TIME);
         };
 

@@ -4,10 +4,16 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Verificar si ya hay una sesión activa
-    if (window.AuthSys.isAuthenticated()) {
-        redirectToUserDashboard();
-        return;
+    // Verificar si ya hay una sesión activa y si el token sigue siendo válido
+    if (window.AuthSys && window.AuthSys.isAuthenticated()) {
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        if (!token || window.AuthSys.isTokenExpired(token)) {
+            console.log('🔄 Token expirado o ausente detectado en login. Limpiando sesión...');
+            window.AuthSys.clearSession();
+        } else {
+            redirectToUserDashboard();
+            return;
+        }
     }
 
     initializeLoginForm();

@@ -7,7 +7,8 @@ const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ success: false, message: 'No autorizado' });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || '7e87715a68d0b18fd296808a354a372c3eb03378e63f9a0b82eab69f493b4f767a7e7a7338c3e0f4a180b2cf44fe78e211769d22f824cec2286a2278621f2316';
+    const decoded = jwt.verify(token, secret);
     req.user = decoded;
     next();
   } catch (error) {

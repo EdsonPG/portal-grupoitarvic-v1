@@ -107,7 +107,7 @@ router.post('/login', async (req, res) => {
         companyName: user.companyName || null
       },
       jwtSecret,
-      { expiresIn: '24h' }
+      { expiresIn: '30d' }
     );
 
     res.json({
@@ -399,7 +399,7 @@ router.post('/activate-account', async (req, res) => {
         companyName: user.companyName || null
       },
       jwtSecret,
-      { expiresIn: '24h' }
+      { expiresIn: '30d' }
     );
 
     res.json({
