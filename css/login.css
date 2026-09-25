@@ -348,3 +348,20 @@ body::before {
     font-size: 0.75rem;
     color: #64748b;
 }
+
+@media (max-width: 480px) {
+    body {
+        padding: 16px !important;
+    }
+    .login-container {
+        padding: 26px 18px !important;
+        width: 100% !important;
+        border-radius: 12px !important;
+    }
+    .logo-svg-complete {
+        width: 95px !important;
+    }
+    .form-group input {
+        font-size: 16px !important; /* Previene auto-zoom en iOS Safari */
+    }
+}

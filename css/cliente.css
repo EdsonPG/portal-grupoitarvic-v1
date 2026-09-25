@@ -1466,6 +1466,19 @@ body.dark-mode .expediente-doc-details p strong {
    ========================================================================= */
 
 @media (max-width: 768px) {
+    html, body, .cliente-layout, .cliente-layout-wrapper {
+        overflow-x: hidden !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+    }
+
+    .cliente-main-content {
+        overflow-x: hidden !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+    }
+
     .cliente-header {
         padding: 0 12px;
     }
