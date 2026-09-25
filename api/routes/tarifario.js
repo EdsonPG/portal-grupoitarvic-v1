@@ -6,6 +6,10 @@ function isAdmin(req) {
   return req.user?.role === 'admin';
 }
 
+function isCliente(req) {
+  return req.user?.role === 'cliente';
+}
+
 function requireAdmin(req, res) {
   if (!isAdmin(req)) {
     res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
@@ -16,16 +20,33 @@ function requireAdmin(req, res) {
 
 // GET todos los tarifarios
 router.get('/', async (req, res) => {
-  if (!requireAdmin(req, res)) return;
-
   try {
-    const tarifarios = await Tarifario.find();
-    res.json({ success: true, data: tarifarios });
+    if (isAdmin(req)) {
+      const tarifarios = await Tarifario.find();
+      return res.json({ success: true, data: tarifarios });
+    }
+
+    if (isCliente(req)) {
+      if (!req.user.companyId) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // Regla de privacidad estricta: solo tarifas pactadas de su empresa, ocultando costos internos y nombres de consultores
+      const tarifarios = await Tarifario.find({ 
+        companyId: req.user.companyId, 
+        isActive: { $ne: false } 
+      }).select('-costoConsultor -margen -margenPorcentaje -consultorId -consultorNombre');
+
+      return res.json({ success: true, data: tarifarios });
+    }
+
+    return res.status(403).json({ success: false, message: 'Acceso denegado' });
   } catch (error) {
     console.error('❌ Error obteniendo tarifarios:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // GET tarifarios por assignmentId
 router.get('/assignment/:assignmentId', async (req, res) => {

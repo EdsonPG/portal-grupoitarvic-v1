@@ -8,11 +8,13 @@
     <meta http-equiv="Expires" content="0">
     <title>Portal Consultor - GRUPO IT ARVIC</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../css/shared.css?v=25">
-    <link rel="stylesheet" href="../css/consultor.css?v=25">
-    <link rel="stylesheet" href="../css/chat.css?v=25">
-    <link rel="stylesheet" href="../css/notifications.css?v=25">
-    <link rel="stylesheet" href="../css/activity-report.css?v=25">
+    <link rel="stylesheet" href="../css/shared.css?v=55">
+    <link rel="stylesheet" href="../css/consultor.css?v=55">
+    <link rel="stylesheet" href="../css/chat.css?v=55">
+    <link rel="stylesheet" href="../css/notifications.css?v=55">
+    <link rel="stylesheet" href="../css/activity-report.css?v=55">
+    <link rel="stylesheet" href="../css/account-tabs.css?v=55">
+
 </head>
 <body class="consultor-layout portal-loading-active">
     <header class="consultor-header">
@@ -97,47 +99,36 @@
                             </div>
 
                             <div class="settings-menu-items">
-                                <div class="settings-section-label">
-                                    <i class="fa-solid fa-gear"></i> Ajustes de Cuenta
+                                <div class="settings-menu-group">
+                                    <div class="settings-group-title"><i class="fa-solid fa-user-circle"></i> Mi Cuenta</div>
+                                    <button class="settings-dropdown-link" onclick="openMyAccountSection('datos')">
+                                        <i class="fa-solid fa-id-card"></i>
+                                        <span>Mis Datos</span>
+                                    </button>
                                 </div>
-                                <button class="settings-menu-item" onclick="triggerPhotoUpload()">
-                                    <i class="fa-solid fa-image"></i>
-                                    <span>Cambiar Foto de Perfil</span>
-                                </button>
-                                <button class="settings-menu-item" id="settingsRemovePhoto" style="display:none;" onclick="removeProfilePhoto()">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                    <span>Eliminar Foto</span>
-                                </button>
-                                <button class="settings-menu-item" onclick="showEditProfile()">
-                                    <i class="fa-solid fa-user-pen"></i>
-                                    <span>Editar Nombre</span>
-                                </button>
-                                <button class="settings-menu-item" onclick="showEditEmail()">
-                                    <i class="fa-solid fa-envelope"></i>
-                                    <span>Editar Correo</span>
-                                </button>
-                                <button class="settings-menu-item" onclick="showChangePassword()">
-                                    <i class="fa-solid fa-key"></i>
-                                    <span>Seguridad / Contraseña</span>
-                                </button>
 
-                                <div class="settings-section-label">
-                                    <i class="fa-solid fa-sliders"></i> Preferencias
-                                </div>
-                                <div class="settings-menu-item settings-toggle-item" id="darkModeToggle" onclick="toggleDarkMode()">
-                                    <i class="fa-solid fa-moon"></i>
-                                    <span>Modo Oscuro</span>
-                                    <div class="settings-toggle-track">
-                                        <div class="settings-toggle-thumb"></div>
+                                <div class="settings-menu-group">
+                                    <div class="settings-group-title"><i class="fa-solid fa-gear"></i> Ajustes</div>
+                                    <button class="settings-dropdown-link" onclick="triggerPhotoUpload()">
+                                        <i class="fa-solid fa-camera"></i>
+                                        <span>Cambiar Foto de Perfil</span>
+                                    </button>
+                                    <button class="settings-dropdown-link" onclick="showChangePassword()">
+                                        <i class="fa-solid fa-shield-halved"></i>
+                                        <span>Seguridad y Contraseña</span>
+                                    </button>
+                                    <div class="settings-menu-item settings-toggle-item" id="darkModeToggle" onclick="toggleDarkMode()">
+                                        <i class="fa-solid fa-moon"></i>
+                                        <span>Modo Oscuro</span>
+                                        <div class="settings-toggle-track">
+                                            <div class="settings-toggle-thumb"></div>
+                                        </div>
                                     </div>
+                                    <button class="settings-dropdown-link settings-logout" onclick="logout()" style="color:#ef4444;">
+                                        <i class="fa-solid fa-arrow-right-from-bracket" style="color:#ef4444;"></i>
+                                        <span>Cerrar Sesión</span>
+                                    </button>
                                 </div>
-
-                                <div class="settings-divider"></div>
-
-                                <button class="settings-menu-item settings-logout" onclick="logout()">
-                                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                                    <span>Cerrar Sesión</span>
-                                </button>
                             </div>
 
                             <div class="settings-footer">
@@ -351,6 +342,10 @@
                         <div class="menu-item" data-view="historial" onclick="switchConsultorView('historial')">
                             <span class="menu-text">Historial</span>
                         </div>
+                        <div class="menu-item" data-view="contratos" onclick="switchConsultorView('contratos')">
+                            <span class="menu-text">Mis Contratos y Convenios</span>
+                            <span class="menu-badge" id="consultorContractsPendingBadge" style="background:#f59e0b; color:#ffffff; font-weight:700; display:none;">!</span>
+                        </div>
                     </div>
                     <!-- Info del consultor -->
                     <div class="sidebar-user-info">
@@ -362,6 +357,11 @@
 
                 <!-- Panel Principal -->
                 <div class="main-panel consultor-main">
+                    <!-- === VISTA: MI CUENTA Y EXPEDIENTE DIGITAL === -->
+                    <div id="miCuentaView" class="consultor-view">
+                        <div id="consultorAccountWorkspaceRoot"></div>
+                    </div>
+
                     <!-- === VISTA: TIMESHEET SEMANAL === -->
                     <div id="timesheetView" class="consultor-view active">
                         <!-- Timesheet notice pending / data unsave -->
@@ -484,23 +484,46 @@
 
                     <!-- === VISTA: HISTORIAL === -->
                     <div id="historialView" class="consultor-view" style="display:none;">
-                        <h2 class="section-title">Historial de Timesheets</h2>
-                        <div id="historialTableContainer">
-                            <table class="crud-table">
+                        <h2 class="section-title"><i class="fa-solid fa-table-list"></i> Historial de Timesheets</h2>
+                        <div class="excel-table-wrapper" id="historialTableContainer">
+                            <table class="excel-grid-table">
                                 <thead>
                                     <tr>
-                                        <th>Semana</th>
-                                        <th>Total Hrs</th>
-                                        <th>Estado</th>
-                                        <th>Enviado</th>
-                                        <th>Acciones</th>
-                                        <th>Reporte</th>
+                                        <th><i class="fa-regular fa-calendar-days"></i> Semana</th>
+                                        <th><i class="fa-solid fa-clock"></i> Total Hrs</th>
+                                        <th><i class="fa-solid fa-signal"></i> Estado</th>
+                                        <th><i class="fa-solid fa-paper-plane"></i> Enviado</th>
+                                        <th><i class="fa-solid fa-eye"></i> Acciones</th>
+                                        <th><i class="fa-solid fa-file-invoice"></i> Reporte</th>
                                     </tr>
                                 </thead>
                                 <tbody id="historialBody">
-                                    <tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-inbox"></i> No hay timesheets anteriores</td></tr>
+                                    <tr><td colspan="6" class="empty-cell" style="text-align:center; padding:30px;"><i class="fa-solid fa-inbox"></i> No hay timesheets anteriores</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- === VISTA: MIS CONTRATOS Y ASIGNACIONES (FASE 3) === -->
+                    <div id="contratosView" class="consultor-view" style="display:none; padding: 20px 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
+                            <div>
+                                <h2 class="section-title" style="margin: 0; font-size: 1.35rem; color: #0f172a; display: flex; align-items: center; gap: 10px;">
+                                    <i class="fa-solid fa-file-signature" style="color:#0284c7;"></i> Mis Contratos y Convenios de Asignación
+                                </h2>
+                                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.88rem;">
+                                    Descarga tus convenios de trabajo por cada proyecto o soporte donde participas, fírmalos y mantén tu expediente formalizado.
+                                </p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="loadConsultorContracts()" style="padding: 8px 16px; font-size: 0.85rem; border-radius: 6px; cursor: pointer;">
+                                <i class="fa-solid fa-rotate"></i> Actualizar
+                            </button>
+                        </div>
+                        <div id="consultorContractsContainer">
+                            <div style="text-align:center; padding: 40px; color:#64748b;">
+                                <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.6rem; color:#0284c7;"></i>
+                                <p style="margin-top: 10px;">Cargando tus contratos y convenios...</p>
+                            </div>
                         </div>
                     </div>
 
@@ -678,15 +701,18 @@
     </div>
 
     <!-- Scripts en orden correcto -->
-    <script src="../js/databaseMongoDB.js?v=5"></script>
-    <script src="../js/modules/toastSystem.js?v=3"></script>
-    <script src="../js/auth.js?v=3"></script>
-    <script src="../js/utils.js?v=3"></script>
-    <script src="../js/settings-menu.js?v=4"></script>
-    <script src="consultor.js?v=8"></script>
-    <script src="../js/module-acronym-utils.js?v=7"></script>
-    <script src="../js/activity-report-generator.js?v=3"></script>
-    <script src="../js/supportBot.js?v=3"></script>
-    <script src="../js/chatWidget.js?v=5"></script>
+    <script src="../js/databaseMongoDB.js?v=43"></script>
+    <script src="../js/modules/toastSystem.js?v=43"></script>
+    <script src="../js/auth.js?v=43"></script>
+    <script src="../js/utils.js?v=43"></script>
+    <script src="../js/settings-menu.js?v=43"></script>
+    <script src="../js/csf-parser.js?v=43"></script>
+    <script src="../js/account-tabs.js?v=43"></script>
+    <script src="consultor.js?v=44"></script>
+    <script src="../js/module-acronym-utils.js?v=43"></script>
+    <script src="../js/activity-report-generator.js?v=43"></script>
+    <script src="../js/supportBot.js?v=43"></script>
+    <script src="../js/chatWidget.js?v=43"></script>
+
 </body>
 </html>

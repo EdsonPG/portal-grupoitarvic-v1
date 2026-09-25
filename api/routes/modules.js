@@ -12,6 +12,21 @@ function isAdmin(req) {
 async function getVisibleModuleIds(req) {
   if (isAdmin(req)) return null;
 
+  if (req.user?.role === 'cliente') {
+    const companyId = req.user.companyId;
+    if (!companyId) return [];
+    const [assignments, projectAssignments, taskAssignments] = await Promise.all([
+      Assignment.find({ companyId, isActive: { $ne: false } }).select('moduleId'),
+      ProjectAssignment.find({ companyId, isActive: { $ne: false } }).select('moduleId'),
+      TaskAssignment.find({ companyId, isActive: { $ne: false } }).select('moduleId')
+    ]);
+    return [...new Set([
+      ...assignments.map(item => item.moduleId),
+      ...projectAssignments.map(item => item.moduleId),
+      ...taskAssignments.map(item => item.moduleId)
+    ].filter(Boolean))];
+  }
+
   const userId = req.user.userId;
   const [assignments, projectAssignments, taskAssignments] = await Promise.all([
     Assignment.find({ userId, isActive: { $ne: false } }).select('moduleId'),
@@ -25,6 +40,7 @@ async function getVisibleModuleIds(req) {
     ...taskAssignments.map(item => item.moduleId)
   ].filter(Boolean))];
 }
+
 
 function requireAdmin(req, res) {
   if (!isAdmin(req)) {

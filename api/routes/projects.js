@@ -10,6 +10,13 @@ function isAdmin(req) {
 async function getVisibleProjectIds(req) {
   if (isAdmin(req)) return null;
 
+  if (req.user?.role === 'cliente') {
+    const companyId = req.user.companyId;
+    if (!companyId) return [];
+    const projectAssignments = await ProjectAssignment.find({ companyId, isActive: { $ne: false } }).select('projectId');
+    return [...new Set(projectAssignments.map(item => item.projectId).filter(Boolean))];
+  }
+
   const projectAssignments = await ProjectAssignment.find({
     $or: [{ consultorId: req.user.userId }, { userId: req.user.userId }],
     isActive: { $ne: false }
@@ -17,6 +24,7 @@ async function getVisibleProjectIds(req) {
 
   return [...new Set(projectAssignments.map(item => item.projectId).filter(Boolean))];
 }
+
 
 // GET todos los proyectos
 router.get('/', async (req, res) => {

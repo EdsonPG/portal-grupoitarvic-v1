@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Company = require('../models/Company');
+const User = require('../models/User');
+const Expediente = require('../models/Expediente');
 const Assignment = require('../models/Assignment');
 const ProjectAssignment = require('../models/ProjectAssignment');
 const TaskAssignment = require('../models/TaskAssignment');
+
+
 
 function isAdmin(req) {
   return req.user?.role === 'admin';
@@ -11,6 +15,10 @@ function isAdmin(req) {
 
 async function getVisibleCompanyIds(req) {
   if (isAdmin(req)) return null;
+
+  if (req.user?.role === 'cliente') {
+    return req.user.companyId ? [req.user.companyId] : [];
+  }
 
   const userId = req.user.userId;
   const [assignments, projectAssignments, taskAssignments] = await Promise.all([
@@ -25,6 +33,7 @@ async function getVisibleCompanyIds(req) {
     ...taskAssignments.map(item => item.companyId)
   ].filter(Boolean))];
 }
+
 
 router.get('/', async (req, res) => {
   try {
@@ -100,12 +109,22 @@ router.delete('/:id', async (req, res) => {
   }
 
   try {
-    const company = await Company.findOneAndDelete({ companyId: req.params.id });
+    const companyId = req.params.id;
+    const company = await Company.findOneAndDelete({ companyId });
     if (!company) return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
-    res.json({ success: true, message: 'Empresa eliminada' });
+
+    // Eliminación en cascada de usuarios clientes y expedientes asociados
+    await User.deleteMany({ companyId: companyId, role: 'cliente' });
+    try {
+      await Expediente.deleteMany({ entityId: companyId });
+    } catch (e) {}
+
+
+    res.json({ success: true, message: 'Empresa y accesos asociados eliminados correctamente' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 module.exports = router;

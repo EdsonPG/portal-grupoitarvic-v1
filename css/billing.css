@@ -1,0 +1,758 @@
+/* ==========================================================================
+   PORTAL ARVIC — MÓDULO DE FACTURACIÓN Y CONCILIACIÓN FINANCIERA (FASE 5)
+   Estilos corporativos compatibles con Modo Claro y Modo Oscuro
+   ========================================================================== */
+
+/* Contenedor Principal */
+#facturacion-section {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Maximizar espacio del área de trabajo para la tabla de facturación */
+.admin-main-content:has(#facturacion-section.active) {
+    padding: 1.25rem 1.5rem !important;
+}
+
+.billing-module-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 5px 0 30px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-sizing: border-box;
+}
+
+/* Barra de Filtros y Selección de Periodo */
+.billing-filter-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+    transition: all 0.2s ease;
+}
+
+body.dark-mode .billing-filter-card,
+[data-theme="dark"] .billing-filter-card {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.billing-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 180px;
+}
+
+.billing-filter-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+body.dark-mode .billing-filter-label,
+[data-theme="dark"] .billing-filter-label {
+    color: #94a3b8;
+}
+
+.billing-filter-select,
+.billing-filter-input {
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+body.dark-mode .billing-filter-select,
+body.dark-mode .billing-filter-input,
+[data-theme="dark"] .billing-filter-select,
+[data-theme="dark"] .billing-filter-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+.billing-filter-select:focus,
+.billing-filter-input:focus {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.billing-btn-conciliar {
+    height: 40px;
+    padding: 0 22px;
+    background: linear-gradient(135deg, #1b3a5c 0%, #0284c7 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 3px 8px rgba(2, 132, 199, 0.25);
+    white-space: nowrap;
+}
+
+.billing-btn-conciliar:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(2, 132, 199, 0.35);
+}
+
+/* Pestañas de Navegación del Módulo */
+.billing-subtabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 5px;
+}
+
+body.dark-mode .billing-subtabs,
+[data-theme="dark"] .billing-subtabs {
+    border-color: #334155;
+}
+
+.billing-subtab-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+body.dark-mode .billing-subtab-btn,
+[data-theme="dark"] .billing-subtab-btn {
+    color: #94a3b8;
+}
+
+.billing-subtab-btn:hover {
+    color: #0284c7;
+}
+
+.billing-subtab-btn.active {
+    color: #0284c7;
+    border-bottom-color: #0284c7;
+}
+
+/* Grid de Métricas y KPIs Financieros */
+.billing-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.billing-kpi-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.dark-mode .billing-kpi-card,
+[data-theme="dark"] .billing-kpi-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.billing-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
+}
+
+.billing-kpi-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.billing-kpi-icon.blue {
+    background: rgba(2, 132, 199, 0.12);
+    color: #0284c7;
+}
+
+.billing-kpi-icon.green {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+}
+
+.billing-kpi-icon.amber {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+}
+
+.billing-kpi-icon.purple {
+    background: rgba(139, 92, 246, 0.12);
+    color: #8b5cf6;
+}
+
+.billing-kpi-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.billing-kpi-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+body.dark-mode .billing-kpi-value,
+[data-theme="dark"] .billing-kpi-value {
+    color: #f8fafc;
+}
+
+.billing-kpi-label {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+body.dark-mode .billing-kpi-label,
+[data-theme="dark"] .billing-kpi-label {
+    color: #94a3b8;
+}
+
+/* Tarjeta Resumen de Liquidación / Pre-Factura */
+.billing-invoice-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+body.dark-mode .billing-invoice-box,
+[data-theme="dark"] .billing-invoice-box {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.billing-invoice-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 20px;
+}
+
+body.dark-mode .billing-invoice-header,
+[data-theme="dark"] .billing-invoice-header {
+    border-color: #334155;
+}
+
+.billing-invoice-title h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+body.dark-mode .billing-invoice-title h3,
+[data-theme="dark"] .billing-invoice-title h3 {
+    color: #f8fafc;
+}
+
+.billing-invoice-title p {
+    margin: 4px 0 0 0;
+    font-size: 0.88rem;
+    color: #64748b;
+}
+
+body.dark-mode .billing-invoice-title p,
+[data-theme="dark"] .billing-invoice-title p {
+    color: #94a3b8;
+}
+
+.billing-invoice-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-billing-action {
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-billing-pdf {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.btn-billing-pdf:hover {
+    background: #b91c1c;
+}
+
+.btn-billing-excel {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.btn-billing-excel:hover {
+    background: #059669;
+}
+
+.btn-billing-freeze {
+    background: #1b3a5c;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.btn-billing-freeze:hover {
+    background: #0f243c;
+}
+
+/* Tabla de Liquidación y Desglose */
+.billing-table-wrapper {
+    width: 100%;
+    overflow-x: visible;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+    background: #ffffff;
+}
+
+body.dark-mode .billing-table-wrapper,
+[data-theme="dark"] .billing-table-wrapper {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.billing-table {
+    width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    text-align: left;
+}
+
+.billing-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 12px 10px;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+body.dark-mode .billing-table thead th,
+[data-theme="dark"] .billing-table thead th {
+    background: #0f172a;
+    color: #94a3b8;
+    border-color: #334155;
+}
+
+.billing-table tbody td {
+    padding: 10px 10px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+    vertical-align: middle;
+    font-size: 0.85rem;
+    box-sizing: border-box;
+}
+
+body.dark-mode .billing-table tbody td,
+[data-theme="dark"] .billing-table tbody td {
+    border-color: #334155;
+    color: #cbd5e1;
+}
+
+.billing-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+body.dark-mode .billing-table tbody tr:hover,
+[data-theme="dark"] .billing-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.billing-table .cell-ellipsis {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.billing-table .cell-multiline {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.25;
+    font-size: 0.78rem;
+    word-break: break-word;
+}
+
+.billing-table .text-right {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.billing-table .text-center {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.billing-table .highlight-cell {
+    font-weight: 700;
+    color: #0284c7;
+    white-space: nowrap;
+}
+
+/* Badges de Estado */
+.billing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.billing-badge.borrador {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.billing-badge.conciliado {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.billing-badge.facturado {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.billing-badge.cerrado {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.billing-badge.congelado {
+    background: #ede9fe;
+    color: #7c3aed;
+}
+
+/* Resumen Totalizador Financiero */
+.billing-totals-panel {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.billing-totals-box {
+    width: 340px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+body.dark-mode .billing-totals-box,
+[data-theme="dark"] .billing-totals-box {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.billing-totals-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+body.dark-mode .billing-totals-row,
+[data-theme="dark"] .billing-totals-row {
+    color: #94a3b8;
+}
+
+.billing-totals-row.grand-total {
+    border-top: 2px solid #cbd5e1;
+    padding-top: 10px;
+    margin-top: 4px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+body.dark-mode .billing-totals-row.grand-total,
+[data-theme="dark"] .billing-totals-row.grand-total {
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+.billing-totals-row.profit-row {
+    color: #10b981;
+    font-weight: 600;
+}
+
+/* Modal de Cierre de Periodo */
+.billing-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.billing-modal-content {
+    background: #ffffff;
+    border-radius: 14px;
+    width: 90%;
+    max-width: 520px;
+    padding: 28px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    border: 1px solid #e2e8f0;
+}
+
+body.dark-mode .billing-modal-content,
+[data-theme="dark"] .billing-modal-content {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.billing-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.billing-modal-header i {
+    font-size: 1.6rem;
+    color: #f59e0b;
+}
+
+.billing-modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #0f172a;
+}
+
+body.dark-mode .billing-modal-header h3,
+[data-theme="dark"] .billing-modal-header h3 {
+    color: #f8fafc;
+}
+
+.billing-modal-body p {
+    font-size: 0.92rem;
+    color: #475569;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+body.dark-mode .billing-modal-body p,
+[data-theme="dark"] .billing-modal-body p {
+    color: #cbd5e1;
+}
+
+.billing-modal-alert {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #92400e;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+body.dark-mode .billing-modal-alert,
+[data-theme="dark"] .billing-modal-alert {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+}
+
+.billing-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Gráficas SVG Interactivas de Facturación */
+.billing-chart-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    margin-top: 15px;
+}
+
+body.dark-mode .billing-chart-card,
+[data-theme="dark"] .billing-chart-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.billing-chart-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+body.dark-mode .billing-chart-title,
+[data-theme="dark"] .billing-chart-title {
+    color: #f8fafc;
+}
+
+.billing-bars-container {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 180px;
+    padding: 20px 10px 0 10px;
+    gap: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+body.dark-mode .billing-bars-container,
+[data-theme="dark"] .billing-bars-container {
+    border-color: #334155;
+}
+
+.billing-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+}
+
+.billing-bar-fill {
+    width: 100%;
+    max-width: 44px;
+    background: linear-gradient(180deg, #0284c7 0%, #1b3a5c 100%);
+    border-radius: 6px 6px 0 0;
+    transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    cursor: pointer;
+}
+
+.billing-bar-fill:hover {
+    filter: brightness(1.15);
+}
+
+.billing-bar-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+body.dark-mode .billing-bar-label,
+[data-theme="dark"] .billing-bar-label {
+    color: #94a3b8;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+    .billing-filter-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .billing-invoice-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .billing-totals-panel {
+        justify-content: stretch;
+    }
+    .billing-totals-box {
+        width: 100%;
+    }
+}

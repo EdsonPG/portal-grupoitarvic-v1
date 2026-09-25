@@ -8,11 +8,13 @@
         "includeFiles": [
           "../index.html",
           "../reset-password.html",
+          "../activate-account.html",
           "../css/**",
           "../js/**",
           "../images/**",
           "../admin/**",
-          "../consultor/**"
+          "../consultor/**",
+          "../cliente/**"
         ]
       }
     }
@@ -27,11 +29,19 @@
       "dest": "/api/index.js"
     },
     {
+      "src": "/activate-account(.*)",
+      "dest": "/api/index.js"
+    },
+    {
       "src": "/admin/(.*)",
       "dest": "/api/index.js"
     },
     {
       "src": "/consultor/(.*)",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/cliente/(.*)",
       "dest": "/api/index.js"
     },
     {

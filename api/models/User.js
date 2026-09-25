@@ -23,14 +23,81 @@ const userSchema = new mongoose.Schema({
   },
   role: { 
     type: String, 
-    enum: ['admin', 'consultor'], 
+    enum: ['admin', 'consultor', 'cliente'], 
     required: true 
   },
   isActive: { 
     type: Boolean, 
     default: true 
   },
+  isActivated: {
+    type: Boolean,
+    default: true
+  },
+  activationToken: {
+    type: String,
+    default: null
+  },
+  activationExpires: {
+    type: Date,
+    default: null
+  },
   profilePhoto: {
+    type: String,
+    default: null
+  },
+  phone: {
+    type: String,
+    default: null
+  },
+  address: {
+    type: String,
+    default: null
+  },
+  calle: { type: String, default: null },
+  numExterior: { type: String, default: null },
+  numInterior: { type: String, default: null },
+  codigoPostal: { type: String, default: null },
+  colonia: { type: String, default: null },
+  municipio: { type: String, default: null },
+  ciudad: { type: String, default: null },
+  estado: { type: String, default: null },
+  pais: { type: String, default: 'México' },
+  rfc: {
+    type: String,
+    default: null
+  },
+  razonSocial: {
+    type: String,
+    default: null
+  },
+  regimenFiscal: {
+    type: String,
+    default: null
+  },
+  codigoPostalFiscal: {
+    type: String,
+    default: null
+  },
+  calleFiscal: { type: String, default: null },
+  numExtFiscal: { type: String, default: null },
+  numIntFiscal: { type: String, default: null },
+  coloniaFiscal: { type: String, default: null },
+  municipioFiscal: { type: String, default: null },
+  estadoFiscal: { type: String, default: null },
+  clabe: {
+    type: String,
+    default: null
+  },
+  bankName: {
+    type: String,
+    default: null
+  },
+  companyId: {
+    type: String,
+    default: null
+  },
+  companyName: {
     type: String,
     default: null
   },

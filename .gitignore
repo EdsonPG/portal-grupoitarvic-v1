@@ -45,6 +45,7 @@ build/
 # Archivos temporales
 tmp/
 temp/
+scratch/
 *.tmp
 
 # Archivos de testing

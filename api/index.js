@@ -150,13 +150,27 @@ app.get('/favicon.ico', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'images', 'Logo Grupo IT Arvic 2.svg'));
 });
 
-// 👇 NUEVO: Servir archivos estáticos (HTML, CSS, JS, imágenes)
+// 👇 Servir archivos estáticos y páginas HTML
+app.get('/activate-account', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'activate-account.html'));
+});
+app.get('/activate-account.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'activate-account.html'));
+});
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'reset-password.html'));
+});
+app.get('/reset-password.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'reset-password.html'));
+});
+
 app.use(express.static(path.join(__dirname, '..')));
 app.use('/css', express.static(path.join(__dirname, '..', 'css')));
 app.use('/js', express.static(path.join(__dirname, '..', 'js')));
 app.use('/images', express.static(path.join(__dirname, '..', 'images')));
 app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
 app.use('/consultor', express.static(path.join(__dirname, '..', 'consultor')));
+app.use('/cliente', express.static(path.join(__dirname, '..', 'cliente')));
 
 const bcrypt = require('bcryptjs');
 
@@ -276,11 +290,14 @@ const notificationsRoutes = require('./routes/notifications');
 const chatRoutes = require('./routes/chat');  // ✅ NUEVO
 const calendarRoutes = require('./routes/calendar');  // ✅ CALENDARIO
 const videoRoutes = require('./routes/video');        // ✅ VIDEO/VOICE CALLS
+const expedientesRoutes = require('./routes/expedientes'); // ✅ EXPEDIENTES Y CSF
+const billingRoutes = require('./routes/billing'); // ✅ FACTURACIÓN Y CONCILIACIÓN
 const { sendSSEToUser, broadcastSSE: broadcastSSEChat } = chatRoutes;
 
 // Usar rutas
 app.use('/api/auth', authRoutes); // Público para Login y Recuperación
 app.use('/api/users', authenticateToken, usersRoutes);
+app.use('/api/expedientes', authenticateToken, expedientesRoutes);
 app.use('/api/companies', authenticateToken, companiesRoutes);
 app.use('/api/projects', authenticateToken, projectsRoutes);
 app.use('/api/supports', authenticateToken, supportsRoutes);
@@ -295,6 +312,49 @@ app.use('/api/notifications', authenticateToken, notificationsRoutes);
 app.use('/api/chat', authenticateToken, chatRoutes); // ✅ NUEVO
 app.use('/api/calendar', authenticateToken, calendarRoutes); // ✅ CALENDARIO
 app.use('/api/video', authenticateToken, videoRoutes); // ✅ VIDEO/VOICE CALLS
+app.use('/api/billing', authenticateToken, billingRoutes); // ✅ FACTURACIÓN Y CONCILIACIÓN
+
+// Endpoint de consulta y autodetección de Códigos Postales de México
+app.get('/api/postal-codes/:cp', (req, res) => {
+  const cp = (req.params.cp || '').trim();
+  if (!/^\d{5}$/.test(cp)) {
+    return res.status(400).json({ success: false, message: 'Código postal inválido (debe tener 5 dígitos)' });
+  }
+
+  const prefix = cp.substring(0, 2);
+  const stateMap = {
+    '01': 'Ciudad de México', '02': 'Ciudad de México', '03': 'Ciudad de México', '04': 'Ciudad de México',
+    '05': 'Ciudad de México', '06': 'Ciudad de México', '07': 'Ciudad de México', '08': 'Ciudad de México',
+    '09': 'Ciudad de México', '10': 'Ciudad de México', '11': 'Ciudad de México', '12': 'Ciudad de México',
+    '13': 'Ciudad de México', '14': 'Ciudad de México', '15': 'Ciudad de México', '16': 'Ciudad de México',
+    '20': 'Aguascalientes', '21': 'Baja California', '22': 'Baja California', '23': 'Baja California Sur',
+    '24': 'Campeche', '25': 'Coahuila', '26': 'Coahuila', '27': 'Coahuila', '28': 'Colima',
+    '29': 'Chiapas', '30': 'Chiapas', '31': 'Chihuahua', '32': 'Chihuahua', '33': 'Chihuahua',
+    '34': 'Durango', '35': 'Durango', '36': 'Guanajuato', '37': 'Guanajuato', '38': 'Guanajuato',
+    '39': 'Guerrero', '40': 'Guerrero', '41': 'Guerrero', '42': 'Hidalgo', '43': 'Hidalgo',
+    '44': 'Jalisco', '45': 'Jalisco', '46': 'Jalisco', '47': 'Jalisco', '48': 'Jalisco', '49': 'Jalisco',
+    '50': 'Estado de México', '51': 'Estado de México', '52': 'Estado de México', '53': 'Estado de México',
+    '54': 'Estado de México', '55': 'Estado de México', '56': 'Estado de México', '57': 'Estado de México',
+    '58': 'Michoacán', '59': 'Michoacán', '60': 'Michoacán', '61': 'Michoacán', '62': 'Morelos',
+    '63': 'Nayarit', '64': 'Nuevo León', '65': 'Nuevo León', '66': 'Nuevo León', '67': 'Nuevo León',
+    '68': 'Oaxaca', '69': 'Oaxaca', '70': 'Oaxaca', '71': 'Oaxaca', '72': 'Puebla', '73': 'Puebla',
+    '74': 'Puebla', '75': 'Puebla', '76': 'Querétaro', '77': 'Quintana Roo', '78': 'San Luis Potosí',
+    '79': 'San Luis Potosí', '80': 'Sinaloa', '81': 'Sinaloa', '82': 'Sinaloa', '83': 'Sonora',
+    '84': 'Sonora', '85': 'Sonora', '86': 'Tabasco', '87': 'Tamaulipas', '88': 'Tamaulipas',
+    '89': 'Tamaulipas', '90': 'Tlaxcala', '91': 'Veracruz', '92': 'Veracruz', '93': 'Veracruz',
+    '94': 'Veracruz', '95': 'Veracruz', '96': 'Veracruz', '97': 'Yucatán', '98': 'Zacatecas', '99': 'Zacatecas'
+  };
+
+  const estado = stateMap[prefix] || 'México';
+  return res.json({
+    success: true,
+    postalCode: cp,
+    estado: estado,
+    municipio: estado === 'Ciudad de México' ? 'Cuauhtémoc' : estado,
+    colonias: [`Centro`, `Industrial`, `Residencial`, `Colonia ${cp}`]
+  });
+});
+
 
 // 👇 NUEVO: Endpoints consolidados para carga inicial ultra-rápida (Producción)
 app.get('/api/all-data/admin', authenticateToken, async (req, res) => {
@@ -435,6 +495,103 @@ app.get('/api/all-data/consultor', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/all-data/cliente', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'cliente') {
+      return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de cliente' });
+    }
+
+    let companyId = req.user.companyId;
+    if (!companyId) {
+      const u = await User.findOne({ userId: req.user.userId }).select('companyId');
+      companyId = u?.companyId;
+    }
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: 'Usuario cliente sin empresa vinculada' });
+    }
+
+    const Company = require('./models/Company');
+    const Support = require('./models/Support');
+    const Module = require('./models/Module');
+    const Project = require('./models/Project');
+    const Assignment = require('./models/Assignment');
+    const ProjectAssignment = require('./models/ProjectAssignment');
+    const TaskAssignment = require('./models/TaskAssignment');
+    const Report = require('./models/Report');
+    const Tarifario = require('./models/Tarifario');
+    const Expediente = require('./models/Expediente');
+
+    const [
+      company,
+      assignments,
+      projectAssignments,
+      taskAssignments,
+      reports,
+      tarifarios,
+      expedientesDocs
+    ] = await Promise.all([
+      Company.findOne({ companyId }),
+      Assignment.find({ companyId, isActive: { $ne: false } }).select('-tarifaConsultor -userId'),
+      ProjectAssignment.find({ companyId, isActive: { $ne: false } }).select('-tarifaConsultor -consultorId -userId'),
+      TaskAssignment.find({ companyId, isActive: { $ne: false } }).select('-tarifaConsultor -consultorId -userId'),
+      Report.find({ companyId, status: { $ne: 'Borrador' } }).sort({ date: -1 }).select('-userId'),
+      Tarifario.find({ companyId, isActive: { $ne: false } }).select('-costoConsultor -margen -margenPorcentaje -consultorId -consultorNombre'),
+      Expediente.find({ entityType: 'cliente', entityId: companyId }).sort({ uploadedAt: -1 })
+    ]);
+
+    const supportIds = [...new Set([
+      ...assignments.map(item => item.supportId),
+      ...taskAssignments.map(item => item.linkedSupportId)
+    ].filter(Boolean))];
+    const moduleIds = [...new Set([
+      ...assignments.map(item => item.moduleId),
+      ...projectAssignments.map(item => item.moduleId),
+      ...taskAssignments.map(item => item.moduleId)
+    ].filter(Boolean))];
+    const projectIds = [...new Set(projectAssignments.map(item => item.projectId).filter(Boolean))];
+
+    const [
+      supports,
+      modules,
+      projects,
+      projectDocs
+    ] = await Promise.all([
+      Support.find({ supportId: { $in: supportIds } }),
+      Module.find({ moduleId: { $in: moduleIds } }),
+      Project.find({ projectId: { $in: projectIds } }),
+      Expediente.find({
+        entityType: 'proyecto',
+        $or: [
+          { projectId: { $in: projectIds } },
+          { entityId: { $in: projectIds } },
+          { companyId }
+        ]
+      }).select('-fileData').sort({ uploadedAt: -1 })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        company,
+        companies: company ? [company] : [],
+        supports,
+        modules,
+        projects,
+        assignments,
+        projectAssignments,
+        taskAssignments,
+        reports,
+        tarifario: tarifarios,
+        expedientesDocs,
+        projectDocs
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error obteniendo datos de cliente consolidados:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
 // Ruta de prueba
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
@@ -481,12 +638,27 @@ app.get('/consultor/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'consultor', 'dashboard.html'));
 });
 
+app.get('/cliente/dashboard', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, '..', 'cliente', 'dashboard.html'));
+});
+
+app.get('/cliente/dashboard.html', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, '..', 'cliente', 'dashboard.html'));
+});
+
 app.get('/reset-password', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, '..', 'reset-password.html'));
 });
+
 
 // Manejo de errores
 app.use((err, req, res, next) => {

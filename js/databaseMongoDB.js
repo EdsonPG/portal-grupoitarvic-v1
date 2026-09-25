@@ -491,7 +491,10 @@ class PortalDatabase {
             }
 
             this.invalidateCache('users');
-            return data;
+            return {
+                ...data,
+                user: data.user || data.data
+            };
         } catch (error) {
             console.error('❌ Error en createUser:', error);
             throw error;
@@ -2754,16 +2757,373 @@ async getTarifario() {
         localStorage.setItem('arvic_timesheets', JSON.stringify(timesheets));
         return { success: true };
     }
+
+    // ============================================
+    // EXPEDIENTES Y DOCUMENTOS FISCALES / CONTRACTUALES
+    // ============================================
+
+    async getExpediente(entityType, entityId) {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/expedientes/${entityType}/${entityId}`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en getExpediente:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async uploadExpedienteDoc(docData) {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/expedientes/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(docData)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en uploadExpedienteDoc:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async reviewExpedienteDoc(docId, reviewData) {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/expedientes/${docId}/review`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(reviewData)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en reviewExpedienteDoc:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async getExpedientesMatrix() {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/expedientes/matrix/overview`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en getExpedientesMatrix:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async parseCSF(parsePayload) {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/expedientes/parse-csf`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(parsePayload)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en parseCSF:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async updateAccountInfo(userId, accountData) {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/users/${userId}/account-info`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(accountData)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en updateAccountInfo:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async resendActivationEmail(userId) {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/users/${userId}/resend-activation`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en resendActivationEmail:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async getAllAdminData() {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/all-data/admin`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en getAllAdminData:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async getAllConsultorData() {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/all-data/consultor`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en getAllConsultorData:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    async getAllClienteData() {
+        try {
+            const token = localStorage.getItem('arvic_token');
+            const response = await fetch(`${this.API_URL}/all-data/cliente`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error en getAllClienteData:', error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    prefillAdminCacheFromAllData(data) {
+        if (!data) return;
+        this.cache.users = (data.users || []).reduce((acc, u) => { acc[u.userId || u.id] = u; return acc; }, {});
+        this.cache.companies = (data.companies || []).reduce((acc, c) => { acc[c.companyId || c.id] = c; return acc; }, {});
+        this.cache.supports = (data.supports || []).reduce((acc, s) => { acc[s.supportId || s.id] = s; return acc; }, {});
+        this.cache.modules = (data.modules || []).reduce((acc, m) => { acc[m.moduleId || m.id] = m; return acc; }, {});
+        this.cache.projects = (data.projects || []).reduce((acc, p) => { acc[p.projectId || p.id] = p; return acc; }, {});
+        this.cache.assignments = (data.assignments || []).reduce((acc, a) => { acc[a.assignmentId || a.id] = a; return acc; }, {});
+        this.cache.projectAssignments = (data.projectAssignments || []).reduce((acc, a) => { acc[a.projectAssignmentId || a.id] = a; return acc; }, {});
+        this.cache.taskAssignments = (data.taskAssignments || []).reduce((acc, a) => { acc[a.taskAssignmentId || a.id] = a; return acc; }, {});
+        this.cache.reports = (data.reports || []).reduce((acc, r) => { acc[r.reportId || r.id] = r; return acc; }, {});
+        this.cache.tarifario = (data.tarifario || []).reduce((acc, t) => { acc[t.tarifarioId || t.id] = t; return acc; }, {});
+    }
+
+    prefillConsultorCacheFromAllData(data) {
+        if (!data) return;
+        this.cache.companies = (data.companies || []).reduce((acc, c) => { acc[c.companyId || c.id] = c; return acc; }, {});
+        this.cache.supports = (data.supports || []).reduce((acc, s) => { acc[s.supportId || s.id] = s; return acc; }, {});
+        this.cache.modules = (data.modules || []).reduce((acc, m) => { acc[m.moduleId || m.id] = m; return acc; }, {});
+        this.cache.projects = (data.projects || []).reduce((acc, p) => { acc[p.projectId || p.id] = p; return acc; }, {});
+        this.cache.assignments = (data.assignments || []).reduce((acc, a) => { acc[a.assignmentId || a.id] = a; return acc; }, {});
+        this.cache.projectAssignments = (data.projectAssignments || []).reduce((acc, a) => { acc[a.projectAssignmentId || a.id] = a; return acc; }, {});
+        this.cache.taskAssignments = (data.taskAssignments || []).reduce((acc, a) => { acc[a.taskAssignmentId || a.id] = a; return acc; }, {});
+        this.cache.reports = (data.reports || []).reduce((acc, r) => { acc[r.reportId || r.id] = r; return acc; }, {});
+    }
+
+    prefillClienteCacheFromAllData(data) {
+        if (!data) return;
+        this.cache.companies = (data.companies || (data.company ? [data.company] : [])).reduce((acc, c) => { acc[c.companyId || c.id] = c; return acc; }, {});
+        this.cache.supports = (data.supports || []).reduce((acc, s) => { acc[s.supportId || s.id] = s; return acc; }, {});
+        this.cache.modules = (data.modules || []).reduce((acc, m) => { acc[m.moduleId || m.id] = m; return acc; }, {});
+        this.cache.projects = (data.projects || []).reduce((acc, p) => { acc[p.projectId || p.id] = p; return acc; }, {});
+        this.cache.assignments = (data.assignments || []).reduce((acc, a) => { acc[a.assignmentId || a.id] = a; return acc; }, {});
+        this.cache.projectAssignments = (data.projectAssignments || []).reduce((acc, a) => { acc[a.projectAssignmentId || a.id] = a; return acc; }, {});
+        this.cache.taskAssignments = (data.taskAssignments || []).reduce((acc, a) => { acc[a.taskAssignmentId || a.id] = a; return acc; }, {});
+        this.cache.reports = (data.reports || []).reduce((acc, r) => { acc[r.reportId || r.id] = r; return acc; }, {});
+        this.cache.tarifario = (data.tarifario || []).reduce((acc, t) => { acc[t.tarifarioId || t.id] = t; return acc; }, {});
+        this.cache.projectDocs = data.projectDocs || [];
+    }
+
+    // =========================================================================
+    // === MÓDULO DE FACTURACIÓN Y CONCILIACIÓN FINANCIERA (FASE 5) ===
+    // =========================================================================
+
+    /**
+     * Obtener vista previa de conciliación con cruce de tarifas
+     */
+    async reconcileBillingPreview(params) {
+        try {
+            const res = await fetch(`${this.API_URL}/billing/reconcile-preview`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(params)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Error en preview de conciliación');
+            return data.data;
+        } catch (error) {
+            console.error('Error reconcileBillingPreview:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Crear y guardar un corte de facturación / periodo formal
+     */
+    async createBillingPeriod(periodData) {
+        try {
+            const res = await fetch(`${this.API_URL}/billing/periods`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(periodData)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Error guardando corte de facturación');
+            return data.data;
+        } catch (error) {
+            console.error('Error createBillingPeriod:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Listar periodos de facturación históricos
+     */
+    async getBillingPeriods(filters = {}) {
+        try {
+            const query = new URLSearchParams();
+            if (filters.companyId) query.append('companyId', filters.companyId);
+            if (filters.status) query.append('status', filters.status);
+
+            const url = `${this.API_URL}/billing/periods${query.toString() ? '?' + query.toString() : ''}`;
+            const res = await fetch(url, {
+                headers: this.getHeaders()
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Error listando periodos');
+            return data.data || [];
+        } catch (error) {
+            console.error('Error getBillingPeriods:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Obtener detalle completo de un periodo
+     */
+    async getBillingPeriod(periodId) {
+        try {
+            const res = await fetch(`${this.API_URL}/billing/periods/${periodId}`, {
+                headers: this.getHeaders()
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Error obteniendo periodo');
+            return data.data;
+        } catch (error) {
+            console.error('Error getBillingPeriod:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Actualizar estado del periodo (Conciliado, Facturado, Cerrado)
+     */
+    async updateBillingPeriodStatus(periodId, statusData) {
+        try {
+            const res = await fetch(`${this.API_URL}/billing/periods/${periodId}/status`, {
+                method: 'PUT',
+                headers: this.getHeaders(),
+                body: JSON.stringify(statusData)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Error actualizando estado del periodo');
+            return data.data;
+        } catch (error) {
+            console.error('Error updateBillingPeriodStatus:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Obtener métricas financieras y KPIs para el dashboard de administración
+     */
+    async getBillingMetrics() {
+        try {
+            const res = await fetch(`${this.API_URL}/billing/metrics`, {
+                headers: this.getHeaders()
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Error obteniendo métricas financieras');
+            return data.data;
+        } catch (error) {
+            console.error('Error getBillingMetrics:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Obtener URL para descarga de Excel de facturación
+     */
+    getBillingExcelUrl(periodId) {
+        const token = this.token || localStorage.getItem('token') || '';
+        const query = token ? `?token=${encodeURIComponent(token)}` : '';
+        return `${this.API_URL}/billing/periods/${periodId}/export-excel${query}`;
+    }
 }
 
-// Crear instancia global de la base de datos
-window.PortalDB = new PortalDatabase();
+
+// Crear instancia global de la base de datos en navegador
+if (typeof window !== 'undefined') {
+    window.PortalDB = new PortalDatabase();
+    console.log('✅ Sistema de Base de Datos Portal ARVIC inicializado con MongoDB');
+    console.log('📡 Conectado a API:', window.PortalDB.API_URL);
+    console.log('🔐 Token presente:', !!window.PortalDB.token);
+
+    // Helper universal para resolución de URLs de API (soporta Live Server puerto 5500, localhost:3000 y producción)
+    window.getArvicApiUrl = function(endpoint) {
+        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        let base = (window.PortalDB && window.PortalDB.API_URL) 
+            ? window.PortalDB.API_URL 
+            : (isDev ? 'http://localhost:3000/api' : `${window.location.origin}/api`);
+        
+        base = base.replace(/\/+$/, '');
+        let path = String(endpoint || '').trim();
+        if (!path.startsWith('/')) path = '/' + path;
+        if (path.startsWith('/api/')) {
+            path = path.substring(4);
+        }
+        return base + path;
+    };
+}
 
 // Exportar para uso en módulos si es necesario
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = PortalDatabase;
 }
-
-console.log('✅ Sistema de Base de Datos Portal ARVIC inicializado con MongoDB');
-console.log('📡 Conectado a API:', window.PortalDB.API_URL);
-console.log('🔐 Token presente:', !!window.PortalDB.token);

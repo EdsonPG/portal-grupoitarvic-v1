@@ -32,13 +32,64 @@ function validatePasswordLength(password) {
   return null;
 }
 
+const crypto = require('crypto');
+const { sendAccountActivationEmail } = require('../utils/mailer');
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function getBaseUrl(req) {
+  const host = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost:3000';
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const referer = req.headers['referer'];
+  const origin = req.headers['origin'];
+
+  if (origin && !origin.includes('undefined') && !origin.includes('null')) {
+    return origin.replace(/\/$/, '');
+  }
+
+  if (referer) {
+    try {
+      const u = new URL(referer);
+      return `${u.protocol}//${u.host}`;
+    } catch (e) {}
+  }
+
+  if (host) {
+    const proto = (host.includes('localhost') || host.includes('127.0.0.1')) ? 'http' : protocol;
+    return `${proto}://${host}`;
+  }
+
+  if (process.env.APP_URL) {
+    return process.env.APP_URL.replace(/\/$/, '');
+  }
+
+  return 'http://localhost:3000';
+}
+
 // GET todos los usuarios
 router.get('/', async (req, res) => {
   try {
     const users = isAdmin(req)
       ? await User.find().select('-password')
-      : await User.find({ isActive: true }).select('userId name role isActive profilePhoto chatStatus');
+      : await User.find({ isActive: true }).select('userId name role isActive isActivated profilePhoto chatStatus companyId companyName');
 
+    res.json({ success: true, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET usuarios por rol
+router.get('/role/:role', async (req, res) => {
+  try {
+    const { role } = req.params;
+    const query = { role };
+    if (!isAdmin(req)) {
+      query.isActive = true;
+    }
+    const users = await User.find(query).select('-password');
     res.json({ success: true, data: users });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -53,12 +104,12 @@ router.get('/passwords', async (req, res) => {
   });
 });
 
-// ✅ GET individual SIN password de nuevo (más seguro)
+// GET individual SIN password
 router.get('/:id', async (req, res) => {
   try {
     const canViewFullUser = isAdmin(req) || req.user.userId === req.params.id;
     const user = await User.findOne({ userId: req.params.id })
-      .select(canViewFullUser ? '-password' : 'userId name role isActive profilePhoto chatStatus');
+      .select(canViewFullUser ? '-password' : 'userId name role isActive isActivated profilePhoto chatStatus companyId companyName');
     
     if (!user) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
@@ -74,42 +125,36 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST crear usuario
+// POST crear usuario (Admin)
 router.post('/', async (req, res) => {
-  // Solo admin puede crear usuarios
   if (!isAdmin(req)) {
     return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
   }
 
   try {
-    const userData = req.body;
-    
+    const userData = { ...req.body };
     console.log('📥 Datos recibidos para crear usuario:', redactUserPayload(userData));
     
-    // Validar campos requeridos
-    if (!userData.userId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'El campo userId es requerido' 
-      });
+    // Normalizar email
+    if (!userData.email) {
+      return res.status(400).json({ success: false, message: 'El correo electrónico es requerido' });
+    }
+    userData.email = userData.email.trim().toLowerCase();
+
+    // Auto-generar userId con formato estándar del portal: USR + 4 dígitos (ej. USR7079)
+    if (!userData.userId || !userData.userId.startsWith('USR')) {
+      let uniqueUserId;
+      let exists = true;
+      while (exists) {
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        uniqueUserId = `USR${randomNum}`;
+        const found = await User.findOne({ userId: uniqueUserId });
+        if (!found) exists = false;
+      }
+      userData.userId = uniqueUserId;
     }
 
-    if (!userData.password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'El campo password es requerido' 
-      });
-    }
-
-    const passwordError = validatePasswordLength(userData.password);
-    if (passwordError) {
-      return res.status(400).json({
-        success: false,
-        message: passwordError
-      });
-    }
-
-    // Verificar que no exista el usuario
+    // Verificar que no exista el usuario por userId o email
     const existingUser = await User.findOne({ 
       $or: [
         { userId: userData.userId },
@@ -118,25 +163,112 @@ router.post('/', async (req, res) => {
     });
 
     if (existingUser) {
+      // Si es un cliente y se está creando o reasignando para una empresa
+      if (existingUser.role === 'cliente' || userData.role === 'cliente') {
+        console.log(`🔄 Reasignando/actualizando usuario cliente existente (${existingUser.email}) a empresa ${userData.companyId}`);
+        existingUser.role = 'cliente';
+        existingUser.companyId = userData.companyId || existingUser.companyId;
+        existingUser.companyName = userData.companyName || existingUser.companyName;
+        if (userData.name) existingUser.name = userData.name;
+        if (userData.phone) existingUser.phone = userData.phone;
+
+        let activationToken = null;
+        if (!userData.password || userData.sendActivationEmail) {
+          const rawToken = crypto.randomBytes(32).toString('hex');
+          activationToken = rawToken;
+          existingUser.activationToken = hashToken(rawToken);
+          existingUser.activationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          existingUser.isActivated = false;
+        } else {
+          existingUser.password = userData.password;
+          existingUser.isActivated = true;
+        }
+        existingUser.isActive = true;
+        existingUser.updatedAt = new Date();
+        await existingUser.save();
+
+        if (activationToken) {
+          const baseUrl = getBaseUrl(req);
+          const activationUrl = `${baseUrl}/activate-account.html?token=${activationToken}`;
+          try {
+            await sendAccountActivationEmail(existingUser.email, activationUrl, existingUser.name, existingUser.role);
+            console.log(`📧 Correo de activación reenviado a ${existingUser.email} con URL: ${activationUrl}`);
+          } catch (mailErr) {
+            console.error('⚠️ Error enviando correo de activación:', mailErr.message);
+          }
+        }
+
+        const userResponse = existingUser.toObject();
+        delete userResponse.password;
+        delete userResponse.activationToken;
+
+        return res.status(200).json({
+          success: true,
+          message: 'Usuario cliente actualizado y enlace de activación enviado exitosamente.',
+          data: userResponse,
+          user: userResponse
+        });
+      }
+
       return res.status(400).json({ 
         success: false, 
-        message: 'El usuario o email ya existe' 
+        message: existingUser.email === userData.email 
+          ? 'El correo electrónico ya se encuentra registrado' 
+          : 'El identificador de usuario ya existe' 
       });
     }
 
-    // Crear usuario
+
+    let activationToken = null;
+    let sendActivation = false;
+
+    // Si no se proporcionó contraseña, o si se solicita invitación por correo
+    if (!userData.password || userData.sendActivationEmail) {
+      sendActivation = true;
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      activationToken = rawToken;
+      userData.activationToken = hashToken(rawToken);
+      userData.activationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 días de vigencia
+      userData.isActivated = false;
+      userData.isActive = true;
+      // Contraseña temporal aleatoria fuerte
+      userData.password = crypto.randomBytes(16).toString('hex') + 'A1!';
+    } else {
+      const passwordError = validatePasswordLength(userData.password);
+      if (passwordError) {
+        return res.status(400).json({ success: false, message: passwordError });
+      }
+      userData.isActivated = true;
+      userData.isActive = userData.isActive !== undefined ? userData.isActive : true;
+    }
+
     const user = new User(userData);
     await user.save();
 
+    // Enviar correo de activación si corresponde
+    if (sendActivation && activationToken) {
+      const baseUrl = getBaseUrl(req);
+      const activationUrl = `${baseUrl}/activate-account.html?token=${activationToken}`;
+
+      try {
+        await sendAccountActivationEmail(user.email, activationUrl, user.name, user.role);
+        console.log(`📧 Correo de activación enviado a ${user.email} con URL: ${activationUrl}`);
+      } catch (mailErr) {
+        console.error('⚠️ Error enviando correo de activación:', mailErr.message);
+      }
+    }
+
     const userResponse = user.toObject();
     delete userResponse.password;
-
-    console.log('✅ Usuario creado:', userResponse);
+    delete userResponse.activationToken;
 
     res.status(201).json({ 
       success: true, 
-      message: 'Usuario creado exitosamente',
-      data: userResponse 
+      message: sendActivation 
+        ? 'Usuario creado exitosamente. Se ha enviado un correo con el enlace de activación.' 
+        : 'Usuario creado exitosamente.',
+      data: userResponse,
+      user: userResponse
     });
   } catch (error) {
     console.error('❌ Error creando usuario:', error);
@@ -144,6 +276,138 @@ router.post('/', async (req, res) => {
       success: false, 
       message: error.message || 'Error al crear usuario' 
     });
+  }
+});
+
+// POST reenviar activación
+router.post('/:id/resend-activation', async (req, res) => {
+  if (!isAdmin(req)) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Se requiere rol de administrador' });
+  }
+
+  try {
+    const user = await User.findOne({ userId: req.params.id });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.activationToken = hashToken(rawToken);
+    user.activationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    user.isActivated = false;
+    await user.save();
+
+    const baseUrl = getBaseUrl(req);
+    const activationUrl = `${baseUrl}/activate-account.html?token=${rawToken}`;
+
+    await sendAccountActivationEmail(user.email, activationUrl, user.name, user.role);
+    console.log(`📧 Enlace de activación reenviado a ${user.email} con URL: ${activationUrl}`);
+
+    res.json({
+      success: true,
+      message: `Enlace de activación reenviado exitosamente a ${user.email}`
+    });
+  } catch (error) {
+    console.error('Error al reenviar activación:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error al reenviar correo de activación' });
+  }
+});
+
+// PUT actualizar datos de cuenta (Mi Cuenta / Perfil / Datos Fiscales / Bancarios)
+router.put('/:id/account-info', async (req, res) => {
+  const isSelf = req.user?.userId === req.params.id;
+  if (!isAdmin(req) && !isSelf) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: No tienes permisos para modificar este perfil' });
+  }
+
+  try {
+    const {
+      name,
+      phone,
+      address,
+      calle,
+      numExterior,
+      numInterior,
+      codigoPostal,
+      colonia,
+      municipio,
+      ciudad,
+      estado,
+      pais,
+      rfc,
+      razonSocial,
+      regimenFiscal,
+      codigoPostalFiscal,
+      calleFiscal,
+      numExtFiscal,
+      numIntFiscal,
+      coloniaFiscal,
+      municipioFiscal,
+      estadoFiscal,
+      clabe,
+      bankName,
+      password
+    } = req.body;
+
+    const user = await User.findOne({ userId: req.params.id });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    if (name) user.name = name.trim();
+    if (phone !== undefined) user.phone = phone ? phone.trim() : null;
+    if (address !== undefined) user.address = address ? address.trim() : null;
+    
+    // Domicilio personal detallado
+    if (calle !== undefined) user.calle = calle ? calle.trim() : null;
+    if (numExterior !== undefined) user.numExterior = numExterior ? numExterior.trim() : null;
+    if (numInterior !== undefined) user.numInterior = numInterior ? numInterior.trim() : null;
+    if (codigoPostal !== undefined) user.codigoPostal = codigoPostal ? codigoPostal.trim() : null;
+    if (colonia !== undefined) user.colonia = colonia ? colonia.trim() : null;
+    if (municipio !== undefined) user.municipio = municipio ? municipio.trim() : null;
+    if (ciudad !== undefined) user.ciudad = ciudad ? ciudad.trim() : null;
+    if (estado !== undefined) user.estado = estado ? estado.trim() : null;
+    if (pais !== undefined) user.pais = pais ? pais.trim() : 'México';
+
+    // Datos fiscales SAT detallados
+    if (rfc !== undefined) user.rfc = rfc ? rfc.trim().toUpperCase() : null;
+    if (razonSocial !== undefined) user.razonSocial = razonSocial ? razonSocial.trim() : null;
+    if (regimenFiscal !== undefined) user.regimenFiscal = regimenFiscal ? regimenFiscal.trim() : null;
+    if (codigoPostalFiscal !== undefined) user.codigoPostalFiscal = codigoPostalFiscal ? codigoPostalFiscal.trim() : null;
+    if (calleFiscal !== undefined) user.calleFiscal = calleFiscal ? calleFiscal.trim() : null;
+    if (numExtFiscal !== undefined) user.numExtFiscal = numExtFiscal ? numExtFiscal.trim() : null;
+    if (numIntFiscal !== undefined) user.numIntFiscal = numIntFiscal ? numIntFiscal.trim() : null;
+    if (coloniaFiscal !== undefined) user.coloniaFiscal = coloniaFiscal ? coloniaFiscal.trim() : null;
+    if (municipioFiscal !== undefined) user.municipioFiscal = municipioFiscal ? municipioFiscal.trim() : null;
+    if (estadoFiscal !== undefined) user.estadoFiscal = estadoFiscal ? estadoFiscal.trim() : null;
+
+    // Bancarios
+    if (clabe !== undefined) user.clabe = clabe ? clabe.trim() : null;
+    if (bankName !== undefined) user.bankName = bankName ? bankName.trim() : null;
+
+    // Contraseña (si admin la modifica directamente o usuario la envía)
+    if (password && password.trim()) {
+      user.password = password.trim();
+    }
+
+    user.updatedAt = new Date();
+    await user.save();
+
+    const userResponse = user.toObject();
+    if (!isAdmin(req)) {
+      delete userResponse.password;
+    }
+    delete userResponse.activationToken;
+    delete userResponse.resetPasswordToken;
+
+    res.json({
+      success: true,
+      message: 'Datos de la cuenta actualizados correctamente',
+      data: userResponse
+    });
+  } catch (error) {
+    console.error('Error al actualizar datos de cuenta:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error al guardar los datos' });
   }
 });
 

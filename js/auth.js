@@ -254,12 +254,20 @@ class AuthSystem {
         return this.hasRole('consultor');
     }
 
+    isCliente() {
+        return this.hasRole('cliente');
+    }
+
     canAccessAdminPanel() {
         return this.isAdmin();
     }
 
     canAccessConsultorPanel() {
         return this.isConsultor();
+    }
+
+    canAccessClientePanel() {
+        return this.isCliente();
     }
 
     // === PROTECCIÓN DE RUTAS ===
@@ -300,6 +308,20 @@ class AuthSystem {
         return true;
     }
 
+    requireCliente() {
+        if (!this.requireAuth()) {
+            return false;
+        }
+        
+        if (!this.isCliente()) {
+            this.showError('Acceso denegado: Se requieren permisos de cliente');
+            this.redirectToAppropriatePanel();
+            return false;
+        }
+        
+        return true;
+    }
+
     redirectToLogin() {
         // En Vercel o en servidor (localhost:3000), la ruta del login es siempre "/" 
         // ya que el backend de Express (api/index.js) mapea "/" a "index.html".
@@ -308,7 +330,7 @@ class AuthSystem {
         // Fallback por si lo están abriendo directamente con doble clic en el archivo HTML local
         if (window.location.protocol === 'file:') {
             const currentPath = window.location.pathname;
-            if (currentPath.includes('/admin/') || currentPath.includes('/consultor/')) {
+            if (currentPath.includes('/admin/') || currentPath.includes('/consultor/') || currentPath.includes('/cliente/')) {
                 loginPath = '../index.html';
             } else {
                 loginPath = 'index.html';
@@ -323,10 +345,13 @@ class AuthSystem {
             window.location.href = '../admin/dashboard.html';
         } else if (this.isConsultor()) {
             window.location.href = '../consultor/dashboard.html';
+        } else if (this.isCliente()) {
+            window.location.href = '../cliente/dashboard.html';
         } else {
             this.redirectToLogin();
         }
     }
+
 
     // === UTILIDADES ===
     showError(message) {

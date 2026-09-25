@@ -112,11 +112,25 @@ window.UserModal = class UserModal {
                             <!-- Rol -->
                             <div class="form-group">
                                 <label for="editUserRole">Rol del Usuario</label>
-                                <select id="editUserRole" ${user.userId === 'admin' ? 'disabled' : ''}>
-                                    <option value="consultor" ${user.role === 'consultor' ? 'selected' : ''}>Consultor (Estándar)</option>
+                                <select id="editUserRole" ${user.userId === 'admin' ? 'disabled' : ''} onchange="window.userModule?.handleEditRoleChange?.(this.value)">
+                                    <option value="consultor" ${user.role === 'consultor' ? 'selected' : ''}>Consultor Profesional</option>
+                                    <option value="cliente" ${user.role === 'cliente' ? 'selected' : ''}>Cliente / Empresa</option>
                                     <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador (Acceso Total)</option>
                                 </select>
                                 ${user.userId === 'admin' ? '<small style="color: #666; font-size: 0.85rem; display: block; margin-top: 5px;">El rol del administrador principal no puede ser modificado.</small>' : ''}
+                            </div>
+
+                            <!-- Empresa Asignada (solo para cliente) -->
+                            <div class="form-group" id="editCompanyGroup" style="${user.role === 'cliente' ? 'display:block;' : 'display:none;'}">
+                                <label for="editUserCompany">Empresa Asignada *</label>
+                                <select id="editUserCompany">
+                                    <option value="">-- Seleccionar Empresa --</option>
+                                    ${(window.PortalDB?.cache?.companies ? Object.values(window.PortalDB.cache.companies) : []).map(c => `
+                                        <option value="${c.companyId || c.id}" ${(user.companyId === (c.companyId || c.id)) ? 'selected' : ''}>
+                                            ${c.name || c.companyId}
+                                        </option>
+                                    `).join('')}
+                                </select>
                             </div>
                             
                             <!-- Nueva Contraseña -->
@@ -240,6 +254,15 @@ window.UserModal = class UserModal {
             
             if (formData.role && userId !== 'admin') {
                 updateData.role = formData.role;
+                if (formData.role === 'cliente') {
+                    const compSelect = document.getElementById('editUserCompany');
+                    if (compSelect && compSelect.value) {
+                        updateData.companyId = compSelect.value;
+                        const companies = window.PortalDB?.cache?.companies ? Object.values(window.PortalDB.cache.companies) : [];
+                        const compObj = companies.find(c => (c.companyId || c.id) === compSelect.value);
+                        updateData.companyName = compObj ? compObj.name : compSelect.value;
+                    }
+                }
             }
 
             // Solo incluir contraseña si se proporcionó una nueva
@@ -257,7 +280,7 @@ window.UserModal = class UserModal {
                 this.notifier.success(
                     `Usuario actualizado exitosamente.\n\n` +
                     `Nueva contraseña: ${formData.password}\n\n` +
-                    `IMPORTANTE: Comparta esta contraseña de forma segura con el consultor.`
+                    `IMPORTANTE: Comparta esta contraseña de forma segura.`
                 );
             } else {
                 this.notifier.success('Usuario actualizado correctamente');
@@ -302,8 +325,8 @@ window.UserModal = class UserModal {
             this.notifier.success(`Contraseña generada: ${password}`);
 
         } catch (error) {
-            console.error('Error generando contraseña:', error);
-            this.notifier.error('Error al generar contraseña');
+            console.error('Error al generar contraseña:', error);
+            this.notifier.error('No se pudo generar una contraseña única');
         }
     }
 
@@ -361,12 +384,198 @@ window.UserModal = class UserModal {
     }
 
     /**
-     * Abrir modal de creación de usuario
-     * (Implementación futura si es necesario)
+     * Abrir modal de creación de nuevo usuario con ID auto-generado
      */
-    async openCreate() {
-        // TODO: Implementar si se necesita en el futuro
-        console.log('openCreate() - Por implementar');
-        this.notifier.warning('Funcionalidad en desarrollo');
+    openCreate(defaultData = {}) {
+        const companies = window.PortalDB?.cache?.companies ? Object.values(window.PortalDB.cache.companies) : [];
+        const isClientRole = defaultData.role === 'cliente' || !!defaultData.companyId;
+        const selectedCompanyId = defaultData.companyId || '';
+
+        const companiesOptions = companies.map(c => {
+            const cid = c.companyId || c.id;
+            const isSel = (cid === selectedCompanyId) ? 'selected' : '';
+            return `<option value="${cid}" ${isSel}>${c.name || cid}</option>`;
+        }).join('');
+
+        const modalHTML = `
+            <div class="modal" id="createUserModal" style="display: flex;">
+                <div class="modal-content" style="max-width: 520px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">
+                            <i class="fa-solid fa-user-plus"></i> ${isClientRole ? 'Crear Usuario de Acceso para Empresa' : 'Nuevo Usuario'}
+                        </h2>
+                        <button class="close" onclick="window.userModule.closeCreateModal()">&times;</button>
+                    </div>
+
+                    <div class="modal-body" style="padding: 24px;">
+                        <form id="createUserForm" onsubmit="window.userModule.handleCreateSubmit(event)">
+                            
+                            <!-- Nombre Completo -->
+                            <div class="form-group">
+                                <label for="createUserName">Nombre del Contacto / Usuario *</label>
+                                <input type="text" id="createUserName" value="${defaultData.name || ''}" placeholder="Ej: Lic. Carlos Mendoza" required>
+                            </div>
+                            
+                            <!-- Email -->
+                            <div class="form-group">
+                                <label for="createUserEmail">Correo Electrónico (Login) *</label>
+                                <input type="email" id="createUserEmail" value="${defaultData.email || ''}" placeholder="carlos.mendoza@empresa.com" required>
+                                <small style="color: #64748b; font-size: 0.82rem; margin-top: 4px; display: block;">
+                                    A este correo se enviará el enlace de activación con el que el cliente creará su contraseña de acceso.
+                                </small>
+                            </div>
+
+                            <!-- Rol -->
+                            <div class="form-group" ${isClientRole ? 'style="display:none;"' : ''}>
+                                <label for="createUserRole">Rol del Usuario *</label>
+                                <select id="createUserRole" onchange="window.userModule.handleRoleChange(this.value)">
+                                    <option value="consultor" selected>Consultor Profesional</option>
+                                    <option value="admin">Administrador (Acceso Total)</option>
+                                    ${isClientRole ? '<option value="cliente" selected>Cliente / Empresa</option>' : ''}
+                                </select>
+                            </div>
+                            ${isClientRole ? '<input type="hidden" id="createUserRole" value="cliente">' : ''}
+
+                            <!-- Empresa Asignada (solo para cliente) -->
+                            <div class="form-group" id="createCompanyGroup" style="display: ${isClientRole ? 'block' : 'none'};">
+                                <label for="createUserCompany">Empresa Asignada *</label>
+                                <select id="createUserCompany">
+                                    <option value="">-- Seleccionar Empresa --</option>
+                                    ${companiesOptions}
+                                </select>
+                            </div>
+
+
+                            <!-- Checkbox de Activación -->
+                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; margin: 14px 0;">
+                                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin: 0; font-size: 0.88rem; color: #166534; font-weight: 500;">
+                                    <input type="checkbox" id="createSendActivation" checked onchange="window.userModule.toggleManualPassword(this.checked)" style="margin-top: 3px;">
+                                    <span><strong>Envío automático de invitación:</strong> El usuario recibirá un correo para activar su cuenta y crear su propia contraseña.</span>
+                                </label>
+                            </div>
+
+                            <!-- Contraseña Manual Opcional -->
+                            <div id="manualPasswordGroup" style="display: none;" class="form-group">
+                                <label for="createManualPassword">Asignar Contraseña Manualmente</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="createManualPassword" placeholder="Contraseña personalizada" minlength="10">
+                                    <button type="button" class="btn btn-secondary" onclick="window.userModule.generateCreatePassword()" style="white-space: nowrap; padding: 8px 12px; font-size: 0.85rem;">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                                <button type="button" class="btn btn-secondary" onclick="window.userModule.closeCreateModal()">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" id="btnSubmitCreateUser">
+                                    <i class="fa-solid fa-paper-plane"></i> Crear y Enviar Invitación
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remover modal previo si existe
+        this.closeCreateModal();
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        this.currentModal = document.getElementById('createUserModal');
+        document.getElementById('createUserName').focus();
+    }
+
+
+    closeCreateModal() {
+        const modal = document.getElementById('createUserModal');
+        if (modal) modal.remove();
+    }
+
+    handleRoleChange(role) {
+        const companyGroup = document.getElementById('createCompanyGroup');
+        if (companyGroup) {
+            companyGroup.style.display = (role === 'cliente') ? 'block' : 'none';
+        }
+    }
+
+    handleEditRoleChange(role) {
+        const companyGroup = document.getElementById('editCompanyGroup');
+        if (companyGroup) {
+            companyGroup.style.display = (role === 'cliente') ? 'block' : 'none';
+        }
+    }
+
+    toggleManualPassword(sendActivation) {
+        const group = document.getElementById('manualPasswordGroup');
+        const submitBtn = document.getElementById('btnSubmitCreateUser');
+        if (group) group.style.display = sendActivation ? 'none' : 'block';
+        if (submitBtn) {
+            submitBtn.innerHTML = sendActivation 
+                ? '<i class="fa-solid fa-paper-plane"></i> Crear y Enviar Invitación' 
+                : '<i class="fa-solid fa-check"></i> Crear Usuario con Contraseña';
+        }
+    }
+
+    async generateCreatePassword() {
+        const pwd = await this.userService.validator.generateUniquePassword();
+        const input = document.getElementById('createManualPassword');
+        if (input) input.value = pwd;
+    }
+
+    async handleCreateSubmit(e) {
+        e.preventDefault();
+        const name = document.getElementById('createUserName').value.trim();
+        const email = document.getElementById('createUserEmail').value.trim();
+        const role = document.getElementById('createUserRole').value;
+        const sendActivation = document.getElementById('createSendActivation').checked;
+        const manualPwd = document.getElementById('createManualPassword')?.value.trim();
+
+        const btn = document.getElementById('btnSubmitCreateUser');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Creando...';
+
+        try {
+            const payload = {
+                name,
+                email,
+                role,
+                sendActivationEmail: sendActivation
+            };
+
+            if (role === 'cliente') {
+                const compSelect = document.getElementById('createUserCompany');
+                if (!compSelect || !compSelect.value) {
+                    throw new Error('Debe seleccionar una empresa para el usuario cliente');
+                }
+                payload.companyId = compSelect.value;
+                const companies = window.PortalDB?.cache?.companies ? Object.values(window.PortalDB.cache.companies) : [];
+                const compObj = companies.find(c => (c.companyId || c.id) === compSelect.value);
+                payload.companyName = compObj ? compObj.name : compSelect.value;
+            }
+
+            if (!sendActivation && manualPwd) {
+                payload.password = manualPwd;
+            }
+
+            const res = await this.userService.create(payload);
+
+            this.notifier.success(sendActivation 
+                ? `¡Usuario ${name} registrado! Se ha enviado el correo de activación a ${email}.`
+                : `¡Usuario ${name} creado con éxito!`
+            );
+
+            this.closeCreateModal();
+
+            if (typeof window.loadAllData === 'function') {
+                await window.loadAllData();
+            } else if (typeof window.renderConsultoresTable === 'function') {
+                await window.renderConsultoresTable();
+            }
+        } catch (error) {
+            console.error('Error creando usuario:', error);
+            this.notifier.error(error.message || 'Error al crear usuario');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Crear y Enviar Invitación';
+        }
     }
 }

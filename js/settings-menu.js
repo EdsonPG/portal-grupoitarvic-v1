@@ -397,9 +397,16 @@ async function saveNewPassword() {
 // MODO OSCURO
 // ============================================
 function toggleDarkMode() {
-    const body = document.body;
-    const isDark = body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.toggle('dark-mode');
+    document.documentElement.classList.toggle('dark-mode', isDark);
+
+    const themeStr = isDark ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', themeStr);
+    document.body.setAttribute('data-theme', themeStr);
+
     localStorage.setItem('arvic_dark_mode', isDark ? 'true' : 'false');
+    localStorage.setItem('arvic_theme', themeStr);
+    localStorage.setItem('theme', themeStr);
 
     // Actualizar ícono del toggle
     const toggle = document.getElementById('darkModeToggle');
@@ -410,11 +417,22 @@ function toggleDarkMode() {
 }
 
 function loadDarkModePreference() {
-    const pref = localStorage.getItem('arvic_dark_mode');
-    if (pref === 'true') {
+    const pref = localStorage.getItem('arvic_dark_mode') === 'true' || 
+                 localStorage.getItem('arvic_theme') === 'dark' || 
+                 localStorage.getItem('theme') === 'dark';
+
+    if (pref) {
         document.body.classList.add('dark-mode');
+        document.documentElement.classList.add('dark-mode');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.setAttribute('data-theme', 'dark');
         const track = document.querySelector('.settings-toggle-track');
         if (track) track.classList.add('active');
+    } else {
+        document.body.classList.remove('dark-mode');
+        document.documentElement.classList.remove('dark-mode');
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.body.setAttribute('data-theme', 'light');
     }
 }
 
@@ -523,6 +541,42 @@ function showSettingsToast(message, type = 'success') {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+// ============================================
+// ABRIR MI CUENTA Y EXPEDIENTE EN PESTAÑA / SECCIÓN
+// ============================================
+async function openMyAccountSection(tabKey = 'datos') {
+    closeSettingsDropdown();
+
+    const normalizedTab = (tabKey === 'expediente' || tabKey === 'expedientes') ? 'expedientes' : 'datos';
+    const isConsultor = !!document.getElementById('consultorAccountWorkspaceRoot') || !!document.getElementById('miCuentaView');
+    const rootId = isConsultor ? 'consultorAccountWorkspaceRoot' : 'accountWorkspaceRoot';
+    const section = document.getElementById('miCuentaView') || document.getElementById('mi-cuenta-section');
+
+    if (section && window.AccountWorkspace) {
+        if (isConsultor) {
+            document.querySelectorAll('.consultor-view').forEach(v => {
+                v.classList.remove('active');
+                v.style.display = 'none';
+            });
+            document.querySelectorAll('.consultor-sidebar .menu-item').forEach(m => m.classList.remove('active'));
+            section.classList.add('active');
+            section.style.display = 'block';
+        } else {
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.sidebar-menu-item').forEach(m => m.classList.remove('active'));
+            section.classList.add('active');
+        }
+
+        // Renderizar workspace en la pestaña seleccionada
+        await window.AccountWorkspace.render(rootId, normalizedTab);
+
+        // Scroll al inicio del workspace
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        console.warn('AccountWorkspace o contenedor de Mi Cuenta no encontrado');
+    }
 }
 
 // ============================================

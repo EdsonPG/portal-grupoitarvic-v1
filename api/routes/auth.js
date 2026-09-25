@@ -3,7 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
-const { sendPasswordResetEmail } = require('../utils/mailer');
+const { sendPasswordResetEmail, sendAccountActivationEmail } = require('../utils/mailer');
 const parsedMinPasswordLength = Number.parseInt(process.env.MIN_PASSWORD_LENGTH || '10', 10);
 const MIN_PASSWORD_LENGTH = Number.isFinite(parsedMinPasswordLength) ? parsedMinPasswordLength : 10;
 
@@ -11,11 +11,44 @@ function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function getBaseUrl(req) {
+  const host = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost:3000';
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const referer = req.headers['referer'];
+  const origin = req.headers['origin'];
+
+  if (origin && !origin.includes('undefined') && !origin.includes('null')) {
+    return origin.replace(/\/$/, '');
+  }
+
+  if (referer) {
+    try {
+      const u = new URL(referer);
+      return `${u.protocol}//${u.host}`;
+    } catch (e) {}
+  }
+
+  if (host) {
+    const proto = (host.includes('localhost') || host.includes('127.0.0.1')) ? 'http' : protocol;
+    return `${proto}://${host}`;
+  }
+
+  if (process.env.APP_URL) {
+    return process.env.APP_URL.replace(/\/$/, '');
+  }
+
+  return 'http://localhost:3000';
+}
+
 function hashResetToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-// Login
+// ============================================
+// LOGIN Y AUTENTICACIÓN
+// ============================================
+
+// POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
     const { userId, password } = req.body;
@@ -31,7 +64,7 @@ router.post('/login', async (req, res) => {
 
     const loginIdentifier = String(userId).trim();
 
-    // Buscar usuario por userId o email (de forma insensible a mayúsculas/minúsculas)
+    // Buscar usuario por userId o email
     const user = await User.findOne({ 
       $or: [
         { userId: { $regex: new RegExp('^' + escapeRegExp(loginIdentifier) + '$', 'i') } },
@@ -42,59 +75,52 @@ router.post('/login', async (req, res) => {
     console.log('Usuario encontrado:', user ? 'SÍ' : 'NO');
 
     if (!user) {
-      console.log('Usuario no encontrado');
       return res.status(401).json({ 
         success: false, 
         message: 'Usuario o contraseña incorrectos' 
       });
     }
 
-    // Verificar si el usuario está activo
     if (!user.isActive) {
-      console.log('Usuario inactivo');
       return res.status(401).json({ 
         success: false, 
-        message: 'Usuario inactivo' 
+        message: 'Tu cuenta se encuentra inactiva. Contacta al administrador.' 
       });
     }
 
-    // Verificar contraseña
-    console.log('Verificando contraseña con bcrypt...');
     const isPasswordValid = await user.comparePassword(password);
     
-    console.log('Contraseña válida:', isPasswordValid ? 'SÍ' : 'NO');
-
     if (!isPasswordValid) {
-      console.log('Contraseña incorrecta');
       return res.status(401).json({ 
         success: false, 
         message: 'Usuario o contraseña incorrectos' 
       });
     }
 
-    // Generar token JWT
     const jwtSecret = process.env.JWT_SECRET || '7e87715a68d0b18fd296808a354a372c3eb03378e63f9a0b82eab69f493b4f767a7e7a7338c3e0f4a180b2cf44fe78e211769d22f824cec2286a2278621f2316';
     const token = jwt.sign(
       { 
-        userId: user.userId,    // Cambiado de 'id' a 'userId'
+        userId: user.userId,
         email: user.email,
-        role: user.role 
+        role: user.role,
+        companyId: user.companyId || null,
+        companyName: user.companyName || null
       },
       jwtSecret,
       { expiresIn: '24h' }
     );
-
-    console.log('Login exitoso');
 
     res.json({
       success: true,
       message: 'Login exitoso',
       token,
       user: {
-        userId: user.userId,    // Cambiado de 'id' a 'userId'
+        userId: user.userId,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        companyId: user.companyId || null,
+        companyName: user.companyName || null
       }
     });
   } catch (error) {
@@ -106,7 +132,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Validar token
+// GET /api/auth/validate
 router.get('/validate', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -118,10 +144,9 @@ router.get('/validate', async (req, res) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || '7e87715a68d0b18fd296808a354a372c3eb03378e63f9a0b82eab69f493b4f767a7e7a7338c3e0f4a180b2cf44fe78e211769d22f824cec2286a2278621f2316');
     
-    // Buscar usuario por userId
-    const user = await User.findOne({ userId: decoded.userId }).select('-password');  // Cambiado
+    const user = await User.findOne({ userId: decoded.userId }).select('-password');
 
     if (!user) {
       return res.status(404).json({ 
@@ -133,10 +158,12 @@ router.get('/validate', async (req, res) => {
     res.json({
       success: true,
       user: {
-        userId: user.userId,    // Cambiado
+        userId: user.userId,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        companyId: user.companyId || null,
+        companyName: user.companyName || null
       }
     });
   } catch (error) {
@@ -170,18 +197,17 @@ router.post('/forgot-password', async (req, res) => {
     const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      // Respuesta genérica para no revelar si el email existe
       console.log('⚠️ Email no encontrado:', normalizedEmail);
-      return res.json({
-        success: true,
-        message: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.'
+      return res.status(404).json({
+        success: false,
+        message: 'El correo electrónico no se encuentra registrado en el sistema.'
       });
     }
 
     if (!user.isActive) {
-      return res.json({
-        success: true,
-        message: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.'
+      return res.status(403).json({
+        success: false,
+        message: 'La cuenta asociada a este correo se encuentra inactiva. Contacte al administrador.'
       });
     }
 
@@ -193,21 +219,10 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
     await user.save();
 
-    // Construir URL de reset
-    // Prioridad: APP_URL env > x-forwarded headers > req host
-    let baseUrl;
-    if (process.env.APP_URL) {
-      baseUrl = process.env.APP_URL.replace(/\/$/, ''); // Quitar trailing slash
-    } else {
-      // Fallback: usar headers de Vercel para detectar el dominio correcto
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-      const host = req.headers['x-forwarded-host'] || req.get('host');
-      baseUrl = `${protocol}://${host}`;
-    }
-    const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+    const baseUrl = getBaseUrl(req);
+    const resetUrl = `${baseUrl}/reset-password.html?token=${resetToken}`;
 
     console.log('🔗 Reset URL generada para recuperación de contraseña');
-    console.log('📌 APP_URL env:', process.env.APP_URL || '(no definida)');
 
     // Enviar email
     await sendPasswordResetEmail(user.email, resetUrl, user.name);
@@ -216,7 +231,7 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.'
+      message: 'Se ha enviado un enlace a tu correo electrónico para restablecer tu contraseña.'
     });
 
   } catch (error) {
@@ -251,8 +266,6 @@ router.post('/reset-password', async (req, res) => {
 
     const hashedToken = hashResetToken(token);
 
-    // Buscar usuario con token valido y no expirado.
-    // Se acepta el token legado sin hash para no invalidar enlaces emitidos antes de este cambio.
     const user = await User.findOne({
       resetPasswordToken: { $in: [hashedToken, token] },
       resetPasswordExpires: { $gt: new Date() }
@@ -289,4 +302,130 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// ============================================
+// ACTIVACIÓN DE CUENTA / ONBOARDING
+// ============================================
+
+// GET /api/auth/verify-activation-token/:token
+router.get('/verify-activation-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Token no proporcionado' });
+    }
+
+    const hashedToken = hashResetToken(token);
+    const user = await User.findOne({
+      activationToken: { $in: [hashedToken, token] },
+      activationExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'El enlace de activación es inválido o ha expirado. Solicite uno nuevo a Administración.'
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        userId: user.userId,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error al verificar token de activación:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor al verificar token' });
+  }
+});
+
+// POST /api/auth/activate-account — Fijar contraseña y activar usuario
+router.post('/activate-account', async (req, res) => {
+  try {
+    const { token, password, name, phone } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token y contraseña son requeridos'
+      });
+    }
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`
+      });
+    }
+
+    const hashedToken = hashResetToken(token);
+    const user = await User.findOne({
+      activationToken: { $in: [hashedToken, token] },
+      activationExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'El enlace de activación es inválido o ha expirado. Solicite un nuevo enlace.'
+      });
+    }
+
+    // Activar usuario
+    user.password = password;
+    user.isActivated = true;
+    user.isActive = true;
+    user.activationToken = null;
+    user.activationExpires = null;
+    if (name && name.trim()) user.name = name.trim();
+    if (phone && phone.trim()) user.phone = phone.trim();
+    user.updatedAt = new Date();
+
+    await user.save();
+
+    console.log(`✅ Cuenta activada exitosamente para ${user.email} (${user.role})`);
+
+    // Generar JWT para login directo
+    const jwtSecret = process.env.JWT_SECRET || '7e87715a68d0b18fd296808a354a372c3eb03378e63f9a0b82eab69f493b4f767a7e7a7338c3e0f4a180b2cf44fe78e211769d22f824cec2286a2278621f2316';
+    const jwtToken = jwt.sign(
+      { 
+        userId: user.userId,
+        email: user.email,
+        role: user.role,
+        companyId: user.companyId || null,
+        companyName: user.companyName || null
+      },
+      jwtSecret,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      message: '¡Cuenta activada exitosamente! Bienvenido(a) a Portal ARVIC.',
+      token: jwtToken,
+      user: {
+        userId: user.userId,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        companyId: user.companyId || null,
+        companyName: user.companyName || null,
+        profilePhoto: user.profilePhoto || null
+      }
+    });
+
+
+  } catch (error) {
+    console.error('❌ Error al activar cuenta:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al activar la cuenta. Intente nuevamente.'
+    });
+  }
+});
+
 module.exports = router;
+

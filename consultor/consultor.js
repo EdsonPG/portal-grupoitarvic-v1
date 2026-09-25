@@ -138,12 +138,19 @@ function renderNotifications(notifications) {
         'report_rejected': 'fa-solid fa-circle-xmark',
         'report_resubmitted': 'fa-solid fa-rotate',
         'assignment_new': 'fa-solid fa-clipboard-list',
+        'contract_assigned': 'fa-solid fa-file-signature',
+        'contract_signed': 'fa-solid fa-stamp',
         'user_registered': 'fa-solid fa-user-plus',
         'system': 'fa-solid fa-gear'
     };
 
     container.innerHTML = notifications.map(n => `
-        <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markNotificationRead('${n.notificationId}', this)">
+        <div class="notif-item ${n.read ? '' : 'unread'}" 
+             data-notif-id="${n.notificationId}"
+             data-type="${n.type}"
+             data-title="${encodeURIComponent(n.title || '')}"
+             data-message="${encodeURIComponent(n.message || '')}"
+             onclick="handleConsultorNotificationClick('${n.notificationId}', '${n.type}', '${n.actionUrl || ''}', this)">
             <div class="notif-icon type-${n.type}">
                 <i class="${iconMap[n.type] || 'fa-solid fa-bell'}"></i>
             </div>
@@ -173,6 +180,183 @@ function timeAgo(dateStr) {
     if (diffHr < 24) return `Hace ${diffHr} hr${diffHr > 1 ? 's' : ''}`;
     if (diffDay < 7) return `Hace ${diffDay} día${diffDay > 1 ? 's' : ''}`;
     return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+}
+
+async function handleConsultorNotificationClick(notifId, type, actionUrl, element) {
+    // 1. Cerrar panel flotante de inmediato (0ms de latencia)
+    const panel = document.getElementById('notificationsPanel');
+    if (panel) panel.classList.remove('active');
+
+    // 2. Feedback visual instantáneo en el ítem
+    if (element) {
+        element.classList.remove('unread');
+        const dot = element.querySelector('.notif-unread-dot');
+        if (dot) dot.remove();
+    }
+
+    // 3. Extraer textos exactos de la notificación
+    let notifTitle = 'Notificación';
+    let notifMessage = '';
+    if (element && element.dataset && element.dataset.title) {
+        try { notifTitle = decodeURIComponent(element.dataset.title); } catch (e) { notifTitle = element.dataset.title; }
+    } else {
+        const titleEl = element ? element.querySelector('.notif-title') : null;
+        if (titleEl) notifTitle = titleEl.textContent;
+    }
+    if (element && element.dataset && element.dataset.message) {
+        try { notifMessage = decodeURIComponent(element.dataset.message); } catch (e) { notifMessage = element.dataset.message; }
+    } else {
+        const msgEl = element ? element.querySelector('.notif-message') : null;
+        if (msgEl) notifMessage = msgEl.textContent;
+    }
+
+    // 4. Persistir lectura en MongoDB en segundo plano
+    if (window.PortalDB && window.PortalDB.markNotificationAsRead) {
+        window.PortalDB.markNotificationAsRead(notifId).then(updateNotificationBadge).catch(console.error);
+    }
+
+    // 5. Navegar de inmediato y mostrar modal explicativo si es rechazo
+    if (type === 'report_rejected') {
+        showConsultorRejectedNotificationModal(notifTitle, notifMessage);
+        switchConsultorView('timesheet');
+    } else if (actionUrl && typeof switchConsultorView === 'function') {
+        switchConsultorView(actionUrl);
+    } else if (type === 'contract_assigned' || type === 'contract_signed' || type === 'documento_firmado') {
+        switchConsultorView('contratos');
+    } else if (type === 'report_approved' || type === 'report_created' || type === 'report_resubmitted') {
+        switchConsultorView('historial');
+    } else if (type === 'assignment_new') {
+        switchConsultorView('timesheet');
+    } else {
+        // Para tipo 'system' o deducir por texto
+        const text = (element ? element.textContent : '').toLowerCase();
+        if (text.includes('contrato') || text.includes('convenio') || text.includes('firma') || text.includes('sow')) {
+            switchConsultorView('contratos');
+        } else if (text.includes('reporte') || text.includes('hora') || text.includes('aprobado') || text.includes('rechazado')) {
+            switchConsultorView('historial');
+        } else if (text.includes('cumplimiento') || text.includes('32-d') || text.includes('sat') || text.includes('expediente') || text.includes('csf')) {
+            switchConsultorView('mi-cuenta');
+        } else {
+            showConsultorNotificationDetailModal(notifTitle, notifMessage, type);
+        }
+    }
+}
+
+function showConsultorRejectedNotificationModal(title, message) {
+    let modal = document.getElementById('consultorRejectedNotificationModal');
+    const backdropStyles = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(2, 6, 23, 0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); z-index:100000; display:flex; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;';
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'consultorRejectedNotificationModal';
+        modal.className = 'modal-backdrop-custom';
+        modal.style.cssText = backdropStyles;
+        document.body.appendChild(modal);
+    } else {
+        modal.style.cssText = backdropStyles;
+    }
+
+    const isDark = document.body.classList.contains('dark-mode') || document.documentElement.getAttribute('data-theme') === 'dark';
+    const bgCard = isDark ? '#111827' : '#ffffff';
+    const textColor = isDark ? '#f9fafb' : '#0f172a';
+    const boxObsBg = isDark ? '#1f2937' : '#fef2f2';
+    const boxObsBorder = isDark ? '#374151' : '#fecaca';
+    const obsText = isDark ? '#f3f4f6' : '#1e293b';
+    const subText = isDark ? '#9ca3af' : '#4b5563';
+    const cardBorder = isDark ? '#374151' : '#e5e7eb';
+    const cardShadow = isDark 
+        ? '0 25px 60px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.08)' 
+        : '0 25px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.08)';
+
+    const cleanTitle = String(title || 'Reporte de Horas Rechazado').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const cleanMsg = String(message || 'Se requiere revisión de este reporte.').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    modal.innerHTML = `
+        <div style="background:${bgCard}; border-radius:16px; max-width:540px; width:100%; box-shadow:${cardShadow}; overflow:hidden; border:1px solid ${cardBorder}; animation:fadeIn 0.2s ease;">
+            <div style="background:linear-gradient(135deg, #dc2626 0%, #991c1c 100%); color:#ffffff; padding:18px 24px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0,0,0,0.2);">
+                <div>
+                    <span style="display:inline-block; background:rgba(255,255,255,0.22); font-size:0.68rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding:2px 8px; border-radius:4px; margin-bottom:4px;">
+                        Acción Requerida
+                    </span>
+                    <h3 style="margin:0; font-size:1.1rem; font-weight:700; display:flex; align-items:center; gap:10px; color:#ffffff;">
+                        <i class="fa-solid fa-circle-xmark"></i> ${cleanTitle}
+                    </h3>
+                </div>
+                <button type="button" onclick="document.getElementById('consultorRejectedNotificationModal').style.display='none'" style="background:rgba(255,255,255,0.15); border:none; color:#ffffff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; cursor:pointer; transition:all 0.2s; line-height:1;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
+            </div>
+            <div style="padding:24px; color:${textColor};">
+                <div style="background:${boxObsBg}; border:1px solid ${boxObsBorder}; border-left:4px solid #ef4444; padding:16px 18px; border-radius:10px; margin-bottom:18px;">
+                    <div style="font-weight:700; color:#ef4444; font-size:0.88rem; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Observaciones de Administración:
+                    </div>
+                    <div style="font-size:0.95rem; color:${obsText}; line-height:1.6; word-break:break-word; font-weight:500;">
+                        ${cleanMsg}
+                    </div>
+                </div>
+                <p style="font-size:0.86rem; color:${subText}; margin:0 0 24px 0; line-height:1.55;">
+                    Para solventar este reporte, puedes consultar el historial de semanas anteriores o dirigirte directamente a tu captura semanal de Timesheet para modificar y reenviar los datos a revisión.
+                </p>
+                <div style="display:flex; justify-content:flex-end; gap:12px; flex-wrap:wrap;">
+                    <button type="button" class="btn" style="background:${isDark ? '#374151' : '#f3f4f6'}; color:${isDark ? '#f9fafb' : '#374151'}; border:1px solid ${isDark ? '#4b5563' : '#d1d5db'}; padding:10px 18px; font-size:0.86rem; font-weight:600; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:8px;" onclick="document.getElementById('consultorRejectedNotificationModal').style.display='none'; switchConsultorView('historial');">
+                        <i class="fa-solid fa-table-list"></i> Ver en Historial
+                    </button>
+                    <button type="button" class="btn" style="background:#0284c7; color:#ffffff; border:none; padding:10px 20px; font-size:0.86rem; font-weight:700; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 4px 12px rgba(2,132,199,0.35);" onclick="document.getElementById('consultorRejectedNotificationModal').style.display='none'; switchConsultorView('timesheet');">
+                        <i class="fa-solid fa-pen-to-square"></i> Ir a Captura Semanal
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+}
+
+function showConsultorNotificationDetailModal(title, message, type) {
+    let modal = document.getElementById('consultorNotificationDetailModal');
+    const backdropStyles = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(2, 6, 23, 0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); z-index:100000; display:flex; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;';
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'consultorNotificationDetailModal';
+        modal.className = 'modal-backdrop-custom';
+        modal.style.cssText = backdropStyles;
+        document.body.appendChild(modal);
+    } else {
+        modal.style.cssText = backdropStyles;
+    }
+
+    const isDark = document.body.classList.contains('dark-mode') || document.documentElement.getAttribute('data-theme') === 'dark';
+    const bgCard = isDark ? '#111827' : '#ffffff';
+    const textColor = isDark ? '#f9fafb' : '#0f172a';
+    const msgText = isDark ? '#e5e7eb' : '#334155';
+    const cardBorder = isDark ? '#374151' : '#e5e7eb';
+    const cardShadow = isDark 
+        ? '0 25px 60px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.08)' 
+        : '0 25px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.08)';
+
+    const cleanTitle = String(title || 'Notificación').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const cleanMsg = String(message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    modal.innerHTML = `
+        <div style="background:${bgCard}; border-radius:16px; max-width:520px; width:100%; box-shadow:${cardShadow}; overflow:hidden; border:1px solid ${cardBorder}; animation:fadeIn 0.2s ease;">
+            <div style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color:#ffffff; padding:18px 22px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.05rem; font-weight:700; display:flex; align-items:center; gap:10px; color:#ffffff;">
+                    <i class="fa-solid fa-bell"></i> ${cleanTitle}
+                </h3>
+                <button type="button" onclick="document.getElementById('consultorNotificationDetailModal').style.display='none'" style="background:rgba(255,255,255,0.15); border:none; color:#ffffff; width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; cursor:pointer; opacity:0.85; line-height:1;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
+            </div>
+            <div style="padding:24px; color:${textColor};">
+                <div style="font-size:0.95rem; color:${msgText}; line-height:1.65; margin-bottom:24px; word-break:break-word;">
+                    ${cleanMsg}
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button type="button" class="btn" style="background:#0284c7; color:#ffffff; border:none; padding:10px 22px; font-size:0.86rem; font-weight:600; border-radius:8px; cursor:pointer; box-shadow:0 4px 12px rgba(2,132,199,0.35);" onclick="document.getElementById('consultorNotificationDetailModal').style.display='none'">
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
 }
 
 async function markNotificationRead(notifId, element) {
@@ -2201,11 +2385,26 @@ function getTodayDayIndex() {
 
 /**
  * Check if a day index is editable
- * Rules: future days are locked, today and past days of current week are editable
+ * Rules: Solo se permite capturar la semana que está cursando (semana actual).
+ * Días futuros de la semana actual están bloqueados.
+ * Semanas pasadas están bloqueadas en modo solo lectura (salvo rechazos reabiertos).
  */
 function isDayEditable(dayIndex) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const thisMonday = getMonday(today);
+
+    // Validar si estamos en la semana en curso
+    const isCurrentWeek = currentWeekStart && currentWeekStart.getTime() === thisMonday.getTime();
+    if (!isCurrentWeek) {
+        // Si es una semana anterior, solo es editable si el timesheet fue rechazado para permitir corregirlo
+        const weekStartStr = toISODate(currentWeekStart);
+        const existingTs = window.PortalDB?.getTimesheetByWeek?.(currentUser?.userId, weekStartStr);
+        if (!existingTs || existingTs.status !== 'Rechazado') {
+            return false;
+        }
+    }
+
     const cellDate = new Date(currentWeekStart);
     cellDate.setDate(cellDate.getDate() + dayIndex);
     return cellDate <= today;
@@ -3674,9 +3873,13 @@ async function reopenRejectedTimesheet(timesheetId) {
 }
 
 /**
- * Switch between timesheet and historial views
+ * Switch between timesheet, historial, and mi-cuenta views
  */
-function switchConsultorView(viewName) {
+async function switchConsultorView(viewName) {
+    // Normalizar si viene con guión o camelCase
+    let targetId = viewName + 'View';
+    if (viewName === 'mi-cuenta') targetId = 'miCuentaView';
+
     // Update sidebar active state
     document.querySelectorAll('.consultor-sidebar .menu-item').forEach(item => {
         item.classList.toggle('active', item.dataset.view === viewName);
@@ -3688,7 +3891,7 @@ function switchConsultorView(viewName) {
         v.style.display = 'none';
     });
     
-    const targetView = document.getElementById(viewName + 'View');
+    const targetView = document.getElementById(targetId);
     if (targetView) {
         targetView.classList.add('active');
         targetView.style.display = 'block';
@@ -3696,6 +3899,10 @@ function switchConsultorView(viewName) {
     
     if (viewName === 'historial') {
         renderHistorial();
+    } else if (viewName === 'contratos') {
+        await loadConsultorContracts();
+    } else if (viewName === 'mi-cuenta' && window.AccountWorkspace) {
+        await window.AccountWorkspace.render('consultorAccountWorkspaceRoot', 'personal');
     }
 }
 
@@ -3726,21 +3933,38 @@ async function renderHistorial() {
     allTs.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
     
     tbody.innerHTML = allTs.map(ts => {
-        const statusClass = ts.status === 'Aprobado' ? 'active' : ts.status === 'Rechazado' ? 'inactive' : '';
+        let badgeHtml = '';
+        if (ts.status === 'Aprobado') {
+            badgeHtml = '<span class="doc-status-badge status-vigente"><i class="fa-solid fa-circle-check"></i> Aprobado</span>';
+        } else if (ts.status === 'Pendiente') {
+            badgeHtml = '<span class="doc-status-badge status-en_revision"><i class="fa-solid fa-clock"></i> Pendiente</span>';
+        } else if (ts.status === 'Rechazado') {
+            badgeHtml = '<span class="doc-status-badge status-rechazado"><i class="fa-solid fa-circle-xmark"></i> Rechazado</span>';
+        } else {
+            badgeHtml = '<span class="doc-status-badge status-faltante"><i class="fa-solid fa-pen"></i> Borrador</span>';
+        }
+
         return `
             <tr>
-                <td><strong>${ts.weekStart}</strong> — ${ts.weekEnd}</td>
-                <td><strong>${ts.totalWeekHours.toFixed(1)}</strong> hrs</td>
-                <td><span class="crud-status-badge ${statusClass}">${ts.status}</span></td>
-                <td>${ts.submittedAt ? new Date(ts.submittedAt).toLocaleDateString('es-MX') : '—'}</td>
+                <td style="font-weight:600; color:inherit;">
+                    <i class="fa-regular fa-calendar" style="color:#0284c7; margin-right:6px;"></i>
+                    ${ts.weekStart} &nbsp;—&nbsp; ${ts.weekEnd}
+                </td>
+                <td style="font-weight:700; color:#0369a1;">
+                    ${ts.totalWeekHours.toFixed(1)} hrs
+                </td>
+                <td>${badgeHtml}</td>
+                <td style="color:#64748b; font-size:0.85rem;">
+                    ${ts.submittedAt ? new Date(ts.submittedAt).toLocaleDateString('es-MX', { year:'numeric', month:'short', day:'numeric' }) : '—'}
+                </td>
                 <td>
-                    <button class="btn btn-secondary" style="padding:4px 10px; font-size:0.82em;" onclick="viewTimesheetWeek('${ts.weekStart}')">
+                    <button class="btn btn-secondary" style="padding:5px 12px; font-size:0.82rem; border-radius:6px;" onclick="viewTimesheetWeek('${ts.weekStart}')" title="Ver timesheet de esta semana">
                         <i class="fa-solid fa-eye"></i> Ver
                     </button>
                 </td>
                 <td>
-                    <button class="btn" style="padding:4px 10px; font-size:0.82em; background:#1B3A5C; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="openActivityReport('${ts.timesheetId}')" title="Generar Reporte de Actividades">
-                        <i class="fa-solid fa-file-lines"></i> Reporte
+                    <button class="btn" style="padding:5px 12px; font-size:0.82rem; background:#0f172a; color:#ffffff; border:none; border-radius:6px; cursor:pointer;" onclick="openActivityReport('${ts.timesheetId}')" title="Generar Reporte de Actividades">
+                        <i class="fa-solid fa-file-invoice"></i> Reporte
                     </button>
                 </td>
             </tr>
@@ -3810,3 +4034,338 @@ window.toggleMobileSidebar = function() {
         wrapper.classList.toggle('sidebar-open');
     }
 };
+
+// ============================================
+// GESTIÓN DE CONTRATOS Y CONVENIOS (CONSULTOR)
+// ============================================
+
+async function loadConsultorContracts() {
+    const container = document.getElementById('consultorContractsContainer');
+    const badge = document.getElementById('consultorContractsPendingBadge');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="text-align:center; padding: 40px; color:#64748b;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.6rem; color:#0284c7;"></i>
+            <p style="margin-top: 10px;">Cargando contratos y convenios vigentes...</p>
+        </div>
+    `;
+
+    try {
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const url = window.getArvicApiUrl ? window.getArvicApiUrl('/api/expedientes/mis-contratos') : '/api/expedientes/mis-contratos';
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+
+        if (!json.success || !json.data) {
+            container.innerHTML = `<p style="color:#ef4444; text-align:center; padding:20px;">Error al obtener contratos: ${json.message}</p>`;
+            return;
+        }
+
+        const { contratoMarco, proyectos, soportes } = json.data;
+        
+        // Calcular pendientes
+        let pendingCount = 0;
+        if (!contratoMarco.hasSigned) pendingCount++;
+        proyectos.forEach(p => { if (!p.hasSigned) pendingCount++; });
+        soportes.forEach(s => { if (!s.hasSigned) pendingCount++; });
+
+        if (badge) {
+            if (pendingCount > 0) {
+                badge.textContent = pendingCount;
+                badge.title = `${pendingCount} convenios pendientes de firma`;
+                badge.style.display = 'inline-flex';
+                badge.style.alignItems = 'center';
+                badge.style.justifyContent = 'center';
+                badge.style.minWidth = '22px';
+                badge.style.height = '22px';
+                badge.style.padding = '0 6px';
+                badge.style.borderRadius = '11px';
+                badge.style.fontSize = '0.75rem';
+                badge.style.fontWeight = '700';
+                badge.style.background = '#f59e0b';
+                badge.style.color = '#ffffff';
+                badge.style.flexShrink = '0';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        container.innerHTML = `
+            <!-- 1. CONTRATO MARCO GENERAL ARVIC -->
+            <div class="consultor-contract-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 44px; height: 44px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                            <i class="fa-solid fa-stamp"></i>
+                        </div>
+                        <div>
+                            <div class="consultor-contract-title" style="font-weight: 700; font-size: 1.05rem;">${contratoMarco.title}</div>
+                            <div class="consultor-contract-desc" style="font-size: 0.8rem; color: #64748b;">Vínculo y acuerdo marco general de prestación de servicios profesionales con GRUPO IT ARVIC</div>
+                        </div>
+                    </div>
+                    <div>
+                        ${contratoMarco.hasSigned ? `
+                            <span style="display:inline-block; padding: 4px 10px; border-radius: 12px; background: #dcfce7; color: #15803d; font-size: 0.8rem; font-weight: 700;">
+                                <i class="fa-solid fa-circle-check"></i> Firmado y Vigente
+                            </span>
+                        ` : `
+                            <span style="display:inline-block; padding: 4px 10px; border-radius: 12px; background: #fef3c7; color: #b45309; font-size: 0.8rem; font-weight: 700;">
+                                <i class="fa-solid fa-clock"></i> Pendiente de Firma
+                            </span>
+                        `}
+                    </div>
+                </div>
+
+                ${!contratoMarco.hasSigned ? `
+                    <div class="consultor-contract-subcard" style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+                        <div style="font-size: 0.83rem; color: inherit;">
+                            Descargue su contrato marco en PDF o Word (.doc), fírmelo y adjúntelo formalizado:
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <a href="${window.getArvicApiUrl ? window.getArvicApiUrl('/api/expedientes/machotes/MACHOTE_CONTRATO_CONSULTOR/download?format=pdf') : '/api/expedientes/machotes/MACHOTE_CONTRATO_CONSULTOR/download?format=pdf'}&token=${token}" 
+                               target="_blank" 
+                               class="btn" 
+                               style="background: #dc2626; color: #fff; padding: 6px 12px; font-size: 0.8rem; text-decoration: none; border-radius: 6px;">
+                                <i class="fa-solid fa-file-pdf"></i> Descargar Borrador (PDF)
+                            </a>
+                            <a href="${window.getArvicApiUrl ? window.getArvicApiUrl('/api/expedientes/machotes/MACHOTE_CONTRATO_CONSULTOR/download?format=doc') : '/api/expedientes/machotes/MACHOTE_CONTRATO_CONSULTOR/download?format=doc'}&token=${token}" 
+                               target="_blank" 
+                               class="btn btn-secondary" 
+                               style="padding: 6px 12px; font-size: 0.8rem; text-decoration: none; border-radius: 6px;">
+                                <i class="fa-solid fa-file-word"></i> Word (.doc)
+                            </a>
+                            <input type="file" id="signedContractMarcoFile" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none;" onchange="submitConsultorSignedDoc('consultor', 'marco', 'contrato_arvic', 'signedContractMarcoFile')">
+                            <button type="button" class="btn" style="background:#16a34a; color:#fff; padding:6px 14px; font-size:0.8rem; border-radius:6px; cursor:pointer;" onclick="document.getElementById('signedContractMarcoFile').click()">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Subir Firmado
+                            </button>
+                        </div>
+                    </div>
+                ` : `
+                    <div style="margin-top: 10px; font-size: 0.8rem; color: #166534; display: flex; align-items: center; justify-content: space-between;">
+                        <span><i class="fa-solid fa-file-pdf"></i> Archivo: ${contratoMarco.fileName || 'Contrato_Marco_Firmado.pdf'}</span>
+                        ${contratoMarco.docId ? `
+                            <a href="${window.getArvicApiUrl ? window.getArvicApiUrl(`/api/expedientes/doc/${contratoMarco.docId}/download`) : `/api/expedientes/doc/${contratoMarco.docId}/download`}?token=${token}" target="_blank" style="color: #0284c7; font-weight: 600; text-decoration: none;">
+                                <i class="fa-solid fa-eye"></i> Ver Documento
+                            </a>
+                        ` : ''}
+                    </div>
+                `}
+            </div>
+
+            <!-- 2. CONVENIOS DE ASIGNACIÓN A PROYECTOS -->
+            <div style="margin-bottom: 28px;">
+                <h3 class="consultor-contract-section-title" style="font-size: 1.1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-diagram-project" style="color: #0284c7;"></i> Convenios de Asignación por Proyecto (${proyectos.length})
+                </h3>
+
+                ${proyectos.length === 0 ? `
+                    <div class="consultor-contract-subcard" style="text-align: center; color: #64748b; font-size: 0.88rem; padding: 20px;">
+                        No tienes proyectos asignados en este momento.
+                    </div>
+                ` : `
+                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                        ${proyectos.map(p => `
+                            <div class="consultor-contract-card" style="padding: 16px; margin-bottom: 0;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
+                                    <div>
+                                        <div style="font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 700;">PROYECTO • ${p.empresaCliente}</div>
+                                        <div class="consultor-contract-title" style="font-size: 1rem; font-weight: 700; margin-top: 2px;">${p.nombreProyecto}</div>
+                                        <div class="consultor-contract-desc" style="display: flex; gap: 14px; margin-top: 6px; font-size: 0.8rem; color: #475569;">
+                                            <span><strong>Módulo:</strong> ${p.modulo}</span>
+                                            <span><strong>Tarifa Pactada:</strong> <span style="color:#0284c7; font-weight:700;">$${p.tarifaConsultor}/hr</span></span>
+                                            <span><strong>Horas Estimadas:</strong> ${p.horasEstimadas} hrs</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        ${p.hasSigned ? `
+                                            <span style="display:inline-block; padding: 3px 9px; border-radius: 12px; background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700;">
+                                                <i class="fa-solid fa-circle-check"></i> Firmado
+                                            </span>
+                                        ` : `
+                                            <span style="display:inline-block; padding: 3px 9px; border-radius: 12px; background: #fef3c7; color: #b45309; font-size: 0.75rem; font-weight: 700;">
+                                                <i class="fa-solid fa-clock"></i> Pendiente
+                                            </span>
+                                        `}
+                                    </div>
+                                </div>
+
+                                <div class="consultor-contract-subcard" style="padding-top: 10px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                    <div style="font-size: 0.78rem; color: inherit;">
+                                        ${p.hasSigned ? `Firmado y formalizado el ${new Date(p.signedAt).toLocaleDateString('es-MX')}` : 'Descarga tu convenio individual con tu tarifa asignada prellenada'}
+                                    </div>
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        <button type="button" class="btn" style="background:#dc2626; color:#fff; padding: 5px 12px; font-size: 0.78rem; border-radius:6px; cursor:pointer;" onclick="downloadConsultorProjectConvenio('${p.projectId}', 'pdf')">
+                                            <i class="fa-solid fa-file-pdf"></i> Convenio (PDF)
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 0.78rem; border-radius:6px;" onclick="downloadConsultorProjectConvenio('${p.projectId}', 'doc')">
+                                            <i class="fa-solid fa-file-word"></i> Word (.doc)
+                                        </button>
+                                        ${p.hasSigned ? `
+                                            ${p.docId ? `
+                                                <a href="${window.getArvicApiUrl ? window.getArvicApiUrl(`/api/expedientes/doc/${p.docId}/download`) : `/api/expedientes/doc/${p.docId}/download`}?token=${token}" target="_blank" class="btn" style="background:#10b981; color:#fff; padding:5px 12px; font-size:0.78rem; text-decoration:none; border-radius:6px;">
+                                                    <i class="fa-solid fa-eye"></i> Ver Firmado
+                                                </a>
+                                            ` : ''}
+                                        ` : `
+                                            <input type="file" id="signedPrjFile_${p.projectId}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none;" onchange="submitConsultorSignedDoc('proyecto', '${p.projectId}', 'convenio_asignacion_proyecto', 'signedPrjFile_${p.projectId}')">
+                                            <button type="button" class="btn" style="background:#16a34a; color:#fff; padding:5px 12px; font-size:0.78rem; border-radius:6px; cursor:pointer;" onclick="document.getElementById('signedPrjFile_${p.projectId}').click()">
+                                                <i class="fa-solid fa-cloud-arrow-up"></i> Subir Firmado
+                                            </button>
+                                        `}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `}
+            </div>
+
+            <!-- 3. CONVENIOS DE ASIGNACIÓN A SOPORTES -->
+            <div>
+                <h3 class="consultor-contract-section-title" style="font-size: 1.1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-headset" style="color: #dd6b20;"></i> Convenios de Asignación por Mesa de Soporte (${soportes.length})
+                </h3>
+
+                ${soportes.length === 0 ? `
+                    <div class="consultor-contract-subcard" style="text-align: center; color: #64748b; font-size: 0.88rem; padding: 20px;">
+                        No tienes cuentas de soporte asignadas actualmente.
+                    </div>
+                ` : `
+                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                        ${soportes.map(s => `
+                            <div class="consultor-contract-card" style="padding: 16px; margin-bottom: 0;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
+                                    <div>
+                                        <div style="font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 700;">SOPORTE • ${s.empresaCliente}</div>
+                                        <div class="consultor-contract-title" style="font-size: 1rem; font-weight: 700; margin-top: 2px;">${s.nombreSoporte}</div>
+                                        <div class="consultor-contract-desc" style="display: flex; gap: 14px; margin-top: 6px; font-size: 0.8rem; color: #475569;">
+                                            <span><strong>Módulo:</strong> ${s.modulo}</span>
+                                            <span><strong>Tarifa Soporte:</strong> <span style="color:#dd6b20; font-weight:700;">$${s.tarifaConsultor}/hr</span></span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        ${s.hasSigned ? `
+                                            <span style="display:inline-block; padding: 3px 9px; border-radius: 12px; background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700;">
+                                                <i class="fa-solid fa-circle-check"></i> Firmado
+                                            </span>
+                                        ` : `
+                                            <span style="display:inline-block; padding: 3px 9px; border-radius: 12px; background: #fef3c7; color: #b45309; font-size: 0.75rem; font-weight: 700;">
+                                                <i class="fa-solid fa-clock"></i> Pendiente
+                                            </span>
+                                        `}
+                                    </div>
+                                </div>
+
+                                <div class="consultor-contract-subcard" style="padding-top: 10px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                    <div style="font-size: 0.78rem; color: inherit;">
+                                        ${s.hasSigned ? `Firmado y formalizado` : 'Descarga tu convenio de atención a mesa de soporte'}
+                                    </div>
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        <button type="button" class="btn" style="background:#dc2626; color:#fff; padding: 5px 12px; font-size: 0.78rem; border-radius:6px; cursor:pointer;" onclick="downloadConsultorSupportConvenio('${s.supportId}', 'pdf')">
+                                            <i class="fa-solid fa-file-pdf"></i> Convenio (PDF)
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 0.78rem; border-radius:6px;" onclick="downloadConsultorSupportConvenio('${s.supportId}', 'doc')">
+                                            <i class="fa-solid fa-file-word"></i> Word (.doc)
+                                        </button>
+                                        ${s.hasSigned ? `
+                                            ${s.docId ? `
+                                                <a href="${window.getArvicApiUrl ? window.getArvicApiUrl(`/api/expedientes/doc/${s.docId}/download`) : `/api/expedientes/doc/${s.docId}/download`}?token=${token}" target="_blank" class="btn" style="background:#10b981; color:#fff; padding:5px 12px; font-size:0.78rem; text-decoration:none; border-radius:6px;">
+                                                    <i class="fa-solid fa-eye"></i> Ver Firmado
+                                                </a>
+                                            ` : ''}
+                                        ` : `
+                                            <input type="file" id="signedSupFile_${s.supportId}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none;" onchange="submitConsultorSignedDoc('soporte', '${s.supportId}', 'convenio_asignacion_soporte', 'signedSupFile_${s.supportId}')">
+                                            <button type="button" class="btn" style="background:#16a34a; color:#fff; padding:5px 12px; font-size:0.78rem; border-radius:6px; cursor:pointer;" onclick="document.getElementById('signedSupFile_${s.supportId}').click()">
+                                                <i class="fa-solid fa-cloud-arrow-up"></i> Subir Firmado
+                                            </button>
+                                        `}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `}
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Error al cargar contratos del consultor:', error);
+        container.innerHTML = `<p style="color:#ef4444; text-align:center; padding:20px;">Error de conexión al cargar contratos.</p>`;
+    }
+}
+
+function downloadConsultorProjectConvenio(projectId, format = 'pdf') {
+    const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+    const url = window.getArvicApiUrl
+        ? window.getArvicApiUrl(`/api/expedientes/proyecto/${projectId}/generar-contrato?tipo=consultor&format=${format}&token=${token}`)
+        : `/api/expedientes/proyecto/${projectId}/generar-contrato?tipo=consultor&format=${format}&token=${token}`;
+    window.open(url, '_blank');
+}
+
+function downloadConsultorSupportConvenio(supportId, format = 'pdf') {
+    const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+    const url = window.getArvicApiUrl
+        ? window.getArvicApiUrl(`/api/expedientes/soporte/${supportId}/generar-contrato?tipo=consultor&format=${format}&token=${token}`)
+        : `/api/expedientes/soporte/${supportId}/generar-contrato?tipo=consultor&format=${format}&token=${token}`;
+    window.open(url, '_blank');
+}
+
+async function submitConsultorSignedDoc(entityType, targetId, documentType, fileInputId) {
+    const fileInput = document.getElementById(fileInputId);
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('Por favor seleccione un archivo firmado válido.');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    if (file.size > 20 * 1024 * 1024) {
+        alert('El archivo no debe superar 20 MB.');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const base64Data = e.target.result.split(',')[1];
+        try {
+            const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+            const url = window.getArvicApiUrl ? window.getArvicApiUrl('/api/expedientes/firmar') : '/api/expedientes/firmar';
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    entityType,
+                    targetId,
+                    documentType,
+                    documentTitle: `${documentType} - ${file.name}`,
+                    fileName: file.name,
+                    fileData: base64Data,
+                    fileSize: file.size,
+                    mimeType: file.type || 'application/pdf'
+                })
+            });
+
+            const json = await res.json();
+            if (json.success) {
+                alert('¡Convenio / Contrato firmado subido exitosamente!');
+                loadConsultorContracts();
+            } else {
+                alert(`Error al guardar documento firmado: ${json.message}`);
+            }
+        } catch (err) {
+            console.error('Error al subir documento firmado:', err);
+            alert('Error de comunicación al subir el documento firmado.');
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+window.loadConsultorContracts = loadConsultorContracts;
+window.downloadConsultorProjectConvenio = downloadConsultorProjectConvenio;
+window.downloadConsultorSupportConvenio = downloadConsultorSupportConvenio;
+window.submitConsultorSignedDoc = submitConsultorSignedDoc;

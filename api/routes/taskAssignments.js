@@ -21,14 +21,20 @@ function requireAdmin(req, res) {
 }
 
 function scopeQuery(req, query = {}) {
-  return isAdmin(req) ? query : { ...query, consultorId: req.user.userId };
+  if (isAdmin(req)) return query;
+  if (req.user?.role === 'cliente') {
+    return { ...query, companyId: req.user.companyId };
+  }
+  return { ...query, $or: [{ consultorId: req.user.userId }, { userId: req.user.userId }] };
 }
 
 // GET todas las asignaciones de tarea
 router.get('/', async (req, res) => {
   try {
     const query = TaskAssignment.find(scopeQuery(req));
-    if (!isAdmin(req)) {
+    if (req.user?.role === 'cliente') {
+      query.select('-tarifaConsultor -consultorId -userId');
+    } else if (!isAdmin(req)) {
       query.select('-tarifaConsultor -tarifaCliente');
     }
     const taskAssignments = await query;
@@ -38,6 +44,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // GET asignación de tarea por ID
 router.get('/:id', async (req, res) => {

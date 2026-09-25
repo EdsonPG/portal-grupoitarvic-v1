@@ -13,7 +13,17 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['report_created', 'report_approved', 'report_rejected', 'report_resubmitted', 'assignment_new', 'user_registered', 'system'],
+    enum: [
+      'report_created', 
+      'report_approved', 
+      'report_rejected', 
+      'report_resubmitted', 
+      'assignment_new', 
+      'user_registered', 
+      'system',
+      'contract_assigned',
+      'contract_signed'
+    ],
     required: true
   },
   title: {
@@ -29,6 +39,10 @@ const notificationSchema = new mongoose.Schema({
     default: 'fa-solid fa-bell'
   },
   relatedId: {
+    type: String,
+    default: null
+  },
+  actionUrl: {
     type: String,
     default: null
   },

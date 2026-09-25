@@ -115,12 +115,13 @@ window.UserService = class UserService {
                 throw new Error(result.message || 'Error al crear usuario');
             }
 
-            console.log('Usuario creado exitosamente:', result.user.userId);
+            const userObj = result.user || result.data || {};
+            console.log('Usuario creado exitosamente:', userObj.userId || userObj.id);
 
             // Devolver usuario con contraseña para mostrar al admin
             return {
                 success: true,
-                user: result.user,
+                user: userObj,
                 password: userData.password // ⚠️ Solo se devuelve al crear, nunca después
             };
 

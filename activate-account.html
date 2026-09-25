@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal ARVIC - Activar Cuenta y Onboarding</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/shared.css?v=31">
+    <link rel="stylesheet" href="css/login.css?v=31">
+    <link rel="icon" type="image/svg+xml" href="images/Logo Grupo IT Arvic 2.svg">
+    <style>
+        .activation-badge {
+            display: inline-block;
+            background: rgba(14, 165, 233, 0.15);
+            color: #0284c7;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .user-greeting {
+            font-size: 1.15rem;
+            color: #0f172a;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .user-email-display {
+            font-size: 0.88rem;
+            color: #64748b;
+            margin-bottom: 18px;
+        }
+        .terms-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 16px 0 20px 0;
+            font-size: 0.85rem;
+            color: #475569;
+            text-align: left;
+            cursor: pointer;
+        }
+        .terms-checkbox input {
+            margin-top: 3px;
+            cursor: pointer;
+        }
+        .password-input-wrapper {
+            position: relative !important;
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+        }
+        .password-input-wrapper input {
+            width: 100% !important;
+            padding-right: 42px !important;
+            box-sizing: border-box !important;
+        }
+        .toggle-password-btn {
+            position: absolute !important;
+            right: 12px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            color: #64748b !important;
+            cursor: pointer !important;
+            padding: 4px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1rem !important;
+            transition: color 0.2s ease !important;
+            z-index: 5 !important;
+        }
+        .toggle-password-btn:hover {
+            color: #0284c7 !important;
+        }
+        .toggle-password-btn i {
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container" style="max-width: 440px;">
+        <div class="logo-section">
+            <div class="logo">
+                <img src="images/Logo Grupo IT Arvic 2.svg" alt="GRUPO IT ARVIC" class="logo-svg-complete">
+            </div>
+            <p class="welcome-text">Activación de Cuenta</p>
+        </div>
+
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
+        <div class="success-message" id="successMessage" style="display: none;"></div>
+
+        <!-- Vista de Carga Inicial -->
+        <div id="loadingView" style="text-align: center; padding: 30px 10px;">
+            <i class="fas fa-circle-notch fa-spin fa-2x" style="color: #0284c7;"></i>
+            <p style="margin-top: 14px; color: #64748b; font-size: 0.9rem;">Verificando enlace de activación...</p>
+        </div>
+
+        <!-- Formulario de Activación -->
+        <form id="activationForm" style="display: none;">
+            <div style="text-align: center;">
+                <span class="activation-badge" id="roleBadge">Consultor</span>
+                <div class="user-greeting" id="userGreeting">¡Bienvenido(a)!</div>
+                <div class="user-email-display" id="userEmailDisplay">cargando...</div>
+            </div>
+
+            <div class="form-group">
+                <label for="userNameInput">
+                    <i class="fas fa-user"></i> Nombre Completo
+                </label>
+                <input type="text" id="userNameInput" required placeholder="Tu nombre completo">
+            </div>
+
+            <div class="form-group">
+                <label for="userPhoneInput">
+                    <i class="fas fa-phone"></i> Teléfono / Celular (Opcional)
+                </label>
+                <input type="tel" id="userPhoneInput" placeholder="Ej. 55 1234 5678">
+            </div>
+
+            <div class="form-group">
+                <label for="newPassword">
+                    <i class="fas fa-lock"></i> Crea tu Contraseña *
+                </label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="newPassword" placeholder="Mínimo 10 caracteres" required minlength="10">
+                    <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('newPassword', this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">
+                    <i class="fas fa-lock"></i> Confirma tu Contraseña *
+                </label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="confirmPassword" placeholder="Repite tu contraseña" required minlength="10">
+                    <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('confirmPassword', this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Password strength indicator -->
+            <div class="password-strength" id="passwordStrength">
+                <div class="strength-bar">
+                    <div class="strength-fill" id="strengthFill"></div>
+                </div>
+                <span class="strength-text" id="strengthText">Seguridad de la contraseña</span>
+            </div>
+
+            <label class="terms-checkbox">
+                <input type="checkbox" id="termsCheck" required>
+                <span>Acepto el Aviso de Privacidad y el uso de mis datos para la gestión operativa y fiscal en Portal ARVIC.</span>
+            </label>
+
+            <button type="submit" class="login-btn" id="activateBtn">
+                <i class="fas fa-shield-check"></i> Activar mi Cuenta y Entrar
+            </button>
+        </form>
+
+        <!-- Vista de Token Inválido o Expirado -->
+        <div id="tokenErrorView" style="display: none; text-align: center;">
+            <div class="token-error-icon" style="color: #ef4444; font-size: 2.8rem; margin-bottom: 12px;">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h3 style="color: #0f172a; margin-bottom: 8px; font-size: 1.1rem;">Enlace No Válido o Expirado</h3>
+            <p class="token-error-text" style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">
+                El enlace de activación ya fue utilizado o ha vencido. Por favor, solicita a Administración que te reenvíe una nueva invitación.
+            </p>
+            <a href="/" class="login-btn" style="display: inline-block; text-decoration: none; text-align: center;">
+                <i class="fas fa-arrow-left"></i> Ir al Inicio de Sesión
+            </a>
+        </div>
+
+        <!-- Vista de Éxito -->
+        <div id="successView" style="display: none; text-align: center;">
+            <div class="success-icon-large" style="color: #10b981; font-size: 3rem; margin-bottom: 12px;">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3 style="color: #0f172a; margin-bottom: 6px; font-size: 1.2rem;">¡Cuenta Activada con Éxito!</h3>
+            <p class="success-subtext" style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">
+                Redirigiendo a tu espacio de trabajo para completar tu perfil...
+            </p>
+            <a id="successDashboardLink" href="/" class="login-btn" style="display: inline-block; text-decoration: none; text-align: center;">
+                <i class="fas fa-arrow-right"></i> Entrar al Portal
+            </a>
+        </div>
+    </div>
+
+    <script src="js/activate-account.js?v=35"></script>
+
+</body>
+</html>

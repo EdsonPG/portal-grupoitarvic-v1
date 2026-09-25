@@ -11,6 +11,19 @@ function isAdmin(req) {
 async function getVisibleSupportIds(req) {
   if (isAdmin(req)) return null;
 
+  if (req.user?.role === 'cliente') {
+    const companyId = req.user.companyId;
+    if (!companyId) return [];
+    const [assignments, taskAssignments] = await Promise.all([
+      Assignment.find({ companyId, isActive: { $ne: false } }).select('supportId'),
+      TaskAssignment.find({ companyId, isActive: { $ne: false } }).select('linkedSupportId')
+    ]);
+    return [...new Set([
+      ...assignments.map(item => item.supportId),
+      ...taskAssignments.map(item => item.linkedSupportId)
+    ].filter(Boolean))];
+  }
+
   const userId = req.user.userId;
   const [assignments, taskAssignments] = await Promise.all([
     Assignment.find({ userId, isActive: { $ne: false } }).select('supportId'),
@@ -22,6 +35,7 @@ async function getVisibleSupportIds(req) {
     ...taskAssignments.map(item => item.linkedSupportId)
   ].filter(Boolean))];
 }
+
 
 function requireAdmin(req, res) {
   if (!isAdmin(req)) {

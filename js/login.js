@@ -140,6 +140,24 @@ async function handleLogin(e) {
                 } else {
                     throw new Error(res ? res.message : 'Error al precargar datos de Consultor');
                 }
+            } else if (result.user.role === 'cliente') {
+                const res = await window.PortalDB.getAllClienteData();
+                if (res && res.success && res.data) {
+                    window.PortalDB.prefillClienteCacheFromAllData(res.data);
+                    
+                    localStorage.setItem('arvic_cliente_prefetched_data', JSON.stringify({
+                        company: res.data.company,
+                        companiesList: Object.values(window.PortalDB.cache.companies || {}),
+                        supportsList: Object.values(window.PortalDB.cache.supports || {}),
+                        modulesList: Object.values(window.PortalDB.cache.modules || {}),
+                        projectsList: Object.values(window.PortalDB.cache.projects || {}),
+                        allReportsList: Object.values(window.PortalDB.cache.reports || {}),
+                        allTarifarioList: Object.values(window.PortalDB.cache.tarifario || {}),
+                        timestamp: Date.now()
+                    }));
+                } else {
+                    console.warn('Advertencia al precargar datos de Cliente:', res?.message);
+                }
             }
             
             showSuccess(`¡Bienvenido ${result.user.name}! Redirigiendo...`);
@@ -203,11 +221,15 @@ function redirectToUserDashboard(user = null) {
         case 'consultor':
             window.location.href = 'consultor/dashboard.html';
             break;
+        case 'cliente':
+            window.location.href = 'cliente/dashboard.html';
+            break;
         default:
             showError('Tipo de usuario no válido');
             break;
     }
 }
+
 
 function showLoadingState(button, isLoading, text = 'Iniciando sesión...') {
     if (isLoading) {
@@ -455,11 +477,11 @@ async function handleForgotPassword() {
         const data = await response.json();
 
         if (data.success) {
-            showSuccess(data.message || 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.');
+            showSuccess(data.message || 'Se ha enviado un enlace a tu correo electrónico para restablecer tu contraseña.');
             // Limpiar campo
             document.getElementById('recoveryEmail').value = '';
         } else {
-            showError(data.message || 'Error al enviar el correo.');
+            showError(data.message || 'El correo electrónico no se encuentra registrado en el sistema.');
         }
 
     } catch (error) {

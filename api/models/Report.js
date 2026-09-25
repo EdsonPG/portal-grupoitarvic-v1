@@ -64,6 +64,20 @@ const reportSchema = new mongoose.Schema({
     required: false,
     default: null
   },
+  billingPeriodId: {
+    type: String,
+    required: false,
+    default: null
+  },
+  periodLocked: {
+    type: Boolean,
+    default: false
+  },
+  billingStatus: {
+    type: String,
+    enum: ['Sin Facturar', 'En Conciliacion', 'Facturado', 'Cerrado'],
+    default: 'Sin Facturar'
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -82,6 +96,7 @@ const reportSchema = new mongoose.Schema({
 // Indexes for fast queries
 reportSchema.index({ userId: 1, date: -1 });
 reportSchema.index({ companyId: 1, date: -1 });
+reportSchema.index({ companyId: 1, periodLocked: 1, date: -1 });
 reportSchema.index({ assignmentId: 1 });
 
 module.exports = mongoose.model('Report', reportSchema);

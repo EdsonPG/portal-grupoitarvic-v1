@@ -7,6 +7,8 @@ const Company = require('../models/Company');
 const Support = require('../models/Support');
 const Module = require('../models/Module');
 const User = require('../models/User');
+const { createAndEmitNotification, notifyCompanyClients } = require('../utils/notificationService');
+const { sendContractPendingSignEmail } = require('../utils/mailer');
 
 function isAdmin(req) {
   return req.user?.role === 'admin';
@@ -21,14 +23,20 @@ function requireAdmin(req, res) {
 }
 
 function scopeQuery(req, query = {}) {
-  return isAdmin(req) ? query : { ...query, userId: req.user.userId };
+  if (isAdmin(req)) return query;
+  if (req.user?.role === 'cliente') {
+    return { ...query, companyId: req.user.companyId };
+  }
+  return { ...query, userId: req.user.userId };
 }
 
 // GET todas las asignaciones
 router.get('/', async (req, res) => {
   try {
     const query = Assignment.find(scopeQuery(req));
-    if (!isAdmin(req)) {
+    if (req.user?.role === 'cliente') {
+      query.select('-tarifaConsultor -userId');
+    } else if (!isAdmin(req)) {
       query.select('-tarifaConsultor -tarifaCliente');
     }
     const assignments = await query;
@@ -38,6 +46,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // GET asignación por ID
 router.get('/:id', async (req, res) => {
@@ -108,7 +117,48 @@ router.post('/', async (req, res) => {
     
     await tarifario.save();
     console.log('Tarifario creado:', tarifario.tarifarioId);
-    
+
+    // Disparar notificaciones in-app y correo de asignación de convenio de soporte
+    (async () => {
+      try {
+        const sName = support?.name || 'Soporte';
+        const cId = assignment.userId;
+
+        // Notificar al consultor in-app
+        await createAndEmitNotification({
+          userId: cId,
+          type: 'contract_assigned',
+          title: 'Nuevo Convenio de Asignación',
+          message: `Has sido asignado al servicio de soporte "${sName}". Tu convenio individual está listo para consulta y firma electrónica.`,
+          relatedId: assignment.supportId,
+          actionUrl: 'expedientes'
+        });
+
+        // Enviar correo transaccional al consultor
+        if (user && user.email) {
+          await sendContractPendingSignEmail({
+            toEmail: user.email,
+            recipientName: user.name,
+            documentTitle: `Convenio Individual de Soporte - ${sName}`,
+            projectName: sName
+          });
+        }
+
+        // Notificar a los usuarios clientes de la empresa
+        if (assignment.companyId) {
+          await notifyCompanyClients(assignment.companyId, {
+            type: 'assignment_new',
+            title: 'Consultor asignado a soporte',
+            message: `El consultor ${user?.name || 'especialista'} fue asignado a "${sName}" (${module?.name || 'Módulo'}).`,
+            relatedId: assignment.supportId,
+            actionUrl: 'proyectos'
+          });
+        }
+      } catch (errAsignNotif) {
+        console.error('Error enviando notificaciones de asignación de soporte:', errAsignNotif.message);
+      }
+    })();
+
     res.status(201).json({ 
       success: true, 
       message: 'Asignación y tarifario creados exitosamente',

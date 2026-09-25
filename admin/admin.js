@@ -158,13 +158,17 @@ function renderNotifications(notifications) {
         'report_rejected': 'fa-solid fa-circle-xmark',
         'report_resubmitted': 'fa-solid fa-rotate',
         'assignment_new': 'fa-solid fa-clipboard-list',
+        'contract_assigned': 'fa-solid fa-file-signature',
+        'contract_signed': 'fa-solid fa-stamp',
         'user_registered': 'fa-solid fa-user-plus',
         'system': 'fa-solid fa-gear'
     };
 
     container.innerHTML = notifications.map(n => `
         <div class="notif-item ${n.read ? '' : 'unread'}" 
-        onclick="handleNotificationClick('${n.notificationId}', '${n.type}', '${n.relatedId || ''}', this)">
+             data-notif-id="${n.notificationId}"
+             data-type="${n.type}"
+             onclick="handleNotificationClick('${n.notificationId}', '${n.type}', '${n.relatedId || ''}', this)">
             <div class="notif-icon type-${n.type}">
                 <i class="${iconMap[n.type] || 'fa-solid fa-bell'}"></i>
             </div>
@@ -211,7 +215,7 @@ async function handleNotificationClick(notifId, type, relatedId, element) {
     }
 
     // 2. Cerrar el panel de notificaciones
-    const panel = document.getElementById('notifPanel');
+    const panel = document.getElementById('notificationsPanel') || document.getElementById('notifPanel');
     if (panel) panel.classList.remove('active');
 
     // 3. Navegar a la sección correspondiente
@@ -221,12 +225,31 @@ async function handleNotificationClick(notifId, type, relatedId, element) {
         'report_approved':     'reportes-aprobados',
         'report_rejected':     'reportes-aprobados',
         'assignment_new':      'lista-asignaciones',
-        'user_registered':     'usuarios',
-        'system':              null
+        'contract_assigned':   'proyectos',
+        'contract_signed':     'proyectos',
+        'user_registered':     'consultores',
+        'system':              'panel-general'
     };
 
-    const section = sectionMap[type];
-    if (section) {
+    let section = sectionMap[type];
+    if (element) {
+        const text = element.textContent.toLowerCase();
+        if (text.includes('machote') || text.includes('plantilla')) {
+            section = 'machotes';
+        } else if (text.includes('empresa') || text.includes('rfc') || text.includes('domicilio')) {
+            section = 'empresas';
+        } else if (text.includes('proyecto') || text.includes('sow') || text.includes('contrato') || text.includes('firmado')) {
+            section = 'proyectos';
+        } else if (text.includes('reporte') || text.includes('hora') || text.includes('timesheet')) {
+            section = 'reportes-pendientes';
+        } else if (text.includes('consultor')) {
+            section = 'consultores';
+        }
+    }
+
+    if (!section) section = 'panel-general';
+
+    if (typeof showSection === 'function') {
         await showSection(section);
     }
 }
@@ -2550,14 +2573,32 @@ window.ultraDefensiveUpdate = updateDropdowns;
 
 // === GESTIÓN DE MODALES ===
 function openUserModal() {
-    document.getElementById('userName').focus();
+    if (window.userModule && typeof window.userModule.createUser === 'function') {
+        window.userModule.createUser();
+        return;
+    }
+    const nameEl = document.getElementById('userName');
+    if (nameEl) nameEl.focus();
     window.ModalUtils.open('userModal');
 }
 
 function openCompanyModal() {
-    document.getElementById('companyName').focus();
+    const form = document.getElementById('companyForm');
+    if (form) form.reset();
+    const editIdEl = document.getElementById('editCompanyId');
+    if (editIdEl) editIdEl.value = '';
+    const titleEl = document.getElementById('companyModalTitle');
+    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-building"></i> Registrar Nueva Empresa';
+    const btn = document.getElementById('btnSaveCompany');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Registrar Empresa';
+
     window.ModalUtils.open('companyModal');
+    setTimeout(() => {
+        const nameEl = document.getElementById('companyName');
+        if (nameEl) nameEl.focus();
+    }, 100);
 }
+
 
 function openProjectModal() {
     document.getElementById('projectName').focus();
@@ -3413,13 +3454,19 @@ async function showSection(sectionName) {
         section.classList.remove('active');
     });
 
-    // Mostrar sección seleccionada
-    const targetSection = document.getElementById(`${sectionName}-section`);
+    // Mostrar sección seleccionada con fallback seguro
+    let targetSection = document.getElementById(`${sectionName}-section`);
+    if (!targetSection) {
+        console.warn(`⚠️ Sección ${sectionName}-section no encontrada en el DOM. Redirigiendo a panel-general.`);
+        sectionName = 'panel-general';
+        targetSection = document.getElementById('panel-general-section');
+    }
+
     if (targetSection) {
         targetSection.classList.add('active');
         console.log(`✅ Sección ${sectionName} activada`);
     } else {
-        console.error(`❌ Sección ${sectionName}-section no encontrada`);
+        console.error(`❌ Sección de emergencia panel-general no encontrada`);
         return;
     }
 
@@ -3477,6 +3524,7 @@ const SECTION_TO_HUB_MAP = {
     'soportes': 'catalogos',
     'modulos': 'catalogos',
     'tarifario': 'catalogos',
+    'machotes': 'catalogos',
     
     // Asignaciones
     'lista-asignaciones': 'asignaciones',
@@ -3554,6 +3602,10 @@ async function loadSectionData(sectionName) {
             case 'tarifario':
                 await loadTarifario();
                 break;
+
+            case 'machotes':
+                await renderMachotesSection();
+                break;
                 
             case 'lista-asignaciones':
             case 'asignaciones-recientes':
@@ -3596,6 +3648,27 @@ async function loadSectionData(sectionName) {
                 
             case 'panel-general':
                 renderPanelGeneral();
+                if (window.billingModule) {
+                    window.billingModule.loadFinancialKPIsInDashboard();
+                }
+                break;
+
+            case 'facturacion':
+                if (window.billingModule) {
+                    await window.billingModule.init();
+                }
+                break;
+
+            case 'expedientes-matrix':
+                if (window.ExpedientesMatrix) {
+                    await window.ExpedientesMatrix.loadMatrix();
+                }
+                break;
+
+            case 'mi-cuenta':
+                if (window.AccountWorkspace) {
+                    await window.AccountWorkspace.render('accountWorkspaceRoot', 'personal');
+                }
                 break;
                 
             case 'timesheets-semanales':
@@ -3921,45 +3994,60 @@ async function handleCreateCompany(event) {
     event.preventDefault();
     
     try {
+        const editCompanyId = document.getElementById('editCompanyId')?.value.trim();
         const name = document.getElementById('companyName').value.trim();
         const description = document.getElementById('companyDescription')?.value.trim() || '';
         
         if (!name) {
-            alert('El nombre de la empresa es requerido');
+            window.NotificationUtils?.error?.('El nombre comercial de la empresa es requerido') || alert('El nombre de la empresa es requerido');
             return;
         }
 
-        // Generar companyId automáticamente
-        const timestamp = Date.now().toString().slice(-4);
-        const companyId = `EMP${timestamp}`;  // Ejemplo: EMP1234
-        
         const companyData = {
-            companyId: companyId,  // ✅ Agregar companyId
             name: name,
             description: description,
+            rfc: document.getElementById('companyRfc')?.value.trim().toUpperCase() || null,
+            razonSocial: document.getElementById('companyRazonSocial')?.value.trim() || null,
+            regimenFiscal: document.getElementById('companyRegimenFiscal')?.value.trim() || null,
+            codigoPostalFiscal: document.getElementById('companyCpFiscal')?.value.trim() || null,
+            calleFiscal: document.getElementById('companyCalleFiscal')?.value.trim() || null,
+            numExtFiscal: document.getElementById('companyNumExtFiscal')?.value.trim() || null,
+            numIntFiscal: document.getElementById('companyNumIntFiscal')?.value.trim() || null,
+            coloniaFiscal: document.getElementById('companyColoniaFiscal')?.value.trim() || null,
+            municipioFiscal: document.getElementById('companyMunicipioFiscal')?.value.trim() || null,
+            estadoFiscal: document.getElementById('companyEstadoFiscal')?.value.trim() || null,
+            contactName: document.getElementById('companyContactName')?.value.trim() || null,
+            contactPosition: document.getElementById('companyContactPosition')?.value.trim() || null,
+            contactEmail: document.getElementById('companyContactEmail')?.value.trim() || null,
+            contactPhone: document.getElementById('companyContactPhone')?.value.trim() || null,
             isActive: true
         };
 
-        console.log('📤 Creando empresa:', companyData);
-
-        const result = await window.PortalDB.createCompany(companyData);  // ✅ await
-        
-        console.log('📥 Resultado:', result);
+        let result;
+        if (editCompanyId) {
+            console.log('📝 Actualizando empresa:', editCompanyId, companyData);
+            result = await window.PortalDB.updateCompany(editCompanyId, companyData);
+        } else {
+            const timestamp = Date.now().toString().slice(-4);
+            companyData.companyId = `EMP${timestamp}`;
+            console.log('📤 Creando empresa:', companyData);
+            result = await window.PortalDB.createCompany(companyData);
+        }
 
         if (result.success) {
-            alert(`✅ Empresa creada exitosamente!\n\nID: ${companyId}\nNombre: ${name}`);
-            
+            window.NotificationUtils?.success?.(editCompanyId ? 'Empresa actualizada exitosamente' : 'Empresa creada exitosamente') || alert('Operación exitosa');
             closeModal('companyModal');
             document.getElementById('companyForm').reset();
             await loadAllData();
         } else {
-            alert('Error: ' + (result.message || 'No se pudo crear la empresa'));
+            window.NotificationUtils?.error?.(result.message || 'Error al procesar empresa') || alert(result.message || 'Error al procesar empresa');
         }
     } catch (error) {
-        console.error('❌ Error creando empresa:', error);
-        alert('Error al crear empresa: ' + error.message);
+        console.error('❌ Error guardando empresa:', error);
+        window.NotificationUtils?.error?.('Error: ' + error.message) || alert('Error: ' + error.message);
     }
 }
+
 
 async function deleteCompany(companyId) { 
     if (!confirm('¿Está seguro de eliminar esta empresa? Se eliminarán también todas las asignaciones relacionadas.')) {
@@ -11659,7 +11747,8 @@ window.approveSelectedReports = async function() {
     if (window.SpinnerUtils) window.SpinnerUtils.showButtonSpinner(btnApprove, 'Procesando...');
     
     try {
-        const response = await fetch('/api/reports/mass-update', {
+        const apiUrl = window.PortalDB?.API_URL || 'http://localhost:3000/api';
+        const response = await fetch(`${apiUrl}/reports/mass-update`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -12034,43 +12123,70 @@ function renderConsultoresList() {
     if (!tbody) return;
 
     const users = currentData.users || {};
-    const consultores = Object.values(users).filter(u => (u.role === 'consultor' || u.role === 'admin') && u.userId !== 'admin');
+    // Solo mostrar consultores y administradores internos (los clientes pertenecen exclusivamente a la sección Empresas)
+    const consultores = Object.values(users).filter(u => u.userId !== 'admin' && u.role !== 'cliente');
 
     if (consultores.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-users"></i> No hay usuarios registrados. Cree uno con "+ Nuevo Consultor".</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-users"></i> No hay consultores registrados. Cree uno con "+ Nuevo Consultor".</td></tr>';
         return;
     }
 
-    tbody.innerHTML = consultores.map(u => `
-        <tr data-searchable="${(u.name || '').toLowerCase()} ${(u.email || '').toLowerCase()} ${(u.id || u.userId || '')}">
+    tbody.innerHTML = consultores.map(u => {
+        const isPendingActivation = u.isActivated === false || (u.activationToken && !u.password);
+        const activationBadge = isPendingActivation 
+            ? `<span class="doc-status-badge status-por_vencer" style="margin-left:6px; font-size:0.7rem;" title="Pendiente de activación por correo"><i class="fa-solid fa-envelope"></i> Pendiente</span>`
+            : `<span class="doc-status-badge status-vigente" style="margin-left:6px; font-size:0.7rem;"><i class="fa-solid fa-check"></i> Activo</span>`;
+
+        let roleBadge = '';
+        if (u.role === 'admin') {
+            roleBadge = `
+                <span class="custom-badge" style="background-color: var(--color-arvic-primary, #0f1d3a); color: white; border-color: var(--color-arvic-primary, #0f1d3a); padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; margin-left: 8px; font-weight: bold; display: inline-block;">
+                    <i class="fa-solid fa-crown" style="font-size: 0.65rem; margin-right: 4px;"></i> ADMIN
+                </span>
+            `;
+        } else {
+            roleBadge = `
+                <span class="custom-badge badge-info" style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; margin-left: 8px; font-weight: bold; background: transparent; color: var(--gray-600); border-color: var(--gray-300); box-shadow: none; display: inline-block;">
+                    CONSULTOR
+                </span>
+            `;
+        }
+
+        const expAction = `window.ExpedientesMatrix.openConsultorFullExpediente('${u.id || u.userId}', '${u.name}')`;
+
+        return `
+        <tr data-searchable="${(u.name || '').toLowerCase()} ${(u.email || '').toLowerCase()} ${(u.id || u.userId || '')} ${(u.role || '')}">
             <td><strong>${u.id || u.userId || '—'}</strong></td>
             <td>
                 ${u.name || 'Sin nombre'}
-                ${u.role === 'admin' ? `
-                    <span class="custom-badge" style="background-color: var(--color-arvic-primary, #0f1d3a); color: white; border-color: var(--color-arvic-primary, #0f1d3a); padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; margin-left: 8px; font-weight: bold; display: inline-block;">
-                        <i class="fa-solid fa-crown" style="font-size: 0.65rem; margin-right: 4px;"></i> ADMIN
-                    </span>
-                ` : `
-                    <span class="custom-badge badge-info" style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; margin-left: 8px; font-weight: bold; background: transparent; color: var(--gray-600); border-color: var(--gray-300); box-shadow: none; display: inline-block;">
-                        CONSULTOR
-                    </span>
-                `}
+                ${roleBadge}
+                ${activationBadge}
             </td>
             <td>${u.email || '—'}</td>
-            <td class="crud-password-cell">${u.password || '—'}</td>
+            <td class="crud-password-cell">${u.password ? '••••••••' : (isPendingActivation ? '<em>Por activar</em>' : '—')}</td>
             <td><span class="crud-status-badge ${u.isActive !== false ? 'active' : 'inactive'}">${u.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>
             <td>
                 <div class="crud-actions">
+                    ${isPendingActivation ? `
+                        <button class="crud-action-btn" style="background:#e0f2fe; color:#0369a1;" title="Reenviar correo de activación" onclick="window.userModule.resendActivation('${u.id || u.userId}')">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    ` : ''}
+                    <button class="crud-action-btn" style="background:#f0fdf4; color:#166534;" title="Ver Expediente Digital" onclick="${expAction}">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </button>
                     <button class="crud-action-btn edit" title="Editar" onclick="editUser('${u.id || u.userId}')"><i class="fa-solid fa-pen"></i></button>
                     <button class="crud-action-btn delete" title="Eliminar" onclick="deleteUserConfirm('${u.id || u.userId}')"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
+
 }
 
 /**
- * Renderiza lista de empresas
+ * Renderiza lista de empresas con datos fiscales y expediente digital
  */
 function renderEmpresasList() {
     console.log('🏢 Renderizando lista de empresas...');
@@ -12078,27 +12194,89 @@ function renderEmpresasList() {
     if (!tbody) return;
 
     const companies = Object.values(currentData.companies || {});
+    const users = Object.values(currentData.users || {});
 
     if (companies.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-building"></i> No hay empresas registradas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-cell"><i class="fa-solid fa-building"></i> No hay empresas registradas.</td></tr>';
         return;
     }
 
-    tbody.innerHTML = companies.map(c => `
-        <tr data-searchable="${(c.name || '').toLowerCase()} ${(c.description || '').toLowerCase()}">
-            <td><strong>${c.id || c.companyId || '—'}</strong></td>
-            <td>${c.name || 'Sin nombre'}</td>
-            <td>${c.description || '—'}</td>
+    tbody.innerHTML = companies.map(c => {
+        const cId = c.companyId || c.id || '—';
+        const clientUser = users.find(u => (u.companyId === cId || u.companyId === c.id) && u.role === 'cliente');
+        const searchStr = `${(c.name || '')} ${(c.razonSocial || '')} ${(c.rfc || '')} ${(c.contactName || '')} ${(c.contactEmail || '')} ${clientUser ? (clientUser.name + ' ' + clientUser.email + ' ' + clientUser.userId) : ''}`.toLowerCase();
+
+        return `
+        <tr data-searchable="${searchStr}">
+            <td><strong>${cId}</strong></td>
+            <td>
+                <div style="font-weight: 600; color: #0f172a;">${c.name || 'Sin nombre'}</div>
+                ${c.razonSocial ? `<small style="color: #64748b; font-size: 0.78rem;">${c.razonSocial}</small>` : ''}
+            </td>
+            <td>
+                <div style="font-family: monospace; font-size: 0.85rem; font-weight: 600; color: #0369a1;">${c.rfc || '<span style="color:#94a3b8; font-weight:normal;">Sin RFC</span>'}</div>
+                ${c.regimenFiscal ? `<small style="color: #64748b; font-size: 0.75rem; display: block; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${c.regimenFiscal}">${c.regimenFiscal}</small>` : ''}
+            </td>
+            <td>
+                ${clientUser ? `
+                    <div style="font-weight: 600; color:#0f172a;">${clientUser.name || c.contactName || 'Contacto'}</div>
+                    <small style="color: #0284c7; font-size: 0.78rem; display:block;"><a href="mailto:${clientUser.email}" style="color: inherit; text-decoration: none;"><i class="fa-solid fa-envelope"></i> ${clientUser.email}</a></small>
+                    ${clientUser.isActivated ? `
+                        <span class="doc-status-badge status-vigente" style="margin-top:3px; font-size:0.68rem; padding:1px 6px; display:inline-block;"><i class="fa-solid fa-user-check"></i> Acceso Activo (${clientUser.userId})</span>
+                    ` : `
+                        <span class="doc-status-badge status-por_vencer" style="margin-top:3px; font-size:0.68rem; padding:1px 6px; display:inline-block;" title="Invitación enviada por activar"><i class="fa-solid fa-clock-rotate-left"></i> Invitación Pendiente (${clientUser.userId})</span>
+                    `}
+                ` : `
+                    <div style="font-weight: 500;">${c.contactName || '<span style="color:#94a3b8;">Sin contacto</span>'}</div>
+                    ${c.contactEmail ? `<small style="color: #0284c7; font-size: 0.78rem;"><a href="mailto:${c.contactEmail}" style="color: inherit; text-decoration: none;"><i class="fa-solid fa-envelope"></i> ${c.contactEmail}</a></small>` : ''}
+                    ${c.contactPhone ? `<small style="color: #64748b; font-size: 0.78rem; display: block;"><i class="fa-solid fa-phone"></i> ${c.contactPhone}</small>` : ''}
+                    <small style="color:#94a3b8; font-size:0.72rem; display:block; margin-top:2px;">Sin credenciales de portal</small>
+                `}
+            </td>
+            <td>
+                <button class="crud-badge-btn" title="Ver Expediente Digital de la Empresa" onclick="openCompanyFullExpediente('${cId}', '${c.name || ''}')">
+                    <i class="fa-solid fa-folder-open"></i> Expediente
+                </button>
+            </td>
+
             <td><span class="crud-status-badge ${c.isActive !== false ? 'active' : 'inactive'}">${c.isActive !== false ? '● Activa' : '● Inactiva'}</span></td>
             <td>
                 <div class="crud-actions">
-                    <button class="crud-action-btn edit" title="Editar" onclick="editCompany('${c.id || c.companyId}')"><i class="fa-solid fa-pen"></i></button>
-                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteCompanyConfirm('${c.id || c.companyId}')"><i class="fa-solid fa-trash"></i></button>
+                    ${clientUser ? `
+                        <button class="crud-action-btn" style="color: #0284c7;" title="Gestionar Usuario de Acceso (${clientUser.userId})" onclick="editUser('${clientUser.userId}')"><i class="fa-solid fa-user-gear"></i></button>
+                    ` : `
+                        <button class="crud-action-btn" style="color: #0284c7;" title="Crear Usuario de Acceso para esta Empresa" onclick="openCreateUserForCompany('${cId}', '${(c.name || '').replace(/'/g, "\\'")}', '${c.contactEmail || ''}', '${(c.contactName || '').replace(/'/g, "\\'")}')"><i class="fa-solid fa-user-plus"></i></button>
+                    `}
+                    <button class="crud-action-btn edit" title="Editar Empresa" onclick="editCompany('${cId}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="crud-action-btn delete" title="Eliminar Empresa" onclick="deleteCompany('${cId}')"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
+
+
+window.openCreateUserForCompany = function(companyId, companyName, contactEmail, contactName) {
+    if (window.userModule && typeof window.userModule.createUser === 'function') {
+        window.userModule.createUser({
+            role: 'cliente',
+            companyId: companyId,
+            companyName: companyName,
+            email: contactEmail,
+            name: contactName
+        });
+    }
+};
+
+window.openCompanyFullExpediente = async function(companyId, companyName) {
+    if (window.AccountWorkspace && typeof window.AccountWorkspace.openCompanyForm === 'function') {
+        await window.AccountWorkspace.openCompanyForm(companyId, 'expedientes');
+    }
+};
+
+
+
 
 /**
  * Renderiza lista de proyectos
@@ -12145,6 +12323,11 @@ function renderProyectosList() {
             <td>${p.description || '—'}</td>
             <td>${hoursDisplay}</td>
             <td>${progressHTML}</td>
+            <td>
+                <button type="button" class="crud-badge-btn" onclick="openProjectExpediente('${pId}', '${(p.name || '').replace(/'/g, "\\'")}')">
+                    <i class="fa-solid fa-folder-open"></i> Contratos
+                </button>
+            </td>
             <td><span class="crud-status-badge ${p.isActive !== false ? 'active' : 'inactive'}">${p.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>
             <td>
                 <div class="crud-actions">
@@ -12172,20 +12355,29 @@ function renderSoportesList() {
         return;
     }
 
-    tbody.innerHTML = supports.map(s => `
+    tbody.innerHTML = supports.map(s => {
+        const sId = s.supportId || s.id || '';
+        const sNameSafe = (s.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `
         <tr data-searchable="${(s.name || '').toLowerCase()} ${(s.description || '').toLowerCase()}">
-            <td><strong>${s.id || s.supportId || '—'}</strong></td>
+            <td><strong>${sId || '—'}</strong></td>
             <td>${s.name || 'Sin nombre'}</td>
             <td>${s.description || '—'}</td>
+            <td>
+                <button type="button" class="crud-badge-btn" onclick="openSupportExpediente('${sId}', '${sNameSafe}')">
+                    <i class="fa-solid fa-folder-open"></i> Contratos
+                </button>
+            </td>
             <td><span class="crud-status-badge ${s.isActive !== false ? 'active' : 'inactive'}">${s.isActive !== false ? '● Activo' : '● Inactivo'}</span></td>
             <td>
                 <div class="crud-actions">
-                    <button class="crud-action-btn edit" title="Editar" onclick="editSupport('${s.id || s.supportId}')"><i class="fa-solid fa-pen"></i></button>
-                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteSupportConfirm('${s.id || s.supportId}')"><i class="fa-solid fa-trash"></i></button>
+                    <button class="crud-action-btn edit" title="Editar" onclick="editSupport('${sId}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="crud-action-btn delete" title="Eliminar" onclick="deleteSupportConfirm('${sId}')"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
 /**
@@ -12428,9 +12620,13 @@ function openConfirmModal(title, message, onConfirm) {
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     
-    newBtn.addEventListener('click', () => {
+    newBtn.addEventListener('click', async () => {
         modal.style.display = 'none';
-        onConfirm();
+        try {
+            await onConfirm();
+        } catch (e) {
+            console.error('Error al ejecutar confirmación:', e);
+        }
     });
     
     modal.style.display = 'flex';
@@ -12484,8 +12680,8 @@ document.addEventListener('DOMContentLoaded', () => {
  * Helper: Confirmar eliminación de empresa
  */
 function deleteCompanyConfirm(companyId) {
-    openConfirmModal('Eliminar Empresa', '¿Está seguro de eliminar esta empresa? Se eliminarán también las asignaciones relacionadas.', () => {
-        const result = window.PortalDB.deleteCompany(companyId);
+    openConfirmModal('Eliminar Empresa', '¿Está seguro de eliminar esta empresa? Se eliminarán también las asignaciones relacionadas.', async () => {
+        const result = await window.PortalDB.deleteCompany(companyId);
         if (result.success) {
             window.NotificationUtils.success('Empresa eliminada correctamente');
             loadAllData();
@@ -12496,8 +12692,8 @@ function deleteCompanyConfirm(companyId) {
 }
 
 function deleteProjectConfirm(projectId) {
-    openConfirmModal('Eliminar Proyecto', '¿Está seguro de eliminar este proyecto?', () => {
-        const result = window.PortalDB.deleteProject(projectId);
+    openConfirmModal('Eliminar Proyecto', '¿Está seguro de eliminar este proyecto?', async () => {
+        const result = await window.PortalDB.deleteProject(projectId);
         if (result.success) {
             window.NotificationUtils.success('Proyecto eliminado correctamente');
             loadAllData();
@@ -12508,8 +12704,8 @@ function deleteProjectConfirm(projectId) {
 }
 
 function deleteSupportConfirm(supportId) {
-    openConfirmModal('Eliminar Soporte', '¿Está seguro de eliminar este soporte?', () => {
-        const result = window.PortalDB.deleteSupport(supportId);
+    openConfirmModal('Eliminar Soporte', '¿Está seguro de eliminar este soporte?', async () => {
+        const result = await window.PortalDB.deleteSupport(supportId);
         if (result.success) {
             window.NotificationUtils.success('Soporte eliminado correctamente');
             loadAllData();
@@ -12520,8 +12716,8 @@ function deleteSupportConfirm(supportId) {
 }
 
 function deleteModuleConfirm(moduleId) {
-    openConfirmModal('Eliminar Módulo', '¿Está seguro de eliminar este módulo?', () => {
-        const result = window.PortalDB.deleteModule(moduleId);
+    openConfirmModal('Eliminar Módulo', '¿Está seguro de eliminar este módulo?', async () => {
+        const result = await window.PortalDB.deleteModule(moduleId);
         if (result.success) {
             window.NotificationUtils.success('Módulo eliminado correctamente');
             loadAllData();
@@ -12536,8 +12732,8 @@ function deleteUserConfirm(userId) {
         window.NotificationUtils.error('No se puede eliminar el administrador');
         return;
     }
-    openConfirmModal('Desactivar Consultor', '¿Está seguro de desactivar este consultor?', () => {
-        const result = window.PortalDB.deleteUser(userId);
+    openConfirmModal('Desactivar Consultor', '¿Está seguro de desactivar este consultor?', async () => {
+        const result = await window.PortalDB.deleteUser(userId);
         if (result.success) {
             window.NotificationUtils.success('Consultor desactivado correctamente');
             loadAllData();
@@ -12546,6 +12742,26 @@ function deleteUserConfirm(userId) {
         }
     });
 }
+
+/**
+ * Abrir ficha completa del usuario en pestaña/workspace (Datos, Contraseña y Expediente)
+ */
+async function editUser(userId) {
+    if (window.AccountWorkspace) {
+        document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.sidebar-menu-item').forEach(m => m.classList.remove('active'));
+        
+        const section = document.getElementById('mi-cuenta-section');
+        if (section) {
+            section.classList.add('active');
+            await window.AccountWorkspace.render('accountWorkspaceRoot', 'datos', userId);
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    } else if (window.userModule && typeof window.userModule.editUser === 'function') {
+        window.userModule.editUser(userId);
+    }
+}
+window.editUser = editUser;
 
 /**
  * Helper para abrir el modal de edición genérico
@@ -12606,22 +12822,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-/**
- * Edit helpers for empresas, proyectos, soportes, módulos
- */
 function editCompany(companyId) {
-    const company = currentData.companies[companyId];
-    if (!company) return;
-    openEditModal('Editar Empresa', company.name, async (newName) => {
-        const result = await window.PortalDB.updateCompany(companyId, { name: newName });
-        if (result.success) {
-            window.NotificationUtils.success('Empresa actualizada');
-            await loadAllData();
-        } else {
-            window.NotificationUtils.error(result.message || 'Error al actualizar');
-        }
-    });
+    if (window.AccountWorkspace && typeof window.AccountWorkspace.openCompanyForm === 'function') {
+        window.AccountWorkspace.openCompanyForm(companyId);
+    } else {
+        const company = currentData.companies[companyId] || Object.values(currentData.companies || {}).find(c => (c.companyId || c.id) === companyId);
+        if (!company) return;
+        window.ModalUtils.open('companyModal');
+    }
 }
+window.editCompany = editCompany;
+
+function openCompanyModal() {
+    if (window.AccountWorkspace && typeof window.AccountWorkspace.openCompanyForm === 'function') {
+        window.AccountWorkspace.openCompanyForm(null);
+    } else {
+        window.ModalUtils.open('companyModal');
+    }
+}
+window.openCompanyModal = openCompanyModal;
+
+
 /*
 function editProject(projectId) {
     const project = currentData.projects[projectId];
@@ -12777,7 +12998,8 @@ const HUB_CONFIGS = {
             'proyectos',
             'soportes',
             'modulos',
-            'tarifario'
+            'tarifario',
+            'machotes'
         ],
         tabs: [
             { id: 'consultores', label: 'Consultores', icon: 'fa-solid fa-users' },
@@ -12785,7 +13007,8 @@ const HUB_CONFIGS = {
             { id: 'proyectos', label: 'Proyectos', icon: 'fa-solid fa-folder-open' },
             { id: 'soportes', label: 'Soportes', icon: 'fa-solid fa-headset' },
             { id: 'modulos', label: 'Módulos', icon: 'fa-solid fa-puzzle-piece' },
-            { id: 'tarifario', label: 'Tarifario', icon: 'fa-solid fa-dollar-sign' }
+            { id: 'tarifario', label: 'Tarifario', icon: 'fa-solid fa-dollar-sign' },
+            { id: 'machotes', label: 'Machotes y Plantillas', icon: 'fa-solid fa-file-contract' }
         ]
     }
 };
@@ -12991,5 +13214,803 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(initHubTabs, 300);
 });
+
+// ==========================================
+// FASE 3: GESTIÓN DE MACHOTES Y EXPEDIENTES DE PROYECTOS
+// ==========================================
+
+let activeMachotesList = [];
+let pendingMachoteUploadId = null;
+let currentActiveExpProjectId = null;
+
+async function renderMachotesSection() {
+    console.log('📑 Cargando catálogo de machotes y plantillas...');
+    const container = document.getElementById('machotesGrid');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; color:#0284c7;"></i>
+            <p style="margin-top: 10px;">Cargando plantillas oficiales...</p>
+        </div>
+    `;
+
+    try {
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const apiUrl = window.getArvicApiUrl ? window.getArvicApiUrl('/api/expedientes/machotes') : '/api/expedientes/machotes';
+        const res = await fetch(apiUrl, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+
+        if (!json.success || !json.data) {
+            container.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #ef4444;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem;"></i>
+                    <p>Error al cargar catálogo de machotes: ${json.message || 'Error de conexión'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        activeMachotesList = json.data;
+
+        if (activeMachotesList.length === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;">
+                    <i class="fa-solid fa-folder-open" style="font-size: 2rem;"></i>
+                    <p>No hay plantillas registradas en el catálogo.</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = activeMachotesList.map(m => {
+            const isDraft = m.isDraft;
+            const statusBadge = isDraft 
+                ? `<span class="machote-status-pill draft"><i class="fa-solid fa-pen-ruler"></i> Plantilla Borrador Base</span>`
+                : `<span class="machote-status-pill official"><i class="fa-solid fa-circle-check"></i> Documento Oficial Cargado</span>`;
+
+            const icon = (m.category || '').includes('Consultor') ? 'fa-user-tie' :
+                         (m.category || '').includes('Cliente') ? 'fa-building' :
+                         (m.category || '').includes('Proyecto') ? 'fa-diagram-project' : 'fa-shield-halved';
+
+            return `
+                <div class="machote-card">
+                    <div>
+                        <div class="machote-card-top">
+                            <div class="machote-icon-badge">
+                                <i class="fa-solid ${icon}"></i>
+                            </div>
+                            <div class="machote-meta">
+                                <span class="machote-category-pill">${m.category || 'General'}</span>
+                                <h4 class="machote-title">${m.title}</h4>
+                            </div>
+                        </div>
+                        <p class="machote-desc">${m.description || 'Plantilla legal de formalización institucional.'}</p>
+                        <div class="machote-badges">
+                            ${statusBadge}
+                            <span style="font-size:0.75rem; color:#94a3b8;"><i class="fa-regular fa-file"></i> ${m.fileName}</span>
+                        </div>
+                    </div>
+                    <div class="machote-actions" style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button type="button" class="btn-machote-download" style="background:#dc2626; border-color:#dc2626;" onclick="downloadMachoteFile('${m.id}', 'pdf')" title="Ver o Descargar formato oficial en PDF">
+                            <i class="fa-solid fa-file-pdf"></i> PDF
+                        </button>
+                        <button type="button" class="btn-machote-download" onclick="downloadMachoteFile('${m.id}', 'doc')" title="Descargar borrador editable en Word (.doc)">
+                            <i class="fa-solid fa-file-word"></i> Word
+                        </button>
+                        <button type="button" class="btn-machote-upload" onclick="triggerMachoteUpload('${m.id}')" title="Subir archivo oficial para sustituir borrador">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Sustituir
+                        </button>
+                        ${!isDraft ? `
+                            <button type="button" class="btn-machote-upload" style="background:#f1f5f9; color:#475569; border-color:#cbd5e1;" onclick="resetMachoteToBase('${m.id}')" title="Restaurar plantilla borrador base original (.doc)">
+                                <i class="fa-solid fa-rotate-left"></i> Restaurar Base
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error('Error renderizando machotes:', err);
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #ef4444;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem;"></i>
+                <p>Error inesperado al cargar machotes.</p>
+            </div>
+        `;
+    }
+}
+
+async function resetMachoteToBase(machoteId) {
+    if (!confirm('¿Desea restablecer esta plantilla a su versión borrador base (.doc) original?')) return;
+    try {
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const url = window.getArvicApiUrl ? window.getArvicApiUrl(`/api/expedientes/machotes/${machoteId}/reset`) : `/api/expedientes/machotes/${machoteId}/reset`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+        if (json.success) {
+            alert('Plantilla restablecida a su versión base original.');
+            loadMachotesGrid();
+        } else {
+            alert(`Error: ${json.message}`);
+        }
+    } catch (e) {
+        console.error('Error restableciendo machote:', e);
+        alert('Error al restablecer la plantilla.');
+    }
+}
+
+function downloadMachoteFile(machoteId, format = 'pdf') {
+    const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+    const baseUrl = window.getArvicApiUrl ? window.getArvicApiUrl(`/api/expedientes/machotes/${machoteId}/download`) : `/api/expedientes/machotes/${machoteId}/download`;
+    window.open(`${baseUrl}?format=${format}&token=${encodeURIComponent(token || '')}`, '_blank');
+}
+
+function triggerMachoteUpload(machoteId) {
+    pendingMachoteUploadId = machoteId;
+    const input = document.getElementById('machoteFileInput');
+    if (input) {
+        input.value = '';
+        input.click();
+    }
+}
+
+async function handleMachoteFileSelected(event) {
+    const file = event.target.files?.[0];
+    if (!file || !pendingMachoteUploadId) return;
+
+    const machoteId = pendingMachoteUploadId;
+    console.log(`Cargando archivo para machote ${machoteId}: ${file.name} (${file.size} bytes)`);
+
+    try {
+        const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const res = reader.result;
+                const b64 = res.split(',')[1] || res;
+                resolve(b64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const uploadUrl = window.getArvicApiUrl ? window.getArvicApiUrl(`/api/expedientes/machotes/${machoteId}/upload`) : `/api/expedientes/machotes/${machoteId}/upload`;
+        const uploadRes = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                fileName: file.name,
+                fileData: base64,
+                fileSize: file.size,
+                mimeType: file.type || 'application/pdf',
+                notes: `Actualizado por el Administrador el ${new Date().toLocaleDateString()}`
+            })
+        });
+
+        const json = await uploadRes.json();
+        if (json.success) {
+            if (window.ArvicToast) {
+                window.ArvicToast.success('Plantilla Actualizada', 'El archivo definitivo se guardó exitosamente y sustituye al borrador base.');
+            } else {
+                alert('✅ Plantilla actualizada exitosamente');
+            }
+            await renderMachotesSection();
+        } else {
+            throw new Error(json.message || 'Error al actualizar plantilla');
+        }
+    } catch (err) {
+        console.error('Error al subir archivo de machote:', err);
+        if (window.ArvicToast) {
+            window.ArvicToast.error('Error de Subida', err.message);
+        } else {
+            alert('❌ Error: ' + err.message);
+        }
+    } finally {
+        pendingMachoteUploadId = null;
+    }
+}
+
+// ----------------------------------------------------
+// ----------------------------------------------------
+// EXPEDIENTE POR PROYECTO Y SOPORTE (ADMIN)
+// ----------------------------------------------------
+
+let currentActiveExpType = 'proyecto'; // 'proyecto' | 'soporte'
+let currentActiveExpId = null;
+
+async function openProjectExpediente(projectId, projectName) {
+    currentActiveExpType = 'proyecto';
+    currentActiveExpId = projectId;
+    currentActiveExpProjectId = projectId; // Retrocompatibilidad
+    await openExpedienteModalCommon('proyecto', projectId, projectName);
+}
+
+async function openSupportExpediente(supportId, supportName) {
+    currentActiveExpType = 'soporte';
+    currentActiveExpId = supportId;
+    currentActiveExpProjectId = supportId; // Retrocompatibilidad
+    await openExpedienteModalCommon('soporte', supportId, supportName);
+}
+
+async function openExpedienteModalCommon(type, entityId, entityName) {
+    console.log('📂 Abriendo modal de expediente:', { type, entityId, entityName });
+    const modal = document.getElementById('projectExpedienteModal');
+    if (!modal) {
+        console.error('❌ Elemento #projectExpedienteModal no encontrado en el DOM');
+        alert('Error: No se encontró el modal de expediente en la página.');
+        return;
+    }
+
+    // Mostrar de inmediato con propiedades forzadas para garantizar visibilidad total
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('position', 'fixed', 'important');
+    modal.style.setProperty('top', '0px', 'important');
+    modal.style.setProperty('left', '0px', 'important');
+    modal.style.setProperty('width', '100vw', 'important');
+    modal.style.setProperty('height', '100vh', 'important');
+    modal.style.setProperty('z-index', '99999', 'important');
+    modal.style.setProperty('align-items', 'center', 'important');
+    modal.style.setProperty('justify-content', 'center', 'important');
+    console.log('✅ Modal de expediente desplegado en pantalla');
+
+    if (!entityName) {
+        if (type === 'soporte') {
+            entityName = window.currentData?.supports?.[entityId]?.name || entityId;
+        } else {
+            entityName = window.currentData?.projects?.[entityId]?.name || entityId;
+        }
+    }
+
+    const titleEl = document.getElementById('projectExpModalTitle');
+    const idEl = document.getElementById('projectExpModalId');
+    const nameEl = document.getElementById('projectExpModalName');
+    const statusEl = document.getElementById('projectExpModalStatus');
+
+    const isProj = type === 'proyecto';
+    if (titleEl) titleEl.textContent = isProj ? `Expediente del Proyecto: ${entityName}` : `Expediente de Soporte: ${entityName}`;
+    if (idEl) idEl.textContent = isProj ? `ID DE PROYECTO: ${entityId}` : `ID DE SOPORTE: ${entityId}`;
+    if (nameEl) nameEl.textContent = entityName;
+    if (statusEl) statusEl.textContent = isProj ? '● Proyecto Activo' : '● Bolsa de Soporte Activa';
+
+    const attachTitleEl = document.getElementById('projDocAttachTitle');
+    if (attachTitleEl) {
+        attachTitleEl.textContent = isProj ? 'Adjuntar Contrato o Anexo al Proyecto' : 'Adjuntar Contrato o Anexo al Soporte';
+    }
+    const docTypeSelect = document.getElementById('projDocType');
+    if (docTypeSelect) {
+        docTypeSelect.value = isProj ? 'contrato_proyecto' : 'contrato_soporte';
+    }
+
+    // Resetear formulario de adjuntos
+    const docTitle = document.getElementById('projDocTitle');
+    const docFile = document.getElementById('projDocFile');
+    const docValid = document.getElementById('projDocValidUntil');
+    if (docTitle) docTitle.value = '';
+    if (docFile) docFile.value = '';
+    if (docValid) docValid.value = '';
+
+    try {
+        await Promise.all([
+            loadExpedienteDocs(type, entityId),
+            loadExpedienteConsultoresSignatures(type, entityId)
+        ]);
+    } catch (err) {
+        console.error('Error cargando datos del expediente:', err);
+    }
+}
+
+function closeProjectExpedienteModal() {
+    currentActiveExpProjectId = null;
+    currentActiveExpId = null;
+    const modal = document.getElementById('projectExpedienteModal');
+    if (modal) {
+        modal.style.setProperty('display', 'none', 'important');
+    }
+}
+
+function downloadExpedienteSowCliente(format = 'pdf') {
+    const type = currentActiveExpType || 'proyecto';
+    const id = currentActiveExpId || currentActiveExpProjectId;
+    if (!id) return;
+    const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+    const url = window.getArvicApiUrl
+        ? window.getArvicApiUrl(`/api/expedientes/${type}/${id}/generar-contrato?tipo=cliente&format=${format}&token=${token}`)
+        : `/api/expedientes/${type}/${id}/generar-contrato?tipo=cliente&format=${format}&token=${token}`;
+    window.open(url, '_blank');
+}
+
+function downloadProjectSowCliente(projectId, format = 'pdf') {
+    const id = projectId || currentActiveExpId || currentActiveExpProjectId;
+    const type = currentActiveExpType || 'proyecto';
+    if (!id) return;
+    const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+    const url = window.getArvicApiUrl
+        ? window.getArvicApiUrl(`/api/expedientes/${type}/${id}/generar-contrato?tipo=cliente&format=${format}&token=${token}`)
+        : `/api/expedientes/${type}/${id}/generar-contrato?tipo=cliente&format=${format}&token=${token}`;
+    window.open(url, '_blank');
+}
+
+function downloadExpedienteConvenioConsultor(type, entityId, consultorId, format = 'pdf') {
+    if (!entityId || !consultorId) return;
+    const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+    const url = window.getArvicApiUrl
+        ? window.getArvicApiUrl(`/api/expedientes/${type}/${entityId}/generar-contrato?tipo=consultor&consultorId=${consultorId}&format=${format}&token=${token}`)
+        : `/api/expedientes/${type}/${entityId}/generar-contrato?tipo=consultor&consultorId=${consultorId}&format=${format}&token=${token}`;
+    window.open(url, '_blank');
+}
+
+function downloadProjectConvenioConsultor(projectId, consultorId, format = 'pdf') {
+    downloadExpedienteConvenioConsultor(currentActiveExpType || 'proyecto', projectId, consultorId, format);
+}
+
+async function loadExpedienteConsultoresSignatures(type, entityId) {
+    const container = document.getElementById('projectConsultoresSignaturesContainer');
+    const badge = document.getElementById('projectSignaturesSummaryBadge');
+    if (!container) return;
+
+    try {
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const url = window.getArvicApiUrl
+            ? window.getArvicApiUrl(`/api/expedientes/${type}/${entityId}/firmas`)
+            : `/api/expedientes/${type}/${entityId}/firmas`;
+
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+
+        if (!json.success || !json.data) {
+            container.innerHTML = `<p style="padding:10px; color:#ef4444; font-size:0.8rem;">No se pudo consultar el estado de firmas.</p>`;
+            return;
+        }
+
+        const consultores = json.data.consultores || [];
+        const clientContract = json.data.clientContract;
+        const total = consultores.length;
+        const firmados = consultores.filter(c => c.hasSigned).length;
+        const aprobados = consultores.filter(c => c.signatureStatus === 'aprobado').length;
+
+        if (badge) {
+            if (aprobados === total && total > 0) {
+                badge.textContent = `${aprobados}/${total} convenios aprobados`;
+                badge.style.background = '#dcfce7';
+                badge.style.color = '#15803d';
+            } else {
+                badge.textContent = `${firmados}/${total} firmados (${aprobados} aprobados)`;
+                badge.style.background = firmados > 0 ? '#e0f2fe' : '#fef3c7';
+                badge.style.color = firmados > 0 ? '#0369a1' : '#b45309';
+            }
+        }
+
+        // Renderizar banner de SOW Cliente si existe estado
+        let clientSowBanner = '';
+        if (clientContract && clientContract.hasSigned) {
+            const isApproved = clientContract.signatureStatus === 'aprobado';
+            clientSowBanner = `
+                <div style="background: ${isApproved ? '#f0fdf4' : '#f0f9ff'}; border: 1px solid ${isApproved ? '#86efac' : '#bae6fd'}; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+                    <div>
+                        <strong style="color: #0f172a;"><i class="fa-solid fa-file-contract"></i> SOW Cliente Firmado:</strong>
+                        <span style="color: #475569; margin-left: 6px;">${clientContract.fileName || 'SOW_Firmado.pdf'}</span>
+                        <span style="margin-left: 8px; display: inline-block; padding: 2px 7px; border-radius: 8px; font-size: 0.72rem; font-weight: 700; background: ${isApproved ? '#dcfce7' : '#e0f2fe'}; color: ${isApproved ? '#15803d' : '#0284c7'};">
+                            <i class="fa-solid ${isApproved ? 'fa-stamp' : 'fa-file-signature'}"></i> ${isApproved ? 'Aprobado' : 'Firmado (Validación pendiente)'}
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" style="background:#10b981; color:#fff; border:none; padding:3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer;" onclick="viewExpedienteDoc('${clientContract.docId}', '${clientContract.fileName || 'SOW.pdf'}')">
+                            <i class="fa-solid fa-eye"></i> Ver
+                        </button>
+                        ${!isApproved && clientContract.docId ? `
+                            <button type="button" style="background:#15803d; color:#fff; border:none; padding:3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" onclick="approveExpedienteSignature('${clientContract.docId}', '${type}', '${entityId}')">
+                                <i class="fa-solid fa-check"></i> Aprobar SOW
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (consultores.length === 0) {
+            container.innerHTML = `
+                ${clientSowBanner}
+                <div style="padding: 12px; text-align: center; color: #64748b; font-size: 0.82rem;">
+                    No hay consultores asignados formalmente a esta cuenta todavía.
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            ${clientSowBanner}
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                <thead style="background: #f1f5f9; color: #475569; text-align: left;">
+                    <tr>
+                        <th style="padding: 6px 10px;">Consultor</th>
+                        <th style="padding: 6px 10px;">Módulo / Rol</th>
+                        <th style="padding: 6px 10px;">Tarifa</th>
+                        <th style="padding: 6px 10px;">Estado Firma</th>
+                        <th style="padding: 6px 10px; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${consultores.map(c => {
+                        const isApproved = c.signatureStatus === 'aprobado';
+                        const isSigned = c.hasSigned || c.signatureStatus === 'firmado';
+                        
+                        let badgeHtml = '';
+                        if (isApproved) {
+                            badgeHtml = `<span style="display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:#dcfce7; color:#15803d;">
+                                           <i class="fa-solid fa-stamp"></i> Aprobado
+                                         </span>`;
+                        } else if (isSigned) {
+                            badgeHtml = `<span style="display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:#e0f2fe; color:#0284c7;">
+                                           <i class="fa-solid fa-file-signature"></i> Firmado
+                                         </span>`;
+                        } else {
+                            badgeHtml = `<span style="display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; background:#fef3c7; color:#b45309;">
+                                           <i class="fa-solid fa-clock"></i> Pendiente
+                                         </span>`;
+                        }
+
+                        return `
+                        <tr style="border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+                            <td style="padding: 7px 10px; font-weight: 600; color: #1e293b;">
+                                ${c.name}
+                                <div style="font-size: 0.72rem; color: #64748b; font-weight: normal;">${c.email}</div>
+                            </td>
+                            <td style="padding: 7px 10px; color: #334155;">${c.moduleName}</td>
+                            <td style="padding: 7px 10px; font-weight: 600; color: #0284c7;">$${c.tarifaConsultor}/hr</td>
+                            <td style="padding: 7px 10px;">${badgeHtml}</td>
+                            <td style="padding: 7px 10px; text-align: right; white-space: nowrap;">
+                                <button type="button" 
+                                    style="background: #dc2626; color: #ffffff; border: none; padding: 4px 7px; border-radius: 4px; font-size: 0.74rem; cursor: pointer; font-weight: 600; margin-right: 3px;"
+                                    title="Ver o Descargar Convenio en PDF"
+                                    onclick="downloadExpedienteConvenioConsultor('${type}', '${entityId}', '${c.consultorId}', 'pdf')">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
+                                </button>
+                                <button type="button" 
+                                    style="background: #e0f2fe; color: #0369a1; border: none; padding: 4px 7px; border-radius: 4px; font-size: 0.74rem; cursor: pointer; font-weight: 600; margin-right: 3px;"
+                                    title="Descargar Convenio editable en Word"
+                                    onclick="downloadExpedienteConvenioConsultor('${type}', '${entityId}', '${c.consultorId}', 'doc')">
+                                    <i class="fa-solid fa-file-word"></i> Word
+                                </button>
+                                ${c.signedDocId ? `
+                                    <button type="button" 
+                                        style="background: #10b981; color: #ffffff; border: none; padding: 4px 7px; border-radius: 4px; font-size: 0.74rem; cursor: pointer; font-weight: 600; margin-right: 3px;"
+                                        title="Ver documento firmado"
+                                        onclick="viewExpedienteDoc('${c.signedDocId}', '${c.signedFileName || 'Convenio_Firmado.pdf'}')">
+                                        <i class="fa-solid fa-eye"></i> Ver
+                                    </button>
+                                ` : ''}
+                                ${c.signedDocId && !isApproved ? `
+                                    <button type="button" 
+                                        style="background: #15803d; color: #ffffff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.74rem; cursor: pointer; font-weight: 700;"
+                                        title="Aprobar formalmente la firma del consultor"
+                                        onclick="approveExpedienteSignature('${c.signedDocId}', '${type}', '${entityId}')">
+                                        <i class="fa-solid fa-check"></i> Aprobar
+                                    </button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        console.error('Error cargando estado de firmas:', error);
+        container.innerHTML = `<p style="padding:10px; color:#ef4444; font-size:0.8rem;">Error de conexión.</p>`;
+    }
+}
+
+async function loadProjectConsultoresSignatures(projectId) {
+    await loadExpedienteConsultoresSignatures('proyecto', projectId);
+}
+
+async function loadExpedienteDocs(type, entityId) {
+    const container = document.getElementById('projectExpDocsListContainer');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="text-align:center; padding: 24px; color:#64748b;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem; color:#0284c7;"></i>
+            <p style="margin-top:8px;">Consultando contratos y anexos...</p>
+        </div>
+    `;
+
+    try {
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const docsUrl = window.getArvicApiUrl 
+            ? window.getArvicApiUrl(`/api/expedientes/${type}/${entityId}`) 
+            : `/api/expedientes/${type}/${entityId}`;
+            
+        const res = await fetch(docsUrl, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+
+        if (!json.success || !json.data) {
+            container.innerHTML = `<p style="color:#ef4444; padding:10px;">Error al cargar documentos: ${json.message}</p>`;
+            return;
+        }
+
+        const docs = json.data;
+        if (docs.length === 0) {
+            container.innerHTML = `
+                <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:24px; text-align:center; color:#64748b;">
+                    <i class="fa-solid fa-folder-open" style="font-size:1.8rem; margin-bottom:8px; color:#94a3b8;"></i>
+                    <p style="margin:0; font-weight:500;">No hay contratos o documentos adjuntos aún.</p>
+                    <small>Utilice el formulario superior para adjuntar el contrato, anexo SOW o especificación técnica.</small>
+                </div>
+            `;
+            return;
+        }
+
+        const typeLabels = {
+            'contrato_proyecto': 'Contrato de Proyecto',
+            'contrato_soporte': 'Contrato de Soporte',
+            'anexo_sow': 'Anexo SOW',
+            'sow_soporte': 'SOW Soporte',
+            'especificacion_tecnica': 'Especificación Técnica',
+            'nda': 'Acuerdo de Confidencialidad (NDA)',
+            'acta_entrega': 'Acta de Entrega',
+            'otro': 'Documento Legal'
+        };
+
+        container.innerHTML = `
+            <table class="crud-table" style="font-size:0.85rem;">
+                <thead>
+                    <tr>
+                        <th>Tipo / Título</th>
+                        <th>Archivo</th>
+                        <th>Fecha de Carga</th>
+                        <th>Vigencia</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${docs.map(d => {
+                        const typeLabel = typeLabels[d.documentType] || d.documentType;
+                        const dateStr = d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString() : '—';
+                        const validStr = d.validUntil ? new Date(d.validUntil).toLocaleDateString() : '<span style="color:#94a3b8;">Permanente</span>';
+                        const isApproved = d.signatureStatus === 'aprobado' || d.status === 'vigente';
+
+                        return `
+                            <tr>
+                                <td>
+                                    <div style="font-weight:600; color:#0f172a;">${d.documentTitle || d.fileName}</div>
+                                    <span class="custom-badge" style="background:#f1f5f9; color:#475569; font-size:0.7rem; border:1px solid #cbd5e1; padding:1px 6px;">${typeLabel}</span>
+                                </td>
+                                <td>
+                                    <span style="font-family:monospace; color:#0284c7; font-size:0.8rem;"><i class="fa-regular fa-file"></i> ${d.fileName}</span>
+                                </td>
+                                <td>${dateStr}</td>
+                                <td>${validStr}</td>
+                                <td>
+                                    ${d.signatureStatus ? `
+                                        <span class="crud-status-badge ${d.signatureStatus === 'aprobado' ? 'active' : d.signatureStatus === 'firmado' ? '' : 'inactive'}" style="${d.signatureStatus === 'firmado' ? 'background:#e0f2fe; color:#0284c7;' : ''}">
+                                            ${d.signatureStatus === 'aprobado' ? '● Aprobado' : d.signatureStatus === 'firmado' ? '● Firmado' : '● Pendiente'}
+                                        </span>
+                                    ` : `
+                                        <span class="crud-status-badge ${d.status === 'vigente' ? 'active' : 'inactive'}">
+                                            ● ${d.status || 'Vigente'}
+                                        </span>
+                                    `}
+                                </td>
+                                <td>
+                                    <div class="crud-actions">
+                                        <a href="${(window.getArvicApiUrl ? window.getArvicApiUrl(`/api/expedientes/doc/${d.docId}/download`) : `/api/expedientes/doc/${d.docId}/download`)}?token=${encodeURIComponent(token || '')}" target="_blank" class="crud-action-btn" style="background:#e0f2fe; color:#0369a1;" title="Descargar o Ver Documento">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                        ${d.signatureStatus === 'firmado' ? `
+                                            <button type="button" class="crud-action-btn" style="background:#15803d; color:#fff;" onclick="approveExpedienteSignature('${d.docId}', '${type}', '${entityId}')" title="Aprobar Firma">
+                                                <i class="fa-solid fa-check"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button type="button" class="crud-action-btn delete" onclick="deleteExpedienteDoc('${d.docId}', '${type}', '${entityId}')" title="Eliminar del expediente">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+
+    } catch (err) {
+        console.error('Error cargando documentos:', err);
+        container.innerHTML = `<p style="color:#ef4444; padding:10px;">Error de red al consultar documentos.</p>`;
+    }
+}
+
+async function loadProjectExpedienteDocs(projectId) {
+    await loadExpedienteDocs('proyecto', projectId);
+}
+
+async function approveExpedienteSignature(docId, type, entityId) {
+    if (!docId) return;
+
+    try {
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const url = window.getArvicApiUrl
+            ? window.getArvicApiUrl(`/api/expedientes/doc/${docId}/approve-signature`)
+            : `/api/expedientes/doc/${docId}/approve-signature`;
+
+        const res = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        const json = await res.json();
+
+        if (json.success) {
+            if (window.ArvicToast) {
+                window.ArvicToast.success('Firma Aprobada', 'El contrato y su firma han sido validados y aprobados formalmente.');
+            } else {
+                alert('Firma aprobada con éxito.');
+            }
+            const activeType = type || currentActiveExpType || 'proyecto';
+            const activeId = entityId || currentActiveExpId || currentActiveExpProjectId;
+            await Promise.all([
+                loadExpedienteConsultoresSignatures(activeType, activeId),
+                loadExpedienteDocs(activeType, activeId)
+            ]);
+        } else {
+            alert('Error: ' + (json.message || 'No se pudo aprobar la firma'));
+        }
+    } catch (err) {
+        console.error('Error al aprobar firma:', err);
+        alert('Error de red al aprobar firma');
+    }
+}
+
+async function submitExpedienteDocUpload() {
+    const type = currentActiveExpType || 'proyecto';
+    const id = currentActiveExpId || currentActiveExpProjectId;
+    if (!id) return;
+
+    const typeEl = document.getElementById('projDocType');
+    const titleEl = document.getElementById('projDocTitle');
+    const fileEl = document.getElementById('projDocFile');
+    const validEl = document.getElementById('projDocValidUntil');
+
+    const file = fileEl?.files?.[0];
+    if (!file) {
+        alert('Seleccione un archivo (PDF, Word o Imagen) para adjuntar.');
+        return;
+    }
+
+    const docType = typeEl?.value || (type === 'soporte' ? 'contrato_soporte' : 'contrato_proyecto');
+    const docTitle = titleEl?.value.trim() || file.name;
+    const validUntil = validEl?.value || null;
+
+    try {
+        const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result || '').split(',')[1] || reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const uploadUrl = window.getArvicApiUrl 
+            ? window.getArvicApiUrl(`/api/expedientes/${type}/upload`) 
+            : `/api/expedientes/${type}/upload`;
+            
+        const payload = {
+            documentType: docType,
+            documentTitle: docTitle,
+            fileName: file.name,
+            fileData: base64,
+            fileSize: file.size,
+            mimeType: file.type || 'application/pdf',
+            validUntil
+        };
+
+        if (type === 'soporte') {
+            payload.supportId = id;
+        } else {
+            payload.projectId = id;
+        }
+
+        const res = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const json = await res.json();
+        if (json.success) {
+            if (window.ArvicToast) {
+                window.ArvicToast.success('Documento Adjuntado', 'El contrato o anexo se vinculó correctamente al expediente.');
+            }
+            if (titleEl) titleEl.value = '';
+            if (fileEl) fileEl.value = '';
+            if (validEl) validEl.value = '';
+
+            await loadExpedienteDocs(type, id);
+        } else {
+            throw new Error(json.message || 'Error al adjuntar documento');
+        }
+    } catch (err) {
+        console.error('Error al subir documento:', err);
+        alert('Error: ' + err.message);
+    }
+}
+
+async function submitProjectDocUpload() {
+    await submitExpedienteDocUpload();
+}
+
+async function deleteExpedienteDoc(docId, type, entityId) {
+    if (!confirm('¿Está seguro de eliminar este documento del expediente? Esta acción no se puede deshacer.')) {
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('arvic_token') || sessionStorage.getItem('arvic_token');
+        const deleteDocUrl = window.getArvicApiUrl ? window.getArvicApiUrl(`/api/expedientes/doc/${docId}`) : `/api/expedientes/doc/${docId}`;
+        const res = await fetch(deleteDocUrl, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+        if (json.success) {
+            if (window.ArvicToast) {
+                window.ArvicToast.success('Eliminado', 'Documento eliminado del expediente.');
+            }
+            const activeType = type || currentActiveExpType || 'proyecto';
+            const activeId = entityId || currentActiveExpId || currentActiveExpProjectId;
+            if (activeId) {
+                await loadExpedienteDocs(activeType, activeId);
+            }
+        } else {
+            alert('Error: ' + json.message);
+        }
+    } catch (err) {
+        console.error('Error al eliminar documento:', err);
+        alert('Error al eliminar documento');
+    }
+}
+
+async function deleteProjectDoc(docId) {
+    await deleteExpedienteDoc(docId, currentActiveExpType, currentActiveExpId);
+}
+
+// Exponer en window para eventos inline
+window.openProjectExpediente = openProjectExpediente;
+window.openSupportExpediente = openSupportExpediente;
+window.closeProjectExpedienteModal = closeProjectExpedienteModal;
+window.downloadExpedienteSowCliente = downloadExpedienteSowCliente;
+window.downloadProjectSowCliente = downloadProjectSowCliente;
+window.downloadExpedienteConvenioConsultor = downloadExpedienteConvenioConsultor;
+window.downloadProjectConvenioConsultor = downloadProjectConvenioConsultor;
+window.approveExpedienteSignature = approveExpedienteSignature;
+window.submitExpedienteDocUpload = submitExpedienteDocUpload;
+window.submitProjectDocUpload = submitProjectDocUpload;
+window.deleteExpedienteDoc = deleteExpedienteDoc;
+window.deleteProjectDoc = deleteProjectDoc;
+window.renderMachotesSection = renderMachotesSection;
+window.downloadMachoteFile = downloadMachoteFile;
+window.triggerMachoteUpload = triggerMachoteUpload;
+window.handleMachoteFileSelected = handleMachoteFileSelected;
+
 
 

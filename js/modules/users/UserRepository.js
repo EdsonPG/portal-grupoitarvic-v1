@@ -80,7 +80,7 @@ window.UserRepository = class UserRepository {
                 throw new Error(result.message || 'Error al crear usuario');
             }
 
-            console.log('Usuario creado en DB:', result.user);
+            console.log('Usuario creado en DB:', result.user || result.data);
             return result;
         } catch (error) {
             console.error('Error en UserRepository.create:', error);

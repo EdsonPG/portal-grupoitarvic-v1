@@ -7,13 +7,16 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Panel Administrador - Grupo It Arvic</title>
-    <link rel="stylesheet" href="../css/shared.css?v=25">
-    <link rel="stylesheet" href="../css/admin.css?v=25">
-    <link rel="stylesheet" href="../css/arvic-pdf-styles.css?v=25">
-    <link rel="stylesheet" href="../css/notifications.css?v=25">
-    <link rel="stylesheet" href="../css/activity-report.css?v=25">
+    <link rel="stylesheet" href="../css/shared.css?v=55">
+    <link rel="stylesheet" href="../css/admin.css?v=55">
+    <link rel="stylesheet" href="../css/arvic-pdf-styles.css?v=43">
+    <link rel="stylesheet" href="../css/notifications.css?v=43">
+    <link rel="stylesheet" href="../css/activity-report.css?v=43">
+    <link rel="stylesheet" href="../css/account-tabs.css?v=43">
+    <link rel="stylesheet" href="../css/billing.css?v=49">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
    
 </head>
@@ -125,49 +128,38 @@
                             </button>
                         </div>
 
-                        <!-- Opciones del menú -->
+                        <!-- Opciones del menú agrupadas -->
                         <div class="settings-menu-items">
-                            <div class="settings-section-label">
-                                <i class="fa-solid fa-gear"></i> Ajustes de Cuenta
+                            <div class="settings-menu-group">
+                                <div class="settings-group-title"><i class="fa-solid fa-user-circle"></i> Mi Cuenta</div>
+                                <button class="settings-dropdown-link" onclick="openMyAccountSection('datos')">
+                                    <i class="fa-solid fa-id-card"></i>
+                                    <span>Mis Datos</span>
+                                </button>
                             </div>
-                            <button class="settings-menu-item" onclick="triggerPhotoUpload()">
-                                <i class="fa-solid fa-image"></i>
-                                <span>Cambiar Foto de Perfil</span>
-                            </button>
-                            <button class="settings-menu-item" id="settingsRemovePhoto" style="display:none;" onclick="removeProfilePhoto()">
-                                <i class="fa-solid fa-trash-can"></i>
-                                <span>Eliminar Foto</span>
-                            </button>
-                            <button class="settings-menu-item" onclick="showEditProfile()">
-                                <i class="fa-solid fa-user-pen"></i>
-                                <span>Editar Nombre</span>
-                            </button>
-                            <button class="settings-menu-item" onclick="showEditEmail()">
-                                <i class="fa-solid fa-envelope"></i>
-                                <span>Editar Correo</span>
-                            </button>
-                            <button class="settings-menu-item" onclick="showChangePassword()">
-                                <i class="fa-solid fa-key"></i>
-                                <span>Seguridad / Contraseña</span>
-                            </button>
 
-                            <div class="settings-section-label">
-                                <i class="fa-solid fa-sliders"></i> Preferencias
-                            </div>
-                            <div class="settings-menu-item settings-toggle-item" id="darkModeToggle" onclick="toggleDarkMode()">
-                                <i class="fa-solid fa-moon"></i>
-                                <span>Modo Oscuro</span>
-                                <div class="settings-toggle-track">
-                                    <div class="settings-toggle-thumb"></div>
+                            <div class="settings-menu-group">
+                                <div class="settings-group-title"><i class="fa-solid fa-gear"></i> Ajustes</div>
+                                <button class="settings-dropdown-link" onclick="triggerPhotoUpload()">
+                                    <i class="fa-solid fa-camera"></i>
+                                    <span>Cambiar Foto de Perfil</span>
+                                </button>
+                                <button class="settings-dropdown-link" onclick="showChangePassword()">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                    <span>Seguridad y Contraseña</span>
+                                </button>
+                                <div class="settings-menu-item settings-toggle-item" id="darkModeToggle" onclick="toggleDarkMode()">
+                                    <i class="fa-solid fa-moon"></i>
+                                    <span>Modo Oscuro</span>
+                                    <div class="settings-toggle-track">
+                                        <div class="settings-toggle-thumb"></div>
+                                    </div>
                                 </div>
+                                <button class="settings-dropdown-link settings-logout" onclick="logout()" style="color:#ef4444;">
+                                    <i class="fa-solid fa-arrow-right-from-bracket" style="color:#ef4444;"></i>
+                                    <span>Cerrar Sesión</span>
+                                </button>
                             </div>
-
-                            <div class="settings-divider"></div>
-
-                            <button class="settings-menu-item settings-logout" onclick="logout()">
-                                <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                                <span>Cerrar Sesión</span>
-                            </button>
                         </div>
 
                         <!-- Footer con versión -->
@@ -404,18 +396,256 @@
                         <div class="sidebar-menu-item" data-section="calendario" data-hub="calendario">
                             <span class="menu-text">Calendario</span>
                         </div>
+
+                        <div class="sidebar-menu-item" data-section="facturacion" data-hub="facturacion">
+                            <span class="menu-text">Facturación</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Contenido Principal -->
                 <div class="admin-main-content">
 
+                    <!-- SECCIÓN: MI CUENTA Y EXPEDIENTE DIGITAL -->
+                    <div id="mi-cuenta-section" class="content-section">
+                        <div id="accountWorkspaceRoot"></div>
+                    </div>
+
                     <!-- Sección de Calendario -->
                     <div id="calendario-section" class="content-section">
                         <div class="section-header">
                             <h2 class="section-title"><i class="fa-solid fa-calendar-days"></i> Calendario</h2>
+
                         </div>
                         <div id="calendarModuleRoot"></div>
+                    </div>
+
+                    <!-- SECCIÓN: FACTURACIÓN Y CONCILIACIÓN FINANCIERA -->
+                    <div id="facturacion-section" class="content-section">
+                        <div class="section-header">
+                            <h2 class="section-title"><i class="fa-solid fa-file-invoice-dollar"></i> Conciliación y Facturación</h2>
+                        </div>
+
+                        <div class="billing-module-container">
+                            <!-- Barra de Filtros y Selección de Periodo -->
+                            <div class="billing-filter-card">
+                                <div class="billing-filter-group">
+                                    <label class="billing-filter-label"><i class="fa-solid fa-building"></i> Empresa Cliente</label>
+                                    <select id="billingCompanySelect" class="billing-filter-select">
+                                        <option value="all">Todas las Empresas</option>
+                                    </select>
+                                </div>
+
+                                <div class="billing-filter-group">
+                                    <label class="billing-filter-label"><i class="fa-solid fa-calendar"></i> Tipo de Periodo</label>
+                                    <select id="billingPeriodType" class="billing-filter-select">
+                                        <option value="q1">1ª Quincena (Día 1 al 15)</option>
+                                        <option value="q2">2ª Quincena (Día 16 al fin)</option>
+                                        <option value="month">Mes Completo</option>
+                                        <option value="custom">Rango Personalizado</option>
+                                    </select>
+                                </div>
+
+                                <div class="billing-filter-group" style="max-width: 160px;">
+                                    <label class="billing-filter-label"><i class="fa-solid fa-calendar-day"></i> Desde</label>
+                                    <input type="date" id="billingStartDate" class="billing-filter-input" disabled>
+                                </div>
+
+                                <div class="billing-filter-group" style="max-width: 160px;">
+                                    <label class="billing-filter-label"><i class="fa-solid fa-calendar-day"></i> Hasta</label>
+                                    <input type="date" id="billingEndDate" class="billing-filter-input" disabled>
+                                </div>
+
+                                <div class="billing-filter-group" style="flex: 0;">
+                                    <button type="button" id="btnExecuteReconcile" class="billing-btn-conciliar">
+                                        <i class="fa-solid fa-calculator"></i> Conciliar Periodo
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Subtabs -->
+                            <div class="billing-subtabs">
+                                <button type="button" id="tabBillingConciliar" class="billing-subtab-btn active">
+                                    <i class="fa-solid fa-file-invoice"></i> Pre-Facturación y Desglose
+                                </button>
+                                <button type="button" id="tabBillingHistorial" class="billing-subtab-btn">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> Historial de Periodos Cerrados
+                                </button>
+                            </div>
+
+                            <!-- Vista 1: Conciliación y Pre-Factura -->
+                            <div id="billingConciliarView">
+                                <!-- Grid de KPIs Financieros del Periodo -->
+                                <div class="billing-kpi-grid">
+                                    <div class="billing-kpi-card">
+                                        <div class="billing-kpi-icon blue"><i class="fa-solid fa-clock"></i></div>
+                                        <div class="billing-kpi-info">
+                                            <span class="billing-kpi-value" id="kpiBillingHours">0.00 hrs</span>
+                                            <span class="billing-kpi-label">Horas Aprobadas</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="billing-kpi-card">
+                                        <div class="billing-kpi-icon green"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                                        <div class="billing-kpi-info">
+                                            <span class="billing-kpi-value" id="kpiBillingTotalClient">$ 0.00</span>
+                                            <span class="billing-kpi-label">Subtotal Facturable</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="billing-kpi-card">
+                                        <div class="billing-kpi-icon amber"><i class="fa-solid fa-user-tie"></i></div>
+                                        <div class="billing-kpi-info">
+                                            <span class="billing-kpi-value" id="kpiBillingTotalConsultant">$ 0.00</span>
+                                            <span class="billing-kpi-label">Costo Consultores</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="billing-kpi-card">
+                                        <div class="billing-kpi-icon purple"><i class="fa-solid fa-chart-pie"></i></div>
+                                        <div class="billing-kpi-info">
+                                            <span class="billing-kpi-value" id="kpiBillingGrossMargin">$ 0.00</span>
+                                            <span class="billing-kpi-label">Margen Bruto ARVIC</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Caja de Pre-Factura con Tabla de Desglose -->
+                                <div class="billing-invoice-box" style="margin-top: 20px;">
+                                    <div class="billing-invoice-header">
+                                        <div class="billing-invoice-title">
+                                            <h3 id="billingPreviewTitle"><i class="fa-solid fa-receipt" style="color: #0284c7;"></i> Pre-Factura de Servicios</h3>
+                                            <p id="billingPreviewSubtitle">Selecciona una empresa y consulta para calcular las tarifas y pre-factura</p>
+                                        </div>
+
+                                        <div class="billing-invoice-actions">
+                                            <button type="button" class="btn-billing-action btn-billing-pdf" onclick="window.billingModule.downloadCurrentPDF()">
+                                                <i class="fa-solid fa-file-pdf"></i> Pre-Factura PDF
+                                            </button>
+                                            <button type="button" class="btn-billing-action btn-billing-excel" onclick="window.billingModule.downloadCurrentExcel()">
+                                                <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                                            </button>
+                                            <button type="button" class="btn-billing-action btn-billing-freeze" onclick="window.billingModule.openFreezeModal()">
+                                                <i class="fa-solid fa-lock"></i> Cerrar y Congelar Periodo
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tabla de Detalle -->
+                                    <div class="billing-table-wrapper">
+                                        <table class="billing-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="min-width: 90px;">Fecha</th>
+                                                    <th>Consultor</th>
+                                                    <th>Proyecto / Soporte</th>
+                                                    <th style="min-width: 120px;">Módulo</th>
+                                                    <th>Ticket / Actividad</th>
+                                                    <th style="min-width: 65px;" class="text-right">Horas</th>
+                                                    <th style="min-width: 90px;" class="text-right">Tarifa</th>
+                                                    <th style="min-width: 100px;" class="text-right">Subtotal</th>
+                                                    <th style="min-width: 90px;" class="text-right">Margen</th>
+                                                    <th style="min-width: 105px;" class="text-center">Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="billingItemsTableBody">
+                                                <tr>
+                                                    <td colspan="10" style="text-align: center; padding: 30px; color: #64748b;">
+                                                        Haz clic en "Conciliar Periodo" para calcular el desglose.
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <!-- Totales Económicos -->
+                                    <div class="billing-totals-panel">
+                                        <div class="billing-totals-box">
+                                            <div class="billing-totals-row">
+                                                <span>Subtotal Facturable:</span>
+                                                <strong id="billingTotalSubtotal">$ 0.00</strong>
+                                            </div>
+                                            <div class="billing-totals-row">
+                                                <span>IVA (16%):</span>
+                                                <strong id="billingTotalIva">$ 0.00</strong>
+                                            </div>
+                                            <div class="billing-totals-row grand-total">
+                                                <span>TOTAL CON IVA:</span>
+                                                <span id="billingTotalGrand" style="color:#0284c7;">$ 0.00</span>
+                                            </div>
+                                            <div class="billing-totals-row profit-row" style="margin-top: 4px; font-size: 0.82rem;">
+                                                <span>Utilidad Bruta ARVIC:</span>
+                                                <span id="billingTotalProfit">$ 0.00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Vista 2: Historial de Periodos Cerrados -->
+                            <div id="billingHistorialView" style="display: none;">
+                                <div class="billing-invoice-box">
+                                    <div class="billing-invoice-header">
+                                        <div class="billing-invoice-title">
+                                            <h3><i class="fa-solid fa-clock-rotate-left" style="color: #0284c7;"></i> Cortes y Periodos Registrados</h3>
+                                            <p>Historial de quincenas y meses cerrados, conciliados y congelados</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="billing-table-wrapper">
+                                        <table class="billing-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Folio Corte</th>
+                                                    <th>Empresa</th>
+                                                    <th>Periodo</th>
+                                                    <th>Vigencia</th>
+                                                    <th class="text-right">Total Horas</th>
+                                                    <th class="text-right">Facturable</th>
+                                                    <th class="text-right">Margen</th>
+                                                    <th class="text-center">Estado</th>
+                                                    <th class="text-center">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="billingHistoryTableBody">
+                                                <tr>
+                                                    <td colspan="9" style="text-align: center; padding: 25px; color: #64748b;">
+                                                        Cargando historial...
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal de Cierre y Congelación de Periodo -->
+                    <div id="billingFreezeModal" class="billing-modal-backdrop" style="display: none;">
+                        <div class="billing-modal-content">
+                            <div class="billing-modal-header">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <h3>Cierre y Congelación de Periodo</h3>
+                            </div>
+                            <div class="billing-modal-body">
+                                <p id="billingFreezeModalDesc">¿Estás seguro de que deseas cerrar y congelar este periodo?</p>
+                                <div class="billing-modal-alert">
+                                    <i class="fa-solid fa-lock" style="font-size: 1.1rem; margin-top: 2px;"></i>
+                                    <div>
+                                        <strong>Acción irreversible para consultores:</strong> Todas las horas registradas en este periodo quedarán bloqueadas contra edición, borrado o reenvío.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="billing-modal-footer">
+                                <button type="button" class="btn-machote-download" style="background: #e2e8f0; color: #475569; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer;" onclick="window.billingModule.closeFreezeModal()">
+                                    Cancelar
+                                </button>
+                                <button type="button" id="btnConfirmFreezePeriod" class="btn-machote-download" style="background: #1b3a5c; color: #ffffff; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer;" onclick="window.billingModule.confirmFreezePeriod()">
+                                    <i class="fa-solid fa-lock"></i> Sí, Cerrar y Congelar
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- SECCIÓN: TIMESHEETS SEMANALES -->
@@ -507,6 +737,27 @@
                                     <span class="stat-card-label">Módulos</span>
                                 </div>
                             </div>
+                            <div class="stat-card stat-card--facturable" onclick="showSection('facturacion')" style="border-left: 4px solid #0284c7;">
+                                <div class="stat-card-icon" style="background: rgba(2, 132, 199, 0.12); color: #0284c7;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statFacturacionProyectada">$ 0.00</span>
+                                    <span class="stat-card-label">Facturación Total</span>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-card--margen" onclick="showSection('facturacion')" style="border-left: 4px solid #10b981;">
+                                <div class="stat-card-icon" style="background: rgba(16, 185, 129, 0.12); color: #10b981;"><i class="fa-solid fa-chart-line"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statMargenBrutoGlobal">$ 0.00</span>
+                                    <span class="stat-card-label">Margen Bruto ARVIC</span>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-card--congeladas" onclick="showSection('facturacion')" style="border-left: 4px solid #8b5cf6;">
+                                <div class="stat-card-icon" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;"><i class="fa-solid fa-lock"></i></div>
+                                <div class="stat-card-info">
+                                    <span class="stat-card-value" id="statHorasFacturadas">0 hrs</span>
+                                    <span class="stat-card-label">Horas Congeladas</span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Quick Actions + Recent Activity -->
@@ -552,6 +803,19 @@
                                         <span class="summary-value" id="statTareas">0</span>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Gráfica de Tendencia de Facturación -->
+                        <div class="billing-chart-card">
+                            <div class="billing-chart-title">
+                                <span><i class="fa-solid fa-chart-column" style="color: #0284c7;"></i> Tendencia de Facturación Mensual</span>
+                                <button type="button" class="btn-billing-action" style="background: transparent; color: #0284c7; border: 1px solid #cbd5e1; padding: 4px 12px; font-size: 0.8rem; cursor: pointer;" onclick="showSection('facturacion')">
+                                    Ver Conciliación Completa <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                            <div id="dashboardMonthlyBillingChart">
+                                <p style="text-align:center; color:#64748b; font-size:0.85rem; padding:20px;">Cargando métricas de facturación...</p>
                             </div>
                         </div>
                     </div>
@@ -604,18 +868,21 @@
                                 <thead>
                                     <tr>
                                         <th>ID</th>
-                                        <th>Nombre</th>
-                                        <th>Descripción</th>
+                                        <th>Empresa / Razón Social</th>
+                                        <th>RFC / Régimen</th>
+                                        <th>Contacto Principal</th>
+                                        <th>Expediente</th>
                                         <th>Estado</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="empresasTableBody">
-                                    <tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-building"></i> Cargando empresas...</td></tr>
+                                    <tr><td colspan="7" class="empty-cell"><i class="fa-solid fa-building"></i> Cargando empresas...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
+
 
                     <!-- SECCIÓN: PROYECTOS -->
                     <div id="proyectos-section" class="content-section">
@@ -638,6 +905,7 @@
                                         <th>Descripción</th>
                                         <th>Horas (Consumidas/Límite)</th>
                                         <th>Progreso</th>
+                                        <th>Expediente / Contratos</th>
                                         <th>Estado</th>
                                         <th>Acciones</th>
                                     </tr>
@@ -669,12 +937,13 @@
                                         <th>ID</th>
                                         <th>Nombre</th>
                                         <th>Descripción</th>
+                                        <th>Expediente / Contratos</th>
                                         <th>Estado</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="soportesTableBody">
-                                    <tr><td colspan="5" class="empty-cell"><i class="fa-solid fa-headset"></i> Cargando soportes...</td></tr>
+                                    <tr><td colspan="6" class="empty-cell"><i class="fa-solid fa-headset"></i> Cargando soportes...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -708,6 +977,33 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    <!-- SECCIÓN: MACHOTES Y PLANTILLAS DE CONTRATO (FASE 3) -->
+                    <div id="machotes-section" class="content-section">
+                        <div class="section-header">
+                            <h2 class="section-title"><i class="fa-solid fa-file-contract"></i> Repositorio de Machotes y Plantillas Oficiales</h2>
+                        </div>
+                        
+                        <div class="machotes-intro-banner">
+                            <div class="machotes-intro-text">
+                                <h3><i class="fa-solid fa-shield-halved"></i> Repositorio de Plantillas Base ARVIC</h3>
+                                <p>Descargue los formatos y machotes institucionales para formalizar la contratación con nuevos consultores o clientes. También puede cargar y actualizar los documentos definitivos una vez formalizados por su área legal para sustituir el borrador base.</p>
+                            </div>
+                            <button type="button" class="btn-machote-upload" style="white-space:nowrap;" onclick="renderMachotesSection()">
+                                <i class="fa-solid fa-arrows-rotate"></i> Actualizar Lista
+                            </button>
+                        </div>
+
+                        <div id="machotesGrid" class="machotes-grid">
+                            <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;">
+                                <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem;"></i>
+                                <p style="margin-top: 10px;">Cargando catálogo de plantillas...</p>
+                            </div>
+                        </div>
+
+                        <!-- Input oculto para carga de archivos de reemplazo de machote -->
+                        <input type="file" id="machoteFileInput" style="display: none;" onchange="handleMachoteFileSelected(event)">
                     </div>
 
                     <!-- Sección de Nueva Asignación -->
@@ -1590,28 +1886,123 @@
 
     <!-- Modal Empresa -->
     <div id="companyModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 680px;">
             <div class="modal-header">
-                <h2 class="modal-title"><i class="fa-solid fa-building"></i> Registrar Nueva Empresa</h2>
+                <h2 class="modal-title" id="companyModalTitle"><i class="fa-solid fa-building"></i> Registrar Nueva Empresa</h2>
                 <button class="close" onclick="closeModal('companyModal')">&times;</button>
             </div>
-            <div class="modal-body">
-                <form id="companyForm" class="admin-form">
-                    <div class="form-group">
-                        <label for="companyName">Nombre de la Empresa *</label>
-                        <input type="text" id="companyName" placeholder="Ej: Tecnología Avanzada SA de CV" required>
+            <div class="modal-body" style="max-height: 80vh; overflow-y: auto; padding: 20px;">
+                <form id="companyForm" class="admin-form" onsubmit="handleCreateCompany(event)">
+                    <input type="hidden" id="editCompanyId" value="">
+
+                    <!-- Sección: Datos Generales -->
+                    <div style="border-bottom: 2px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px;">
+                        <h4 style="color: #0f172a; margin: 0 0 10px 0; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-briefcase" style="color: #0284c7;"></i> Datos Generales
+                        </h4>
+                        <div class="form-group">
+                            <label for="companyName">Nombre Comercial de la Empresa *</label>
+                            <input type="text" id="companyName" placeholder="Ej: Tech Solutions México" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="companyDescription">Descripción o Alcance Comercial</label>
+                            <textarea id="companyDescription" placeholder="Breve descripción de la empresa, servicios contratados o giros" rows="2"></textarea>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="companyDescription">Descripción (opcional)</label>
-                        <textarea id="companyDescription" placeholder="Breve descripción de la empresa y sus servicios" rows="3"></textarea>
+
+                    <!-- Sección: Datos Fiscales SAT -->
+                    <div style="border-bottom: 2px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px;">
+                        <h4 style="color: #0f172a; margin: 0 0 10px 0; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-file-invoice-dollar" style="color: #0284c7;"></i> Datos Fiscales (Facturación SAT)
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label for="companyRfc">RFC de la Empresa</label>
+                                <input type="text" id="companyRfc" placeholder="Ej: TSM180512AB3" maxlength="13" style="text-transform: uppercase;">
+                            </div>
+                            <div class="form-group">
+                                <label for="companyRazonSocial">Razón Social Oficial</label>
+                                <input type="text" id="companyRazonSocial" placeholder="Ej: Tech Solutions de México S.A. de C.V.">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="companyRegimenFiscal">Régimen Fiscal</label>
+                            <input type="text" id="companyRegimenFiscal" placeholder="Ej: 601 - General de Ley Personas Morales">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
+                            <div class="form-group">
+                                <label for="companyCpFiscal">Código Postal Fiscal</label>
+                                <input type="text" id="companyCpFiscal" placeholder="5 dígitos" maxlength="5">
+                            </div>
+                            <div class="form-group">
+                                <label for="companyCalleFiscal">Calle</label>
+                                <input type="text" id="companyCalleFiscal" placeholder="Calle o avenida">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 12px;">
+                            <div class="form-group">
+                                <label for="companyNumExtFiscal">Núm. Ext.</label>
+                                <input type="text" id="companyNumExtFiscal" placeholder="Ej: 124">
+                            </div>
+                            <div class="form-group">
+                                <label for="companyNumIntFiscal">Núm. Int.</label>
+                                <input type="text" id="companyNumIntFiscal" placeholder="Ej: Piso 4">
+                            </div>
+                            <div class="form-group">
+                                <label for="companyColoniaFiscal">Colonia</label>
+                                <input type="text" id="companyColoniaFiscal" placeholder="Colonia">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label for="companyMunicipioFiscal">Municipio / Alcaldía</label>
+                                <input type="text" id="companyMunicipioFiscal" placeholder="Municipio o alcaldía">
+                            </div>
+                            <div class="form-group">
+                                <label for="companyEstadoFiscal">Estado</label>
+                                <input type="text" id="companyEstadoFiscal" placeholder="Estado">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <button type="submit" class="btn btn-primary">Registrar Empresa</button>
+
+                    <!-- Sección: Contacto Autorizado Principal -->
+                    <div style="margin-bottom: 16px;">
+                        <h4 style="color: #0f172a; margin: 0 0 10px 0; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-user-tie" style="color: #0284c7;"></i> Contacto Autorizado Principal
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label for="companyContactName">Nombre del Contacto</label>
+                                <input type="text" id="companyContactName" placeholder="Ej: Lic. Mariana Torres">
+                            </div>
+                            <div class="form-group">
+                                <label for="companyContactPosition">Puesto / Cargo</label>
+                                <input type="text" id="companyContactPosition" placeholder="Ej: Gerente de TI / PMO">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label for="companyContactEmail">Correo de Contacto</label>
+                                <input type="email" id="companyContactEmail" placeholder="mariana.torres@empresa.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="companyContactPhone">Teléfono de Contacto</label>
+                                <input type="tel" id="companyContactPhone" placeholder="Ej: 55 1234 5678">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('companyModal')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btnSaveCompany">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar Empresa
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+
 
     <!-- Modal Proyecto -->
     <div id="projectModal" class="modal">
@@ -2215,6 +2606,9 @@
                     </div>
                 </form>
             </div>
+        </div>
+    </div>
+
     <!-- Slide-over Drawer para Vista Rápida de Detalles -->
     <div id="slideDrawerOverlay" class="slide-drawer-overlay" onclick="closeSlideDrawer()"></div>
     <div id="sideDetailDrawer" class="slide-drawer">
@@ -2234,22 +2628,130 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="../js/databaseMongoDB.js?v=9"></script>
-    <script src="../js/modules/toastSystem.js?v=7"></script>
-    <script src="../js/auth.js?v=7"></script>
-    <script src="../js/utils.js?v=7"></script>
-    <script src="../js/settings-menu.js?v=8"></script>
+    <!-- MODAL EXPEDIENTE Y CONTRATOS DE PROYECTO Y SOPORTE (FASE 3) -->
+    <div id="projectExpedienteModal" class="proj-exp-modal-backdrop" style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(15, 23, 42, 0.75) !important; backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important; z-index: 99999 !important; align-items: center !important; justify-content: center !important; padding: 20px !important; box-sizing: border-box !important;">
+        <div class="proj-exp-modal-content" style="background: #ffffff !important; border-radius: 14px !important; width: 100% !important; max-width: 860px !important; max-height: 90vh !important; display: flex !important; flex-direction: column !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35) !important; overflow: hidden !important; margin: auto !important;">
+            <div class="proj-exp-modal-header" style="padding: 18px 24px !important; background: #0f172a !important; color: #ffffff !important; display: flex !important; align-items: center !important; justify-content: space-between !important;">
+                <h3 style="margin:0 !important; font-size:1.15rem !important; color:#ffffff !important; display:flex !important; align-items:center !important; gap:10px !important;"><i class="fa-solid fa-folder-open"></i> <span id="projectExpModalTitle">Expediente del Proyecto</span></h3>
+                <button type="button" class="proj-exp-modal-close" onclick="closeProjectExpedienteModal()" style="background:none !important; border:none !important; color:#94a3b8 !important; font-size:1.8rem !important; cursor:pointer !important; line-height:1 !important;">&times;</button>
+            </div>
+            <div class="proj-exp-modal-body" style="padding: 24px !important; overflow-y: auto !important; max-height: calc(90vh - 75px) !important;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700;" id="projectExpModalId">ID: —</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: #0f172a;" id="projectExpModalName">Nombre del Proyecto</div>
+                    </div>
+                    <span class="crud-status-badge active" id="projectExpModalStatus">● Proyecto Activo</span>
+                </div>
+
+                <!-- SECCIÓN DE GENERACIÓN DINÁMICA DE CONTRATOS Y FIRMAS -->
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
+                        <div>
+                            <h4 style="margin: 0; color: #0f172a; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-file-contract" style="color: #0284c7;"></i> Generación Dinámica de Contratos y Convenios
+                            </h4>
+                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: #64748b;">Descarga en 1 clic los borradores Word (.doc) con los datos del proyecto/soporte, cliente y tarifas de consultores prellenados.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn-machote-download" style="background:#dc2626; border-color:#dc2626; padding:7px 12px; font-size:0.82rem; white-space:nowrap;" onclick="downloadExpedienteSowCliente('pdf')">
+                                <i class="fa-solid fa-file-pdf"></i> SOW Cliente (PDF)
+                            </button>
+                            <button type="button" class="btn-machote-download" style="background:#0284c7; padding:7px 12px; font-size:0.82rem; white-space:nowrap;" onclick="downloadExpedienteSowCliente('doc')">
+                                <i class="fa-solid fa-file-word"></i> SOW Word (.doc)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Estado y Convenios de Consultores Asignados -->
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                            <span><i class="fa-solid fa-user-check" style="color: #10b981;"></i> Convenios Individuales de Consultores Asignados</span>
+                            <span id="projectSignaturesSummaryBadge" style="font-size: 0.75rem; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px;">Cargando firmas...</span>
+                        </div>
+                        <div id="projectConsultoresSignaturesContainer" style="max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+                            <div style="text-align: center; padding: 14px; color: #64748b; font-size: 0.85rem;">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Consultando consultores y estado de firmas...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario para adjuntar nuevo documento -->
+                <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin-bottom: 22px;">
+                    <h4 style="margin: 0 0 12px 0; color: #0f172a; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-paperclip" style="color: #0284c7;"></i> <span id="projDocAttachTitle">Adjuntar Contrato o Anexo</span>
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display:block; font-size: 0.8rem; font-weight:600; color:#334155; margin-bottom:4px;">Tipo de Documento</label>
+                            <select id="projDocType" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem;">
+                                <option value="contrato_proyecto">Contrato de Proyecto / Asignación</option>
+                                <option value="contrato_soporte">Contrato de Soporte / Bolsa de Horas</option>
+                                <option value="anexo_sow">Anexo de Alcance de Servicios (SOW)</option>
+                                <option value="especificacion_tecnica">Especificación Técnica de Requerimientos</option>
+                                <option value="nda">Acuerdo de Confidencialidad (NDA)</option>
+                                <option value="acta_entrega">Acta de Entrega / Aceptación</option>
+                                <option value="otro">Otro Documento Legal</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; font-size: 0.8rem; font-weight:600; color:#334155; margin-bottom:4px;">Título del Documento</label>
+                            <input type="text" id="projDocTitle" placeholder="Ej. Contrato de Desarrollo y Alcance v1" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem; box-sizing:border-box;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display:block; font-size: 0.8rem; font-weight:600; color:#334155; margin-bottom:4px;">Archivo (PDF, Word, Imagen)</label>
+                            <input type="file" id="projDocFile" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="width: 100%; padding: 6px; border-radius: 6px; border: 1px dashed #0284c7; font-size: 0.82rem; background: #f0f9ff; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size: 0.8rem; font-weight:600; color:#334155; margin-bottom:4px;">Fecha Vigencia (Opcional)</label>
+                            <input type="date" id="projDocValidUntil" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem; box-sizing:border-box;">
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button type="button" class="btn-machote-download" style="background:#0284c7; padding:8px 18px;" onclick="submitProjectDocUpload()">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Adjuntar Documento
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de documentos actuales -->
+                <h4 style="margin: 0 0 10px 0; font-size: 0.95rem; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-file-lines" style="color: #0284c7;"></i> Documentos Registrados en el Expediente
+                </h4>
+                <div id="projectExpDocsListContainer">
+                    <div style="text-align:center; padding: 20px; color:#64748b;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Cargando documentos...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/databaseMongoDB.js?v=36"></script>
+    <script src="../js/modules/toastSystem.js?v=35"></script>
+    <script src="../js/auth.js?v=35"></script>
+    <script src="../js/utils.js?v=35"></script>
+    <script src="../js/settings-menu.js?v=35"></script>
+    <script src="../js/csf-parser.js?v=35"></script>
+    <script src="../js/account-tabs.js?v=35"></script>
+    <script src="../js/expedientes-matrix.js?v=35"></script>
     
     <!-- Scripts Módulo de Usuarios (Cargados secuencialmente) -->
-    <script src="../js/modules/users/UserRepository.js?v=7"></script>
-    <script src="../js/modules/users/UserValidator.js?v=7"></script>
-    <script src="../js/modules/users/UserService.js?v=7"></script>
-    <script src="../js/modules/users/UserModal.js?v=7"></script>
-    <script src="../js/modules/users/index.js?v=7"></script>
-    <script src="../js/module-acronym-utils.js?v=7"></script>
+    <script src="../js/modules/users/UserRepository.js?v=36"></script>
+    <script src="../js/modules/users/UserValidator.js?v=36"></script>
+    <script src="../js/modules/users/UserService.js?v=36"></script>
+    <script src="../js/modules/users/UserModal.js?v=36"></script>
+    <script src="../js/modules/users/index.js?v=36"></script>
+    <script src="../js/module-acronym-utils.js?v=36"></script>
     
-    <script src="admin.js?v=10"></script>
+    <script src="admin.js?v=55"></script>
+    <script src="../js/modules/billingModule.js?v=51"></script>
+
+
+
     <script src="../js/supportBot.js?v=7"></script>
     <script src="../js/modules/calendarModule.js?v=7"></script>
     <script src="../js/activity-report-generator.js?v=7"></script>

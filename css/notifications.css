@@ -148,3 +148,259 @@
         max-width: none;
     }
 }
+
+/* =========================================================================
+   PANEL DE NOTIFICACIONES DESPLEGABLE (DROPDOWN UNIVERSAL)
+   ========================================================================= */
+
+.notif-panel {
+    display: none;
+    position: fixed;
+    top: 64px;
+    right: 20px;
+    width: 420px;
+    max-width: calc(100vw - 30px);
+    z-index: 99999;
+    animation: notifSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.notif-panel.active {
+    display: block;
+}
+
+@keyframes notifSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.notif-panel-content {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 100px);
+}
+
+.notif-panel-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    padding: 14px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #0284c7;
+}
+
+.notif-panel-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+}
+
+.notif-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notif-mark-all, .help-panel-close {
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: #ffffff;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.notif-mark-all:hover, .help-panel-close:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: #38bdf8;
+}
+
+.notif-panel-body {
+    overflow-y: auto;
+    max-height: 420px;
+    background: #ffffff;
+}
+
+.notif-panel-body::-webkit-scrollbar {
+    width: 5px;
+}
+.notif-panel-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+.notif-panel-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.notif-item {
+    display: flex;
+    gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    position: relative;
+}
+
+.notif-item:hover {
+    background: #f8fafc;
+}
+
+.notif-item.unread {
+    background: #eff6ff;
+    border-left: 3px solid #0284c7;
+}
+
+.notif-item.unread:hover {
+    background: #e0f2fe;
+}
+
+.notif-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.95rem;
+}
+
+.notif-icon.type-report_created { background: #dbeafe; color: #2563eb; }
+.notif-icon.type-report_approved { background: #dcfce7; color: #16a34a; }
+.notif-icon.type-report_rejected { background: #fee2e2; color: #dc2626; }
+.notif-icon.type-report_resubmitted { background: #fef3c7; color: #d97706; }
+.notif-icon.type-assignment_new { background: #ede9fe; color: #7c3aed; }
+.notif-icon.type-contract_assigned { background: #e0e7ff; color: #4338ca; }
+.notif-icon.type-contract_signed { background: #dcfce7; color: #15803d; }
+.notif-icon.type-user_registered { background: #e0f2fe; color: #0284c7; }
+.notif-icon.type-system { background: #f1f5f9; color: #64748b; }
+
+.notif-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 3px;
+    line-height: 1.35;
+}
+
+.notif-message {
+    font-size: 0.79rem;
+    color: #64748b;
+    line-height: 1.45;
+    white-space: normal;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    transition: all 0.25s ease;
+}
+
+.notif-item:hover .notif-message {
+    -webkit-line-clamp: 8;
+    display: block;
+    overflow: visible;
+}
+
+.notif-time {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.notif-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #94a3b8;
+}
+
+.notif-empty i {
+    font-size: 2rem;
+    margin-bottom: 8px;
+    opacity: 0.6;
+}
+
+.notif-empty p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+/* Modo oscuro para el panel */
+body.dark-mode .notif-panel-content, [data-theme="dark"] .notif-panel-content {
+    background: #111c38 !important;
+    border: 1px solid #1e294b !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px #1e294b;
+}
+
+body.dark-mode .notif-panel-header, [data-theme="dark"] .notif-panel-header {
+    background: #080d1a !important;
+    border-bottom: 1px solid #1e294b !important;
+}
+
+body.dark-mode .notif-panel-body, [data-theme="dark"] .notif-panel-body {
+    background: #111c38 !important;
+}
+
+body.dark-mode .notif-item, [data-theme="dark"] .notif-item {
+    border-bottom-color: #1e294b !important;
+}
+
+body.dark-mode .notif-item:hover, [data-theme="dark"] .notif-item:hover {
+    background: #1e294b !important;
+}
+
+body.dark-mode .notif-item.unread, [data-theme="dark"] .notif-item.unread {
+    background: rgba(2, 132, 199, 0.18) !important;
+    border-left-color: #38bdf8 !important;
+}
+
+body.dark-mode .notif-item.unread:hover, [data-theme="dark"] .notif-item.unread:hover {
+    background: rgba(2, 132, 199, 0.28) !important;
+}
+
+body.dark-mode .notif-title, [data-theme="dark"] .notif-title {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .notif-message, [data-theme="dark"] .notif-message {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .notif-time, [data-theme="dark"] .notif-time {
+    color: #64748b !important;
+}
+
+body.dark-mode .notif-empty, [data-theme="dark"] .notif-empty {
+    color: #94a3b8 !important;
+}
+
+

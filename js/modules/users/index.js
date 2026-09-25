@@ -50,8 +50,31 @@ window.initializeUserModule = function(database, notifier) {
     // 5. Crear API pública del módulo
     const publicAPI = {
         // Métodos principales para usar en admin.js
+        createUser: (defaultData) => userModal.openCreate(defaultData),
+
+        closeCreateModal: () => userModal.closeCreateModal(),
+        toggleManualPassword: (checked) => userModal.toggleManualPassword(checked),
+        generateCreatePassword: () => userModal.generateCreatePassword(),
+        handleCreateSubmit: (e) => userModal.handleCreateSubmit(e),
+        handleRoleChange: (role) => userModal.handleRoleChange(role),
+        handleEditRoleChange: (role) => userModal.handleEditRoleChange(role),
         editUser: (userId) => userModal.openEdit(userId),
         closeEditModal: () => userModal.closeEditModal(),
+
+        // Reenviar correo de activación
+        resendActivation: async (userId) => {
+            try {
+                notifier.info('Reenviando correo de activación...');
+                const res = await window.PortalDB.resendActivationEmail(userId);
+                if (res.success) {
+                    notifier.success(res.message || 'Correo de activación reenviado correctamente');
+                } else {
+                    notifier.error(res.message || 'Error al reenviar activación');
+                }
+            } catch (err) {
+                notifier.error(err.message || 'Error al reenviar activación');
+            }
+        },
         
         // Método para eliminar usuario (llamará a service)
         deleteUser: async (userId) => {

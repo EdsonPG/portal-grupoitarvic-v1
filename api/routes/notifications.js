@@ -51,8 +51,8 @@ router.post('/', async (req, res) => {
     const notifData = req.body;
 
     if (!isAdmin(req)) {
-      const allowedConsultorTypes = ['report_created', 'report_resubmitted'];
-      if (notifData.userId !== 'admin' || !allowedConsultorTypes.includes(notifData.type)) {
+      const allowedClientConsultorTypes = ['report_created', 'report_resubmitted', 'contract_signed'];
+      if (notifData.userId !== 'admin' || !allowedClientConsultorTypes.includes(notifData.type)) {
         return res.status(403).json({ success: false, message: 'No tienes permisos para crear esta notificación' });
       }
     }

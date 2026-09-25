@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Report = require('../models/Report');
+const User = require('../models/User');
+const { createAndEmitNotification, notifyAdmins, notifyCompanyClients } = require('../utils/notificationService');
+const { sendReportStatusEmail } = require('../utils/mailer');
 const ADMIN_STATUSES = ['Aprobado', 'Rechazado'];
 const CONSULTOR_EDITABLE_STATUSES = ['Borrador', 'Pendiente', 'Resubmitted'];
 
@@ -8,7 +11,14 @@ function isAdmin(req) {
   return req.user?.role === 'admin';
 }
 
+function isCliente(req) {
+  return req.user?.role === 'cliente';
+}
+
 function ownsReport(req, report) {
+  if (isCliente(req)) {
+    return report?.companyId === req.user?.companyId;
+  }
   return report?.userId === req.user?.userId;
 }
 
@@ -41,17 +51,34 @@ async function findScopedReport(req, reportId) {
 // GET todos los reportes
 router.get('/', async (req, res) => {
   try {
-    const query = isAdmin(req)
-      ? applyReportFilters(req, {}, { allowUserFilter: true })
-      : applyReportFilters(req, { userId: req.user.userId });
+    let query;
+    if (isAdmin(req)) {
+      query = applyReportFilters(req, {}, { allowUserFilter: true });
+    } else if (isCliente(req)) {
+      query = applyReportFilters(req, { companyId: req.user.companyId, status: { $ne: 'Borrador' } });
+    } else {
+      query = applyReportFilters(req, { userId: req.user.userId });
+    }
 
     const reports = await Report.find(query).sort({ date: -1 });
+
+    if (isCliente(req)) {
+      // Regla de privacidad: Ocultar ID de consultores para proteger privacidad interna
+      const sanitized = reports.map(r => {
+        const doc = r.toObject();
+        delete doc.userId;
+        return doc;
+      });
+      return res.json({ success: true, data: sanitized });
+    }
+
     res.json({ success: true, data: reports });
   } catch (error) {
     console.error('❌ Error obteniendo reportes:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // GET reporte por ID
 router.get('/:id', async (req, res) => {
@@ -99,6 +126,10 @@ router.get('/company/:companyId', async (req, res) => {
 
 // POST crear reporte
 router.post('/', async (req, res) => {
+  if (isCliente(req)) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Los clientes tienen acceso de solo lectura' });
+  }
+
   try {
     const reportData = req.body;
 
@@ -132,6 +163,68 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Prevención de duplicidad de reportes (Doble clic o duplicado idéntico)
+    if (reportData.date && reportData.hours) {
+      const targetDate = new Date(reportData.date);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // 1. Detectar doble clic inmediato (mismo usuario, asignación y horas en los últimos 6 segundos)
+      const sixSecondsAgo = new Date(Date.now() - 6000);
+      const recentSubmission = await Report.findOne({
+        userId: reportData.userId,
+        assignmentId: reportData.assignmentId,
+        hours: Number(reportData.hours),
+        createdAt: { $gte: sixSecondsAgo }
+      });
+
+      if (recentSubmission) {
+        return res.status(409).json({
+          success: false,
+          message: 'Solicitud duplicada detectada. Tu reporte ya fue registrado exitosamente hace un instante.',
+          reportId: recentSubmission.reportId
+        });
+      }
+
+      // 2. Detectar reporte idéntico preexistente en la misma fecha (no rechazado)
+      const duplicateFilter = {
+        userId: reportData.userId,
+        assignmentId: reportData.assignmentId,
+        date: { $gte: startOfDay, $lte: endOfDay },
+        hours: Number(reportData.hours),
+        status: { $ne: 'Rechazado' }
+      };
+
+      if (reportData.description && reportData.description.trim()) {
+        duplicateFilter.description = reportData.description.trim();
+      }
+
+      const duplicateReport = await Report.findOne(duplicateFilter);
+      if (duplicateReport) {
+        return res.status(409).json({
+          success: false,
+          message: `Ya existe un reporte registrado de ${reportData.hours}h para esta asignación en la fecha indicada. Si necesitas ajustar las horas, puedes editar el reporte existente.`,
+          reportId: duplicateReport.reportId
+        });
+      }
+
+      // 3. Validar límite físico de 24 horas diarias por consultor
+      const dayReports = await Report.find({
+        userId: reportData.userId,
+        date: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'Rechazado' }
+      });
+      const totalDayHours = dayReports.reduce((sum, r) => sum + (Number(r.hours) || 0), 0);
+      if (totalDayHours + Number(reportData.hours) > 24) {
+        return res.status(400).json({
+          success: false,
+          message: `El total de horas acumuladas para esta fecha (${totalDayHours}h registradas + ${reportData.hours}h nuevas = ${totalDayHours + Number(reportData.hours)}h) excede el límite máximo de 24 horas diarias.`
+        });
+      }
+    }
+
     const report = new Report(reportData);
     await report.save();
 
@@ -151,6 +244,37 @@ router.post('/', async (req, res) => {
     } catch (sseErr) {
       console.error('Error sending SSE for create report:', sseErr);
     }
+
+    // Disparar notificaciones in-app
+    (async () => {
+      try {
+        if (report.status !== 'Borrador') {
+          const creator = await User.findOne({ userId: report.userId }, 'name');
+          const creatorName = creator?.name || report.userId;
+          const serviceName = report.title || 'Servicio/Proyecto';
+
+          await notifyAdmins({
+            type: 'report_created',
+            title: 'Nuevo reporte de horas',
+            message: `${creatorName} registró ${report.hours}h en "${serviceName}" para revisión.`,
+            relatedId: report.reportId,
+            actionUrl: 'reportes'
+          });
+
+          if (report.companyId) {
+            await notifyCompanyClients(report.companyId, {
+              type: 'report_created',
+              title: 'Nuevas horas reportadas',
+              message: `Se han registrado ${report.hours}h de servicio en "${serviceName}" para validación.`,
+              relatedId: report.reportId,
+              actionUrl: 'horas'
+            });
+          }
+        }
+      } catch (notifErr) {
+        console.error('Error disparando notificaciones al crear reporte:', notifErr.message);
+      }
+    })();
 
     res.status(201).json({ 
       success: true, 
@@ -184,6 +308,16 @@ router.put('/mass-update', async (req, res) => {
 
     console.log(`📝 Actualización masiva de reportes. IDs: ${reportIds.length}, Estado: ${status}`);
 
+    const affectedReports = await Report.find({ reportId: { $in: reportIds } });
+
+    const lockedReports = affectedReports.filter(r => r.periodLocked || r.billingStatus === 'Cerrado');
+    if (lockedReports.length > 0) {
+      return res.status(403).json({
+        success: false,
+        message: `No se pueden modificar ${lockedReports.length} reporte(s) porque pertenecen a periodos cerrados y congelados.`
+      });
+    }
+
     const updateData = {
       status,
       updatedAt: new Date()
@@ -214,6 +348,53 @@ router.put('/mass-update', async (req, res) => {
       console.error('Error sending SSE for mass update:', sseErr);
     }
 
+    // Disparar notificaciones y correos a consultores afectados
+    (async () => {
+      try {
+        if (!affectedReports.length) return;
+
+        const userGroups = {};
+        affectedReports.forEach(r => {
+          if (!userGroups[r.userId]) {
+            userGroups[r.userId] = { hours: 0, count: 0 };
+          }
+          userGroups[r.userId].hours += (r.hours || 0);
+          userGroups[r.userId].count += 1;
+        });
+
+        for (const [uId, group] of Object.entries(userGroups)) {
+          const userDoc = await User.findOne({ userId: uId }, 'name email');
+          const uName = userDoc?.name || uId;
+          const uEmail = userDoc?.email;
+
+          const notifType = status === 'Aprobado' ? 'report_approved' : status === 'Rechazado' ? 'report_rejected' : 'system';
+          const notifTitle = status === 'Aprobado' ? 'Horas Aprobadas' : 'Reporte con Observaciones';
+          const notifMsg = `Se han ${status.toLowerCase()} ${group.hours} hora(s) correspondientes a ${group.count} reporte(s).`;
+
+          await createAndEmitNotification({
+            userId: uId,
+            type: notifType,
+            title: notifTitle,
+            message: notifMsg,
+            actionUrl: 'horas'
+          });
+
+          if (uEmail && (status === 'Aprobado' || status === 'Rechazado')) {
+            await sendReportStatusEmail({
+              toEmail: uEmail,
+              userName: uName,
+              status,
+              hours: group.hours,
+              projectName: `${group.count} reporte(s) evaluados`,
+              feedback: null
+            });
+          }
+        }
+      } catch (errMassNotif) {
+        console.error('Error enviando notificaciones en mass-update:', errMassNotif.message);
+      }
+    })();
+
     res.json({
       success: true,
       message: `${result.modifiedCount} reportes actualizados exitosamente`,
@@ -230,10 +411,21 @@ router.put('/mass-update', async (req, res) => {
 
 // PUT actualizar reporte
 router.put('/:id', async (req, res) => {
+  if (isCliente(req)) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Los clientes tienen acceso de solo lectura' });
+  }
+
   try {
     const existingReport = await findScopedReport(req, req.params.id);
     if (!existingReport) {
       return res.status(404).json({ success: false, message: 'Reporte no encontrado' });
+    }
+
+    if (existingReport.periodLocked || existingReport.billingStatus === 'Cerrado') {
+      return res.status(403).json({
+        success: false,
+        message: 'No es posible modificar este reporte porque pertenece a un periodo de facturación cerrado y congelado.'
+      });
     }
 
     const updates = { ...req.body };
@@ -283,6 +475,60 @@ router.put('/:id', async (req, res) => {
       console.error('Error sending SSE for update report:', sseErr);
     }
 
+    // Disparar notificaciones y correos según cambio de estado
+    (async () => {
+      try {
+        const previousStatus = existingReport.status;
+        const newStatus = report.status;
+
+        if (previousStatus !== newStatus) {
+          const userDoc = await User.findOne({ userId: report.userId }, 'name email');
+          const uName = userDoc?.name || report.userId;
+          const uEmail = userDoc?.email;
+          const serviceName = report.title || 'Servicio';
+
+          if (newStatus === 'Aprobado' || newStatus === 'Rechazado') {
+            const notifType = newStatus === 'Aprobado' ? 'report_approved' : 'report_rejected';
+            const notifTitle = newStatus === 'Aprobado' ? 'Horas Aprobadas' : 'Reporte con Observaciones';
+            const notifMsg = newStatus === 'Aprobado'
+              ? `Tu reporte de ${report.hours}h en "${serviceName}" ha sido aprobado.`
+              : `Tu reporte de ${report.hours}h en "${serviceName}" fue rechazado. Motivo: ${report.feedback || 'Sin observaciones especificadas.'}`;
+
+            await createAndEmitNotification({
+              userId: report.userId,
+              type: notifType,
+              title: notifTitle,
+              message: notifMsg,
+              relatedId: report.reportId,
+              actionUrl: 'horas'
+            });
+
+            if (uEmail) {
+              await sendReportStatusEmail({
+                toEmail: uEmail,
+                userName: uName,
+                status: newStatus,
+                hours: report.hours,
+                projectName: serviceName,
+                feedback: report.feedback,
+                date: report.date
+              });
+            }
+          } else if (newStatus === 'Resubmitted') {
+            await notifyAdmins({
+              type: 'report_resubmitted',
+              title: 'Reporte Reenviado',
+              message: `${uName} reenvió su reporte de ${report.hours}h en "${serviceName}" para revisión.`,
+              relatedId: report.reportId,
+              actionUrl: 'reportes'
+            });
+          }
+        }
+      } catch (notifSingleErr) {
+        console.error('Error disparando notificación en PUT /:id:', notifSingleErr.message);
+      }
+    })();
+
     res.json({ 
       success: true, 
       message: 'Reporte actualizado exitosamente',
@@ -299,12 +545,23 @@ router.put('/:id', async (req, res) => {
 
 // DELETE eliminar reporte
 router.delete('/:id', async (req, res) => {
+  if (isCliente(req)) {
+    return res.status(403).json({ success: false, message: 'Acceso denegado: Los clientes tienen acceso de solo lectura' });
+  }
+
   try {
     console.log('🗑️ Eliminando reporte:', req.params.id);
     
     const existingReport = await findScopedReport(req, req.params.id);
     if (!existingReport) {
       return res.status(404).json({ success: false, message: 'Reporte no encontrado' });
+    }
+
+    if (existingReport.periodLocked || existingReport.billingStatus === 'Cerrado') {
+      return res.status(403).json({
+        success: false,
+        message: 'No es posible eliminar este reporte porque pertenece a un periodo de facturación cerrado y congelado.'
+      });
     }
 
     if (!isAdmin(req) && existingReport.status === 'Aprobado') {
