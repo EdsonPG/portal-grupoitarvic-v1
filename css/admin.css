@@ -68,6 +68,14 @@ body {
     overflow: hidden;
 }
 
+/* Reglas base desktop: elementos móviles ocultos por defecto */
+.sidebar-mobile-header {
+    display: none !important;
+}
+.mobile-menu-toggle {
+    display: none !important;
+}
+
 /* Layout principal del administrador */
 .admin-layout {
     background: var(--gray-50);
@@ -1583,31 +1591,7 @@ body {
         font-size: 0.8rem;
     }
     
-    /* Header responsive */
-    .admin-header .navbar {
-        flex-wrap: wrap;
-        height: auto;
-        padding: var(--spacing-md) var(--spacing-lg);
-        gap: var(--spacing-md);
-    }
-
-    .nav-actions {
-        gap: 0;
-        margin-left: auto;
-    }
-
-    .nav-action-btn {
-        padding: 6px 10px;
-        min-width: 52px;
-    }
-
-    .nav-action-btn span {
-        font-size: 0.55rem;
-    }
-
-    .user-details .user-role {
-        display: none;
-    }
+    /* Header responsive manejado en seccion unificada */
 }
 
 @media (max-width: 480px) {
@@ -4657,22 +4641,7 @@ body.dark-mode .item div[style*="background"] {
         overflow-y: visible !important;
         padding: var(--spacing-sm);
     }
-    .admin-header .navbar {
-        height: auto;
-        padding: 10px;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    .nav-actions {
-        width: 100%;
-        justify-content: center;
-        margin-top: 10px;
-    }
-    .user-info {
-        margin-top: 10px;
-        width: 100%;
-        justify-content: center;
-    }
+    /* Legacy navbar overrides neutralizados */
 }
 
 /* ==========================================
@@ -8063,36 +8032,7 @@ body.dark-mode .sidebar-overlay {
         overflow: auto !important;
     }
 
-    /* Header Compacto de Una Sola Línea */
-    .admin-header .navbar {
-        flex-wrap: nowrap !important;
-        height: 80px !important;
-        padding: 0 16px !important;
-        gap: 12px !important;
-    }
-
-    .mobile-menu-toggle {
-        margin-right: 0 !important;
-    }
-
-    /* Ocultar textos de los botones en el Header */
-    .nav-action-btn span {
-        display: none !important;
-    }
-
-    .nav-action-btn {
-        min-width: auto !important;
-        padding: 8px 10px !important;
-    }
-
-    /* Ocultar nombre del usuario en header */
-    .user-info .user-name {
-        display: none !important;
-    }
-
-    .user-info {
-        padding: 4px !important;
-    }
+    /* Header compacto manejado en seccion unificada */
     
     .stats-grid {
         grid-template-columns: 1fr !important; /* Tarjetas en una sola columna en móviles pequeños */
@@ -8264,17 +8204,7 @@ body.dark-mode .help-info-value {
    ========================================================================== */
 
 /* Reglas específicas para pantallas medianas y cabeceras compactas */
-@media (max-width: 900px) {
-    /* Ocultar textos de los botones en el Header */
-    .admin-header .nav-action-btn span {
-        display: none !important;
-    }
-
-    .admin-header .nav-action-btn {
-        min-width: auto !important;
-        padding: 8px 12px !important;
-    }
-}
+/* Legacy 900px overrides neutralizados */
 
 /* Reglas específicas para Móviles */
 @media (max-width: 768px) {
@@ -8615,19 +8545,24 @@ body.dark-mode .hub-tab-btn.active {
     }
 
     .admin-logo-svg {
-        height: 32px !important;
+        height: 26px !important;
+        max-width: 96px !important;
         width: auto !important;
+        object-fit: contain !important;
     }
 
     .mobile-menu-toggle {
-        display: flex !important;
+        display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
         background: transparent !important;
         border: none !important;
         color: white !important;
-        font-size: 1.35rem !important;
-        padding: 6px !important;
+        font-size: 1.25rem !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        padding: 0 !important;
         cursor: pointer !important;
         border-radius: 6px !important;
         margin-right: 4px !important;
@@ -8645,12 +8580,15 @@ body.dark-mode .hub-tab-btn.active {
     }
 
     .nav-action-btn {
-        min-width: auto !important;
-        padding: 6px 8px !important;
-        display: flex !important;
+        min-width: 32px !important;
+        width: 32px !important;
+        height: 32px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
         border-radius: 6px !important;
+        background: rgba(255, 255, 255, 0.08) !important;
     }
 
     .nav-action-btn span {
@@ -8658,11 +8596,12 @@ body.dark-mode .hub-tab-btn.active {
     }
 
     .nav-action-btn i {
-        font-size: 1.15rem !important;
+        font-size: 0.95rem !important;
+        color: #f1f5f9 !important;
     }
 
     .user-info {
-        padding: 4px !important;
+        padding: 0 0 0 2px !important;
         display: flex !important;
         align-items: center !important;
     }
